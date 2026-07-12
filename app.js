@@ -9,6 +9,29 @@ const baseObservations = {
     { id: 5, time: '11:30', date: 'Today', title: 'Play session', text: 'Gentle play with Billie in the garden. Responded well to breaks and name cues.', tags: ['Social', 'Training'] }
   ]
 };
+const frenchExtras = {
+  'Billie and Charlie are both checked in. Capture the little moments now and their owner stories will write themselves.':'Billie et Charlie sont bien arrivés. Notez les petits moments : leurs récits pour propriétaires se construiront naturellement.',
+  'Live care context, always close by':'Le contexte de soin, toujours à portée de main',
+  'Your newest structured observation':'Votre dernière observation structurée',
+  '3 of 5 moments complete':'3 moments sur 5 terminés',
+  'Day care until 17:30':'Garde de jour jusqu’à 17 h 30','Day care until 18:00':'Garde de jour jusqu’à 18 h',
+  'Both dogs':'Les deux chiens','Prepare daily recaps':'Préparer les récits quotidiens',
+  'Revenue booked':'Chiffre d’affaires réservé','Capacity filled':'Capacité remplie','Healthy momentum':'Belle dynamique',
+  'You’re €340 ahead of this point last month.':'Vous avez 340 € d’avance sur la même période le mois dernier.',
+  'Everything that helps Billie feel understood.':'Tout ce qui aide Billie à se sentir compris.',
+  'Everything that helps Charlie feel understood.':'Tout ce qui aide Charlie à se sentir compris.',
+  'Checked in':'Arrivé','Consent on file':'Accord enregistré','Quick reference for every handover':'Repère rapide pour chaque relais',
+  'Write naturally. DogCare Brain will organise the useful details.':'Écrivez naturellement. DogCare Brain organisera les détails utiles.',
+  'Start typing to see structured care tags':'Commencez à écrire pour voir les étiquettes structurées',
+  'AI structuring preview · This local demo uses on-device rules and sends no data anywhere.':'Aperçu de structuration IA · Cette démo locale n’envoie aucune donnée.',
+  'Owner-ready, not auto-sent':'Prêt pour le propriétaire, jamais envoyé automatiquement',
+  'Review this draft before sharing. In a future connected version, you could send it through WhatsApp or add it to an Instagram story.':'Relisez ce brouillon avant partage. Une future version connectée pourra préparer WhatsApp ou Instagram.',
+  'Preview WhatsApp message':'Prévisualiser le message WhatsApp','Draft preview only · no message will be sent':'Brouillon uniquement · aucun message ne sera envoyé',
+  '11 bookings · 76% of this week’s care capacity':'11 réservations · 76 % de la capacité de soin cette semaine','＋ New booking':'＋ Nouvelle réservation',
+  'Upcoming handovers':'Prochains départs','Everything owners need before the doorbell rings':'Tout ce dont les propriétaires ont besoin avant la sonnette',
+  'A small business, clearly seen':'Une petite entreprise, clairement pilotée','REVENUE BOOKED':'CA RÉSERVÉ','NET AFTER EXPENSES':'NET APRÈS FRAIS','CARE HOURS':'HEURES DE SOIN','REPEAT OWNERS':'PROPRIÉTAIRES FIDÈLES',
+  'Revenue rhythm':'Rythme du chiffre d’affaires','Last 7 months · demo data':'7 derniers mois · données de démonstration','Recent expenses':'Dépenses récentes','＋ Add':'＋ Ajouter'
+};
 
 const dogs = {
   billie: { name: 'Billie Blue', emoji: '🐕‍🦺', age: 'Profile to complete', breed: 'Breed to confirm', owner: 'Arnaud Chrétien', last: '10:10 woodland walk', health: 'Radiograph recorded at Clinique Artémis. Add current care instructions.', behaviour: 'Add routine, triggers and favourite rewards.', vet: 'Clinique Artémis · Vet.Avenir (verify current contact)', colour: '' },
@@ -22,6 +45,7 @@ const translations = {
   el: {Today:'Σήμερα',Dogs:'Σκύλοι',Capture:'Καταγραφή',Gallery:'Συλλογή','Daily story':'Ιστορία ημέρας',Schedule:'Πρόγραμμα',Business:'Επιχείρηση',Settings:'Ρυθμίσεις','All systems calm':'Όλα είναι ήρεμα','Capture update':'Νέα σημείωση','Good morning, Adine-Sophie':'Καλημέρα, Adine-Sophie','TODAY AT A GLANCE':'ΗΜΕΡΗΣΙΑ ΕΠΙΣΚΟΠΗΣΗ','Two happy dogs, one beautifully organised day.':'Δύο χαρούμενα σκυλιά, μια οργανωμένη ημέρα.','Add a care moment →':'Προσθήκη στιγμής φροντίδας →','Your dogs today':'Τα σκυλιά σας σήμερα','View profiles':'Προβολή προφίλ','Latest from the care log':'Τελευταία καταγραφή φροντίδας','Today’s rhythm':'Ο ρυθμός της ημέρας','Business snapshot':'Σύνοψη επιχείρησης','RAPID CAPTURE':'ΓΡΗΓΟΡΗ ΚΑΤΑΓΡΑΦΗ','Capture the moment':'Καταγράψτε τη στιγμή','What just happened?':'Τι συνέβη μόλις τώρα;','Who is this about?':'Για ποιον είναι;','Care update':'Ενημέρωση φροντίδας','Detected details':'Εντοπισμένες λεπτομέρειες','DOG PROFILE':'ΠΡΟΦΙΛ ΣΚΥΛΟΥ','Care record':'Αρχείο φροντίδας','Care timeline':'Χρονολόγιο φροντίδας','Care context':'Πλαίσιο φροντίδας','OWNER UPDATE · DRAFT':'ΕΝΗΜΕΡΩΣΗ ΙΔΙΟΚΤΗΤΗ · ΠΡΟΣΧΕΔΙΟ','A lovely day, ready to share':'Μια όμορφη ημέρα, έτοιμη για κοινοποίηση','Bookings overview':'Επισκόπηση κρατήσεων','BUSINESS · JULY':'ΕΠΙΧΕΙΡΗΣΗ · ΙΟΥΛΙΟΣ'},
   es: {Today:'Hoy',Dogs:'Perros',Capture:'Registrar',Gallery:'Galería','Daily story':'Historia del día',Schedule:'Agenda',Business:'Negocio',Settings:'Ajustes','All systems calm':'Todo está en calma','Capture update':'Añadir nota','Good morning, Adine-Sophie':'Buenos días, Adine-Sophie','TODAY AT A GLANCE':'RESUMEN DE HOY','Two happy dogs, one beautifully organised day.':'Dos perros felices, un día perfectamente organizado.','Add a care moment →':'Añadir un momento de cuidado →','Your dogs today':'Tus perros hoy','View profiles':'Ver perfiles','Latest from the care log':'Última nota de cuidado','Today’s rhythm':'El ritmo de hoy','Business snapshot':'Resumen del negocio','RAPID CAPTURE':'REGISTRO RÁPIDO','Capture the moment':'Registra el momento','What just happened?':'¿Qué acaba de pasar?','Who is this about?':'¿De quién se trata?','Care update':'Actualización de cuidado','Detected details':'Detalles detectados','DOG PROFILE':'PERFIL DEL PERRO','Care record':'Ficha de cuidado','Care timeline':'Historial de cuidado','Care context':'Contexto de cuidado','OWNER UPDATE · DRAFT':'ACTUALIZACIÓN PARA EL DUEÑO · BORRADOR','A lovely day, ready to share':'Un bonito día, listo para compartir','Bookings overview':'Resumen de reservas','BUSINESS · JULY':'NEGOCIO · JULIO'}
 };
+Object.assign(translations.fr, frenchExtras);
 let state = { page: 'dashboard', dog: 'billie', language: localStorage.getItem('dogcare-language') || 'en', observations: loadObservations() };
 const content = document.querySelector('#app-content');
 const title = document.querySelector('#page-title');
