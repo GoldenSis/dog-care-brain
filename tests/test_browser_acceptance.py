@@ -25,11 +25,17 @@ class BrowserAcceptanceTest(unittest.IsolatedAsyncioTestCase):
     def tearDownClass(cls):
         cls.server.shutdown()
         cls.server.server_close()
+        cls.thread.join(timeout=2)
 
     async def asyncSetUp(self):
         self.playwright = await async_playwright().start()
+        self.addAsyncCleanup(self.playwright.stop)
         self.browser = await self.playwright.chromium.launch(headless=True)
+        self.addAsyncCleanup(self.browser.close)
         self.page = await self.browser.new_page(viewport={"width": 390, "height": 844})
+        self.console_errors = []
+        self.page.on("console", lambda message: self.console_errors.append(message.text) if message.type == "error" else None)
+        self.page.on("pageerror", lambda error: self.console_errors.append(str(error)))
         await self.page.add_init_script("""
             class TestSpeechRecognition {
               constructor() { window.testRecognition = this; }
@@ -47,10 +53,6 @@ class BrowserAcceptanceTest(unittest.IsolatedAsyncioTestCase):
         await self.page.evaluate("localStorage.removeItem('dogcare-observations')")
         await self.page.reload()
 
-    async def asyncTearDown(self):
-        await self.browser.close()
-        await self.playwright.stop()
-
     async def test_voice_note_appears_live_then_edits_and_saves_to_timeline(self):
         await self.page.click('.topbar [data-go="capture"]')
         await self.page.click("#voice-note")
@@ -64,6 +66,7 @@ class BrowserAcceptanceTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(await self.page.locator("h1").text_content(), "Billie Blue")
         self.assertEqual(await self.page.locator(".timeline-card p").first.text_content(), "Billie drank water after her walk.")
+        self.assertEqual(self.console_errors, [])
 
     async def test_mobile_handoff_has_no_horizontal_overflow(self):
         await self.page.click("#mobile-menu")
@@ -71,3 +74,7 @@ class BrowserAcceptanceTest(unittest.IsolatedAsyncioTestCase):
         dimensions = await self.page.evaluate("({ viewport: innerWidth, content: document.documentElement.scrollWidth })")
         self.assertLessEqual(dimensions["content"], dimensions["viewport"])
         self.assertEqual(await self.page.locator("h1").text_content(), "Billie Blue · Next carer")
+        await self.page.locator("[data-evidence-id]").first.click()
+        self.assertEqual(await self.page.locator("h1").text_content(), "Billie Blue")
+        self.assertGreater(await self.page.locator('[id^="observation-"]').count(), 0)
+        self.assertEqual(self.console_errors, [])

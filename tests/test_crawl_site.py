@@ -2,6 +2,7 @@ import argparse
 import tempfile
 import threading
 import unittest
+import urllib.error
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -86,7 +87,7 @@ class CrawlSiteTest(unittest.TestCase):
         for thread in threads:
             thread.start()
         try:
-            with self.assertRaises(Exception):
+            with self.assertRaisesRegex(urllib.error.HTTPError, "Cross-origin redirect refused"):
                 read_url(f"http://127.0.0.1:{redirect.server_port}/robots.txt")
             self.assertEqual(target_hits, [])
         finally:

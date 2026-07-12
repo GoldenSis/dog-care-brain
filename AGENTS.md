@@ -6,5 +6,5 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 - The browser app has no build step. Serve the repository root and test the public UI through browser-visible behavior.
 - Critical journeys are capture → editable text → timeline, voice dictation → stop/edit → timeline, and daily handoff → evidence source.
 - UI changes require a mobile viewport check, no horizontal overflow, and browser-console inspection. Run `python3.12 -m unittest tests.test_browser_acceptance -v` when the optional crawler environment is installed.
-- Treat microphone/privacy wording, non-diagnostic health language, stored observation compatibility, external crawling boundaries, authentication, payments, and destructive actions as high-risk. These require human review even when automated checks pass.
+- Risk tiers determine the minimum gate: low (docs/copy only) requires syntax/unit checks; medium (UI, capture, storage, crawler behavior) requires the full relevant suite and browser evidence; high (microphone/privacy wording, non-diagnostic health language, stored-data compatibility, crawl boundaries, authentication, payments, or destructive actions) requires the full suite, independent review, and explicit human approval before external release.
 - Generated crawl corpora belong outside the repository unless explicitly reviewed and approved for inclusion.
