@@ -723,6 +723,14 @@ const translations = {
     'Saved for this session, but browser storage is full':'Guardado para esta sesión, pero el almacenamiento del navegador está lleno'
   }
 };
+// Voice (mic + speech-to-text) needs a real http(s)/localhost origin. NOTE: file:// reports
+// isSecureContext=true yet its origin is rejected by the mic/speech service — so guard it explicitly.
+const VOICE_NEEDS_HTTP = 'Voice features need the app opened over http://localhost — a file:// path blocks the microphone. See the README.';
+Object.assign(translations.fr, { [VOICE_NEEDS_HTTP]: 'Les fonctions vocales nécessitent d’ouvrir l’app via http://localhost — un chemin file:// bloque le microphone. Voir le README.' });
+Object.assign(translations.it, { [VOICE_NEEDS_HTTP]: 'Le funzioni vocali richiedono di aprire l’app su http://localhost — un percorso file:// blocca il microfono. Vedi il README.' });
+Object.assign(translations.de, { [VOICE_NEEDS_HTTP]: 'Die Sprachfunktionen benötigen die App über http://localhost — ein file://-Pfad blockiert das Mikrofon. Siehe README.' });
+Object.assign(translations.es, { [VOICE_NEEDS_HTTP]: 'Las funciones de voz necesitan abrir la app en http://localhost — una ruta file:// bloquea el micrófono. Consulta el README.' });
+
 let state = { page: 'dashboard', dog: 'billie', language: localStorage.getItem('dogcare-language') || 'en', observations: loadObservations(), invites: loadInvites() };
 let audioDraft = null;
 let activeRecorder = null;
@@ -851,6 +859,7 @@ function stopActiveRecording() {
 }
 async function startAudioRecording() {
   const status=document.querySelector('#recording-status'), recordButton=document.querySelector('#record-audio'), stopButton=document.querySelector('#stop-audio'), duration=document.querySelector('#recording-duration');
+  if(location.protocol==='file:'){ status.textContent=t(VOICE_NEEDS_HTTP); recordButton.disabled=true; return; }
   if(recordingPending || activeRecorder?.state==='recording') return;
   if(!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder){ status.textContent=t('Voice recording is not available in this browser. You can still type and save the care update.'); recordButton.disabled=true; return; }
   recordingPending=true;
@@ -886,6 +895,7 @@ function stopTranscription() {
 function startTranscription() {
   const Recognition=window.SpeechRecognition || window.webkitSpeechRecognition;
   const input=document.querySelector('#observation'), status=document.querySelector('#transcription-status');
+  if(location.protocol==='file:'){ status.textContent=t(VOICE_NEEDS_HTTP); return; }
   const startButton=document.querySelector('#start-transcription'), stopButton=document.querySelector('#stop-transcription');
   if(!Recognition){ status.textContent=t('Speech-to-text is not available in this browser. You can still record audio or type your update.'); return; }
   const recognition=new Recognition(), existing=input.value.trim(), languageCodes={fr:'fr-FR',de:'de-DE',es:'es-ES',it:'it-IT',en:'en-US'};
