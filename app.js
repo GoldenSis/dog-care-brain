@@ -738,6 +738,10 @@ Object.assign(translations.fr, { [VOICE_NEEDS_HTTP]: 'Les fonctions vocales néc
 Object.assign(translations.it, { [VOICE_NEEDS_HTTP]: 'Le funzioni vocali richiedono di aprire l’app su http://localhost — un percorso file:// blocca il microfono. Vedi il README.' });
 Object.assign(translations.de, { [VOICE_NEEDS_HTTP]: 'Die Sprachfunktionen benötigen die App über http://localhost — ein file://-Pfad blockiert das Mikrofon. Siehe README.' });
 Object.assign(translations.es, { [VOICE_NEEDS_HTTP]: 'Las funciones de voz necesitan abrir la app en http://localhost — una ruta file:// bloquea el micrófono. Consulta el README.' });
+Object.assign(translations.fr, { "Speech-to-text is not available in this browser. Recording still saves an audio note; you can also type your update.": "La reconnaissance vocale n’est pas disponible dans ce navigateur. L’enregistrement conserve quand même une note audio ; vous pouvez aussi saisir votre note." });
+Object.assign(translations.it, { "Speech-to-text is not available in this browser. Recording still saves an audio note; you can also type your update.": "Il riconoscimento vocale non è disponibile in questo browser. La registrazione salva comunque una nota audio; puoi anche digitare il tuo aggiornamento." });
+Object.assign(translations.de, { "Speech-to-text is not available in this browser. Recording still saves an audio note; you can also type your update.": "Spracherkennung ist in diesem Browser nicht verfügbar. Die Aufnahme speichert trotzdem eine Audionotiz; du kannst deine Notiz auch tippen." });
+Object.assign(translations.es, { "Speech-to-text is not available in this browser. Recording still saves an audio note; you can also type your update.": "El reconocimiento de voz no está disponible en este navegador. La grabación guarda igualmente una nota de audio; también puedes escribir tu actualización." });
 
 let state = { page: 'dashboard', dog: 'billie', language: localStorage.getItem('dogcare-language') || 'en', observations: loadObservations(), invites: loadInvites() };
 let audioDraft = null;
