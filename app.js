@@ -11,8 +11,8 @@ const baseObservations = {
 };
 
 const dogs = {
-  billie: { name: 'Billie Blue', emoji: '🐕‍🦺', age: '4 years', breed: 'Blue roan cocker spaniel', owner: 'Sophie Martin', last: '10:10 woodland walk', health: 'Mild seasonal ear irritation. Check after wet walks.', behaviour: 'Friendly and food-motivated. Can pull when greeting spaniels.', vet: 'Dr Laurent · Clinique du Parc · +33 1 84 80 20 20', colour: '' },
-  charlie: { name: 'Charlie Rose', emoji: '🐶', age: '2 years', breed: 'Miniature dachshund', owner: 'Lucie Bernard', last: '11:30 garden play', health: 'Protect long back: no stairs or high jumping.', behaviour: 'Needs a quiet arrival. Use mat settle and reward calm pauses.', vet: 'Dr Nguyen · Véto Bastille · +33 1 43 57 81 22', colour: 'charlie' }
+  billie: { name: 'Billie Blue', emoji: '🐕‍🦺', age: 'Profile to complete', breed: 'Breed to confirm', owner: 'Arnaud Chrétien', last: '10:10 woodland walk', health: 'Radiograph recorded at Clinique Artémis. Add current care instructions.', behaviour: 'Add routine, triggers and favourite rewards.', vet: 'Clinique Artémis · Vet.Avenir (verify current contact)', colour: '' },
+  charlie: { name: 'Charlie Rose', emoji: '🐶', age: 'Profile to complete', breed: 'Breed to confirm', owner: 'Arnaud Chrétien', last: '11:30 garden play', health: 'Add current health and medication instructions.', behaviour: 'Add routine, triggers and favourite rewards.', vet: 'Add preferred vet and emergency contact', colour: 'charlie' }
 };
 
 let state = { page: 'dashboard', dog: 'billie', observations: loadObservations() };
@@ -33,7 +33,7 @@ function tagsHtml(tags) { return `<div class="mini-tags">${tags.map(t=>`<span>${
 
 const views = {
   dashboard() {
-    setHeader('SUNDAY · 12 JULY', 'Good morning, Amelia');
+    setHeader('SUNDAY · 12 JULY', 'Good morning, Adine-Sophie');
     const latest = state.observations.billie[0];
     return `<div class="grid dashboard-grid"><div>
       <section class="card hero"><p class="eyebrow" style="color:#d6ed8c">TODAY AT A GLANCE</p><h2>Two happy dogs, one beautifully organised day.</h2><p>Billie and Charlie are both checked in. Capture the little moments now and their owner stories will write themselves.</p><button class="primary" data-go="capture">Add a care moment →</button></section>
