@@ -21,6 +21,13 @@ No install or build step is required. Demo observations are stored in the browse
 3. Review the detected tags and save the observation.
 4. The new structured card appears in the dog's timeline and the owner story preview updates immediately.
 
+## Try the invite preview flow
+
+1. Open **Invite** from the sidebar or top bar.
+2. Choose **Owner** or **Trusted carer**, add a demo name and email, and select share areas.
+3. Review the invite-ready summary and create a **pending invite preview**.
+4. The pending invite appears locally; no email, WhatsApp, SMS, or notification is sent.
+
 ## Product boundaries
 
-This is a local interactive prototype using fictional demo data. AI structuring is represented by deterministic, on-device keyword parsing. WhatsApp, Instagram, owner delivery, payments, and cloud sync are clearly labelled previews or drafts and do not connect to external services.
+This is a local interactive prototype using fictional demo data. AI structuring is represented by deterministic, on-device keyword parsing. Invite creation, WhatsApp, Instagram, owner delivery, payments, and cloud sync are clearly labelled previews or drafts and do not connect to external services.
