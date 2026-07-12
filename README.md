@@ -17,8 +17,8 @@ No install or build step is required. Demo observations are stored in the browse
 ## Try the core flow
 
 1. Open **Capture update** from the dashboard or navigation.
-2. Choose a dog and enter a note such as: `Ate all breakfast, playful with Mabel, loose stool at 10:30.`
-3. Review the detected tags and save the observation.
+2. Choose a dog and type a note, or use **Start recording** to see a voice note transcribed live into the care-note field.
+3. Edit the text if needed, review the detected tags, and save the observation.
 4. The new structured card appears in the dog's timeline and the owner story preview updates immediately.
 5. Open **Handoff** to review a care-continuity summary for either the owner or next carer, follow its evidence links back to today's observations, and check the suggested next-care actions.
 
