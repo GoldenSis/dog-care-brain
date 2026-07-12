@@ -45,3 +45,15 @@ Browsers without `getUserMedia`/`MediaRecorder`, insecure non-localhost contexts
 This is a local interactive prototype using fictional demo data. AI structuring is represented by deterministic, on-device keyword parsing. Voice audio is captured and retained only in the browser; it is never uploaded. Invite creation, WhatsApp, Instagram, Facebook, YouTube, owner delivery, payments, and cloud sync are clearly labelled previews or drafts and do not connect to external services. Social previews never collect credentials or post to a network.
 
 Voice transcription uses the browser's built-in speech-recognition feature. Depending on the browser, microphone audio may be processed by the browser provider's speech service; users should check their browser's privacy terms before recording.
+
+## Public-site research crawler
+
+An optional Crawl4AI tool can turn an allowed public website into a local Markdown/JSON research corpus. It stays on the supplied origin, reads `robots.txt`, uses sitemap URLs, and limits requests by default. Keep generated corpora outside the repository unless they are intentionally reviewed and licensed for inclusion.
+
+```bash
+python3.12 -m venv /tmp/dogcare-crawler
+/tmp/dogcare-crawler/bin/pip install -r requirements-crawler.txt
+/tmp/dogcare-crawler/bin/crawl4ai-setup
+/tmp/dogcare-crawler/bin/python tools/crawl_site.py https://www.rintintin-pro.com/ \
+  --output /tmp/rintintin-pro-corpus --max-pages 12
+```
