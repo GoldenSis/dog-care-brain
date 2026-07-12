@@ -9,6 +9,7 @@ import json
 import math
 import time
 import urllib.request
+import urllib.error
 import urllib.robotparser
 import xml.etree.ElementTree as ET
 from dataclasses import asdict, dataclass
@@ -18,6 +19,13 @@ from urllib.parse import urljoin, urlsplit, urlunsplit
 USER_AGENT = "DogCareBrainResearchBot/1.0 (+https://goldensis.github.io/dog-care-brain/)"
 MAX_DISCOVERY_BYTES = 2_000_000
 MAX_PAGE_CHARS = 500_000
+
+
+class SameOriginRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, request: object, file_pointer: object, code: int, message: str, headers: object, new_url: str) -> object:
+        if not same_origin(request.full_url, new_url):
+            raise urllib.error.HTTPError(new_url, code, "Cross-origin redirect refused", headers, file_pointer)
+        return super().redirect_request(request, file_pointer, code, message, headers, new_url)
 
 
 @dataclass
@@ -35,7 +43,8 @@ def normalize_url(url: str) -> str:
 
 def read_url(url: str) -> bytes:
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(request, timeout=20) as response:
+    opener = urllib.request.build_opener(SameOriginRedirectHandler())
+    with opener.open(request, timeout=20) as response:
         if not same_origin(url, response.geturl()):
             raise ValueError(f"Cross-origin redirect refused: {url} -> {response.geturl()}")
         content = response.read(MAX_DISCOVERY_BYTES + 1)

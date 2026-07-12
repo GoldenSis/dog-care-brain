@@ -57,3 +57,13 @@ python3.12 -m venv /tmp/dogcare-crawler
 /tmp/dogcare-crawler/bin/python tools/crawl_site.py https://www.rintintin-pro.com/ \
   --output /tmp/rintintin-pro-corpus --max-pages 12
 ```
+
+## Acceptance checks
+
+The optional crawler environment also supplies Playwright for the committed browser acceptance checks:
+
+```bash
+python3.12 -m unittest discover -s tests -v
+```
+
+The suite covers robots/origin/output boundaries, live voice transcription through editable text into the timeline, and mobile handoff overflow. Browser tests skip with an installation hint when the optional environment is not present; pure crawler-boundary tests always run with the standard library.

@@ -1,9 +1,11 @@
 import argparse
 import tempfile
+import threading
 import unittest
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from tools.crawl_site import allowed_urls, markdown_text, nonnegative_float, normalize_url, output_is_safe, repository_root, same_origin, sitemap_urls
+from tools.crawl_site import allowed_urls, markdown_text, nonnegative_float, normalize_url, output_is_safe, read_url, repository_root, same_origin, sitemap_urls
 
 
 class CrawlSiteTest(unittest.TestCase):
@@ -55,6 +57,43 @@ class CrawlSiteTest(unittest.TestCase):
 
     def test_repository_root_is_independent_of_current_directory(self):
         self.assertEqual(repository_root(), Path(__file__).resolve().parents[1])
+
+    def test_discovery_redirect_does_not_contact_another_origin(self):
+        target_hits = []
+
+        class TargetHandler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                target_hits.append(self.path)
+                self.send_response(200)
+                self.end_headers()
+
+            def log_message(self, *_):
+                pass
+
+        target = ThreadingHTTPServer(("127.0.0.1", 0), TargetHandler)
+
+        class RedirectHandler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(302)
+                self.send_header("Location", f"http://127.0.0.1:{target.server_port}/escaped")
+                self.end_headers()
+
+            def log_message(self, *_):
+                pass
+
+        redirect = ThreadingHTTPServer(("127.0.0.1", 0), RedirectHandler)
+        threads = [threading.Thread(target=server.serve_forever, daemon=True) for server in (target, redirect)]
+        for thread in threads:
+            thread.start()
+        try:
+            with self.assertRaises(Exception):
+                read_url(f"http://127.0.0.1:{redirect.server_port}/robots.txt")
+            self.assertEqual(target_hits, [])
+        finally:
+            redirect.shutdown()
+            target.shutdown()
+            redirect.server_close()
+            target.server_close()
 
 
 if __name__ == "__main__":
