@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f1e8">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22><text y=%2252%22 x=%2250%22 text-anchor=%22middle%22 dominant-baseline=%22middle%22 font-size=%2248%22>🐾</text></svg>">
+  <title>DogCare Brain — Calm care, clearly shared</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Main navigation">
+      <a class="brand" href="#dashboard" data-route="dashboard" aria-label="DogCare Brain home">
+        <span class="brand-mark">D<span>B</span></span>
+        <span>DogCare <strong>Brain</strong></span>
+      </a>
+      <nav id="main-nav">
+        <button class="nav-item active" data-page="dashboard"><span>⌂</span>Today</button>
+        <button class="nav-item" data-page="dogs"><span>♡</span>Dogs</button>
+        <button class="nav-item" data-page="capture"><span>＋</span>Capture</button>
+        <button class="nav-item" data-page="gallery"><span>▦</span>Gallery</button>
+        <button class="nav-item" data-page="story"><span>✦</span>Daily story</button>
+        <button class="nav-item" data-page="schedule"><span>□</span>Schedule</button>
+        <button class="nav-item" data-page="business"><span>↗</span>Business</button>
+      </nav>
+      <div class="sidebar-foot">
+        <button class="nav-item" data-page="settings"><span>⚙</span>Settings</button>
+        <div class="user-chip"><div class="avatar human">AM</div><div><strong>Amelia</strong><small>Little Tails Studio</small></div></div>
+      </div>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <button class="mobile-menu" id="mobile-menu" aria-label="Open navigation">☰</button>
+        <div><p class="eyebrow" id="page-eyebrow">SUNDAY · 12 JULY</p><h1 id="page-title">Good morning, Amelia</h1></div>
+        <div class="top-actions"><span class="status-pill"><i></i> All systems calm</span><button class="icon-button" aria-label="Notifications">♢<b>2</b></button><button class="primary compact" data-go="capture">＋ Capture update</button></div>
+      </header>
+      <section id="app-content" class="content" aria-live="polite"></section>
+    </main>
+  </div>
+  <div id="toast" class="toast" role="status"></div>
+  <script src="app.js"></script>
+</body>
+</html>

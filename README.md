@@ -1,3 +1,26 @@
-# Dog Care Brain
+# DogCare Brain
 
-Runnable prototype for a dog-care professional and pet-owner shared record.
+A polished, dependency-free MVP for a small dog-care business. The demo follows Billie Blue and Charlie Rose from daily care capture through owner updates, scheduling, media, and lightweight business reporting.
+
+## Run locally
+
+From this directory, start any static file server:
+
+```bash
+python3 -m http.server 4173
+```
+
+Then open [http://localhost:4173](http://localhost:4173).
+
+No install or build step is required. Demo observations are stored in the browser's `localStorage`; use **Reset demo** in Settings to restore the original data.
+
+## Try the core flow
+
+1. Open **Capture update** from the dashboard or navigation.
+2. Choose a dog and enter a note such as: `Ate all breakfast, playful with Mabel, loose stool at 10:30.`
+3. Review the detected tags and save the observation.
+4. The new structured card appears in the dog's timeline and the owner story preview updates immediately.
+
+## Product boundaries
+
+This is a local interactive prototype using fictional demo data. AI structuring is represented by deterministic, on-device keyword parsing. WhatsApp, Instagram, owner delivery, payments, and cloud sync are clearly labelled previews or drafts and do not connect to external services.
