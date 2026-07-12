@@ -914,14 +914,14 @@ function startTranscription() {
   const Recognition=window.SpeechRecognition || window.webkitSpeechRecognition;
   const input=document.querySelector('#observation'), status=document.querySelector('#transcription-status');
   if(location.protocol==='file:'){ status.textContent=t(VOICE_NEEDS_HTTP); return; }
-  const startButton=document.querySelector('#start-transcription'), stopButton=document.querySelector('#stop-transcription');
+  const startButton=document.querySelector('#record-audio'), stopButton=document.querySelector('#stop-audio');
   if(!Recognition){ status.textContent=t('Speech-to-text is not available in this browser. You can still record audio or type your update.'); return; }
   const recognition=new Recognition(), existing=input.value.trim(), languageCodes={fr:'fr-FR',de:'de-DE',es:'es-ES',it:'it-IT',en:'en-US'};
   let finalText='';
   recognition.lang=languageCodes[state.language] || 'en-US';
   recognition.continuous=true;
   recognition.interimResults=true;
-  recognition.onstart=()=>{activeRecognition=recognition;startButton&&(startButton.hidden=true);stopButton&&(stopButton.hidden=false);status.textContent=t('Listening… your words will appear in the care update.');};
+  recognition.onstart=()=>{activeRecognition=recognition;setListeningState(true);startButton&&(startButton.hidden=true);stopButton&&(stopButton.hidden=false);const _rs=document.querySelector('#recording-status');if(_rs)_rs.textContent=t('Listening… your words will appear in the care update.');status.textContent=t('Listening… your words will appear in the care update.');};
   recognition.onresult=event=>{
     let interim='';
     for(let i=event.resultIndex;i<event.results.length;i++){
@@ -932,7 +932,7 @@ function startTranscription() {
     input.dispatchEvent(new Event('input',{bubbles:true}));
   };
   recognition.onerror=event=>{const _rs=document.querySelector('#recording-status'); if(_rs)_rs.textContent='⚠ dictée: '+event.error; status.textContent=['not-allowed','service-not-allowed'].includes(event.error) ? t('Speech recognition permission was denied. Allow microphone access in browser settings or continue typing.') : t('Speech recognition stopped unexpectedly. Your transcript so far is still editable.');};
-  recognition.onend=()=>{if(activeRecognition===recognition)activeRecognition=null;startButton&&(startButton.hidden=false);stopButton&&(stopButton.hidden=true);if(!status.textContent || status.textContent===t('Listening… your words will appear in the care update.'))status.textContent=finalText?t('Transcript added. Review and edit it before saving.'):t('Listening stopped. You can try again or type your update.');};
+  recognition.onend=()=>{if(activeRecognition===recognition)activeRecognition=null;setListeningState(false);startButton&&(startButton.hidden=false);stopButton&&(stopButton.hidden=true);if(!status.textContent || status.textContent===t('Listening… your words will appear in the care update.'))status.textContent=finalText?t('Transcript added. Review and edit it before saving.'):t('Listening stopped. You can try again or type your update.');};
   recognition.onaudiostart=()=>{const _rs=document.querySelector('#recording-status'); if(_rs)_rs.textContent='🎙 dictée active — parlez…';};
   try { recognition.start(); } catch { status.textContent=t('Speech recognition could not start. You can still record audio or type your update.'); }
 }
@@ -989,8 +989,8 @@ function bindView() {
   if(input){
     input.oninput=()=>{const tags=infer(input.value);document.querySelector('#detected').innerHTML=input.value.trim()?tagsHtml(tags):`<em>${t('Start typing to see structured care tags')}</em>`;document.querySelector('#health-safety').hidden=!tags.includes('Health watch');};
     // Record = one action: capture the voice note AND live-transcribe it into the care note.
-    document.querySelector('#record-audio').onclick=()=>{startAudioRecording();startTranscription();};
-    document.querySelector('#stop-audio').onclick=()=>{if(activeRecorder?.state==='recording')activeRecorder.stop();stopTranscription();};
+    document.querySelector('#record-audio').onclick=()=>{startTranscription();};
+    document.querySelector('#stop-audio').onclick=()=>{stopTranscription();};
     const Recognition=window.SpeechRecognition || window.webkitSpeechRecognition;
     if(!Recognition) document.querySelector('#transcription-status').textContent=t('Speech-to-text is not available in this browser. Recording still saves an audio note; you can also type your update.');
     const discard=document.querySelector('#discard-audio'); if(discard)discard.onclick=discardAudioDraft;
