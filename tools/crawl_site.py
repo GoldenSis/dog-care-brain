@@ -36,7 +36,7 @@ def normalize_url(url: str) -> str:
 def read_url(url: str) -> bytes:
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     with urllib.request.urlopen(request, timeout=20) as response:
-        if urlsplit(response.geturl()).netloc != urlsplit(url).netloc:
+        if not same_origin(url, response.geturl()):
             raise ValueError(f"Cross-origin redirect refused: {url} -> {response.geturl()}")
         content = response.read(MAX_DISCOVERY_BYTES + 1)
         if len(content) > MAX_DISCOVERY_BYTES:
@@ -50,7 +50,6 @@ def sitemap_urls(xml: bytes) -> list[str]:
 
 
 def allowed_urls(base_url: str, candidates: list[str], robots_text: str, limit: int) -> list[str]:
-    base = urlsplit(base_url)
     parser = urllib.robotparser.RobotFileParser()
     parser.set_url(urljoin(base_url, "/robots.txt"))
     parser.parse(robots_text.splitlines())
@@ -58,7 +57,7 @@ def allowed_urls(base_url: str, candidates: list[str], robots_text: str, limit: 
     for candidate in candidates:
         normalized = normalize_url(candidate)
         parts = urlsplit(normalized)
-        if parts.scheme not in {"http", "https"} or parts.netloc != base.netloc:
+        if parts.scheme not in {"http", "https"} or not same_origin(base_url, normalized):
             continue
         if normalized in selected or not parser.can_fetch(USER_AGENT, normalized):
             continue
@@ -76,7 +75,12 @@ def markdown_text(result: object) -> str:
 
 
 def same_origin(base_url: str, candidate: str) -> bool:
-    return urlsplit(base_url).netloc == urlsplit(candidate).netloc
+    def origin(url: str) -> tuple[str, str | None, int | None]:
+        parts = urlsplit(url)
+        default_port = 443 if parts.scheme.lower() == "https" else 80 if parts.scheme.lower() == "http" else None
+        return parts.scheme.lower(), parts.hostname, parts.port or default_port
+
+    return origin(base_url) == origin(candidate)
 
 
 def nonnegative_float(value: str) -> float:
@@ -88,6 +92,10 @@ def nonnegative_float(value: str) -> float:
 
 def output_is_safe(output: Path, workspace: Path) -> bool:
     return not output.resolve().is_relative_to(workspace.resolve())
+
+
+def repository_root() -> Path:
+    return Path(__file__).resolve().parents[1]
 
 
 async def crawl(urls: list[str], delay: float) -> list[Page]:
@@ -150,7 +158,7 @@ async def main() -> None:
     cli.add_argument("--allow-output-in-repo", action="store_true", help="Permit an output path inside the current workspace")
     args = cli.parse_args()
 
-    if not args.allow_output_in_repo and not output_is_safe(args.output, Path.cwd()):
+    if not args.allow_output_in_repo and not output_is_safe(args.output, repository_root()):
         cli.error("--output must be outside the repository (or pass --allow-output-in-repo explicitly)")
 
     root = normalize_url(args.url)

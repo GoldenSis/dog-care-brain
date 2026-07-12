@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tools.crawl_site import allowed_urls, markdown_text, nonnegative_float, normalize_url, output_is_safe, same_origin, sitemap_urls
+from tools.crawl_site import allowed_urls, markdown_text, nonnegative_float, normalize_url, output_is_safe, repository_root, same_origin, sitemap_urls
 
 
 class CrawlSiteTest(unittest.TestCase):
@@ -36,7 +36,10 @@ class CrawlSiteTest(unittest.TestCase):
 
     def test_same_origin_rejects_redirect_target_on_another_host(self):
         self.assertTrue(same_origin("https://example.com/a", "https://example.com/b"))
+        self.assertTrue(same_origin("https://example.com/a", "https://example.com:443/b"))
         self.assertFalse(same_origin("https://example.com/a", "https://elsewhere.example/b"))
+        self.assertFalse(same_origin("https://example.com/a", "http://example.com/b"))
+        self.assertFalse(same_origin("https://example.com/a", "https://example.com:444/b"))
 
     def test_delay_must_be_finite_and_nonnegative(self):
         self.assertEqual(nonnegative_float("0.5"), 0.5)
@@ -49,6 +52,9 @@ class CrawlSiteTest(unittest.TestCase):
             workspace = Path(directory)
             self.assertFalse(output_is_safe(workspace / "corpus", workspace))
             self.assertTrue(output_is_safe(workspace.parent / "corpus", workspace))
+
+    def test_repository_root_is_independent_of_current_directory(self):
+        self.assertEqual(repository_root(), Path(__file__).resolve().parents[1])
 
 
 if __name__ == "__main__":
