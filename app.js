@@ -931,9 +931,8 @@ function startTranscription() {
     input.value=[existing,finalText,interim].filter(Boolean).join(' ');
     input.dispatchEvent(new Event('input',{bubbles:true}));
   };
-  recognition.onerror=event=>{const _rs=document.querySelector('#recording-status'); if(_rs)_rs.textContent='⚠ dictée: '+event.error; status.textContent=['not-allowed','service-not-allowed'].includes(event.error) ? t('Speech recognition permission was denied. Allow microphone access in browser settings or continue typing.') : t('Speech recognition stopped unexpectedly. Your transcript so far is still editable.');};
+  recognition.onerror=event=>{const _msg=['not-allowed','service-not-allowed'].includes(event.error) ? t('Speech recognition permission was denied. Allow microphone access in browser settings or continue typing.') : t('Speech recognition stopped unexpectedly. Your transcript so far is still editable.'); const _rs=document.querySelector('#recording-status'); if(_rs)_rs.textContent=_msg; status.textContent=_msg;};
   recognition.onend=()=>{if(activeRecognition===recognition)activeRecognition=null;setListeningState(false);startButton&&(startButton.hidden=false);stopButton&&(stopButton.hidden=true);if(!status.textContent || status.textContent===t('Listening… your words will appear in the care update.'))status.textContent=finalText?t('Transcript added. Review and edit it before saving.'):t('Listening stopped. You can try again or type your update.');};
-  recognition.onaudiostart=()=>{const _rs=document.querySelector('#recording-status'); if(_rs)_rs.textContent='🎙 dictée active — parlez…';};
   try { recognition.start(); } catch { status.textContent=t('Speech recognition could not start. You can still record audio or type your update.'); }
 }
 async function audioFile(audio) {
