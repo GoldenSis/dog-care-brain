@@ -20,6 +20,9 @@ No install or build step is required. Demo observations are stored in the browse
 2. Choose a dog and enter a note such as: `Ate all breakfast, playful with Mabel, loose stool at 10:30.`
 3. Review the detected tags and save the observation.
 4. The new structured card appears in the dog's timeline and the owner story preview updates immediately.
+5. Open **Handoff** to review a care-continuity summary for either the owner or next carer, follow its evidence links back to today's observations, and check the suggested next-care actions.
+
+Health-watch content is deliberately phrased as factual observation rather than diagnosis. The handoff reminds carers to keep observing and contact the owner or a veterinarian when concerned.
 
 ## Try the invite preview flow
 
