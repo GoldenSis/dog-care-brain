@@ -31,6 +31,15 @@ Health-watch content is deliberately phrased as factual observation rather than 
 3. Review the invite-ready summary and create a **pending invite preview**.
 4. The pending invite appears locally; no email, WhatsApp, SMS, or notification is sent.
 
+## Try voice notes and social previews
+
+1. Open **Capture update**, add written care context, then choose **Record**. Microphone permission is requested only at that point.
+2. Watch the duration, stop, play back, and either discard the recording or save it with the care update. Recordings are limited to two minutes and retained in local browser storage when capacity allows.
+3. Find retained voice notes on the dog's timeline and in **Gallery**.
+4. In **Gallery**, preview the clearly labelled Instagram, Facebook, and YouTube access states. These controls do not ask for credentials, connect accounts, make network requests, or post content.
+
+Browsers without `getUserMedia`/`MediaRecorder`, insecure non-localhost contexts, and denied microphone permission receive an inline explanation; typed care capture remains available.
+
 ## Product boundaries
 
-This is a local interactive prototype using fictional demo data. AI structuring is represented by deterministic, on-device keyword parsing. Invite creation, WhatsApp, Instagram, owner delivery, payments, and cloud sync are clearly labelled previews or drafts and do not connect to external services.
+This is a local interactive prototype using fictional demo data. AI structuring is represented by deterministic, on-device keyword parsing. Voice audio is captured and retained only in the browser; it is never uploaded. Invite creation, WhatsApp, Instagram, Facebook, YouTube, owner delivery, payments, and cloud sync are clearly labelled previews or drafts and do not connect to external services. Social previews never collect credentials or post to a network.
