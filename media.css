@@ -1,12 +1,29 @@
-.voice-recorder { margin-top: 16px; padding: 16px; border: 1px solid var(--line); border-radius: 16px; background: #f7f5ef; display: grid; gap: 12px; }
-.voice-recorder > div:first-child { display: flex; justify-content: space-between; gap: 16px; align-items: baseline; }
-.voice-recorder p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
-.recorder-actions { display: flex; align-items: center; gap: 10px; }
-.recorder-actions span { font: 700 13px ui-monospace, SFMono-Regular, monospace; color: var(--green); }
-.recorder-actions button:disabled { opacity: .55; cursor: not-allowed; }
-.transcription { padding-top: 12px; border-top: 1px solid var(--line); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.transcription p { flex-basis: 100%; }
-.transcription .transcription-privacy { color: #765b48; }
+/* Dictation-first note field — the mic lives on the note itself */
+.dictate-hint { margin: 2px 0 10px; font-size: 12.5px; color: var(--muted); font-weight: 600; }
+.note-field { position: relative; }
+.note-field textarea { padding-right: 138px; transition: border-color .2s, box-shadow .2s; }
+.mic-button { position: absolute; top: 13px; right: 13px; display: inline-flex; align-items: center; gap: 7px; padding: 9px 15px; border: 0; border-radius: 99px; font: 800 12.5px inherit; letter-spacing: .2px; color: #fff; background: var(--green); cursor: pointer; white-space: nowrap; box-shadow: 0 7px 18px rgba(30,91,76,.28); transition: transform .15s, box-shadow .2s, background .2s; }
+.mic-button:hover { transform: translateY(-1px); box-shadow: 0 10px 24px rgba(30,91,76,.34); }
+.mic-button:active { transform: translateY(0); }
+.mic-button:focus-visible { outline: 3px solid rgba(30,91,76,.35); outline-offset: 2px; }
+.mic-button:disabled { opacity: .5; cursor: not-allowed; box-shadow: none; transform: none; }
+.mic-button[hidden], .listening-badge[hidden] { display: none; }
+.mic-button .mic-glyph { font-size: 14px; line-height: 1; }
+.mic-button.recording { background: #d6483b; box-shadow: 0 7px 20px rgba(214,72,59,.42); animation: mic-pulse 1.5s ease-in-out infinite; }
+.mic-button.recording:focus-visible { outline-color: rgba(214,72,59,.45); }
+@keyframes mic-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(214,72,59,.5), 0 7px 20px rgba(214,72,59,.42); } 50% { box-shadow: 0 0 0 11px rgba(214,72,59,0), 0 7px 20px rgba(214,72,59,.42); } }
+/* Strong listening state: the note field glows while we listen */
+.note-field.listening textarea { border-color: #d6483b; box-shadow: 0 0 0 3px rgba(214,72,59,.18); }
+.listening-badge { position: absolute; left: 15px; bottom: 15px; display: inline-flex; align-items: center; gap: 9px; padding: 7px 13px; border-radius: 99px; background: rgba(214,72,59,.1); border: 1px solid rgba(214,72,59,.28); color: #b23a2e; font: 800 12px inherit; box-shadow: 0 4px 12px rgba(214,72,59,.14); }
+.listening-badge .pulse-dot { width: 9px; height: 9px; border-radius: 50%; background: #d6483b; animation: dot-pulse 1.1s ease-in-out infinite; }
+@keyframes dot-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.65); } }
+.listening-timer { font: 800 12px ui-monospace, SFMono-Regular, monospace; letter-spacing: .5px; }
+/* Voice guidance + privacy note below the field */
+.voice-meta { margin-top: 13px; display: grid; gap: 8px; }
+.voice-meta p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.voice-meta-status:empty { display: none; }
+.transcription-privacy { color: #765b48; }
+@media (prefers-reduced-motion: reduce) { .mic-button.recording, .listening-badge .pulse-dot { animation: none; } }
 .attached-audio { display: grid; grid-template-columns: 1fr auto; gap: 5px 12px; align-items: center; padding: 11px 12px; background: #eef4ef; border-radius: 12px; }
 .attached-audio strong { font-size: 11px; }
 .attached-audio span { font-size: 10px; color: var(--muted); }
@@ -26,4 +43,4 @@
 .share-panel .native-share { justify-self: start; }
 .share-fallbacks { display: flex; flex-wrap: wrap; gap: 7px; }
 .share-fallbacks .ghost { display: inline-flex; align-items: center; text-decoration: none; }
-@media (max-width: 760px) { .social-platforms { grid-template-columns: 1fr; } .voice-recorder > div:first-child { display: block; } .voice-recorder p { margin-top: 5px; } .share-fallbacks .ghost { flex: 1 1 45%; justify-content: center; } }
+@media (max-width: 760px) { .social-platforms { grid-template-columns: 1fr; } .share-fallbacks .ghost { flex: 1 1 45%; justify-content: center; } }

@@ -170,14 +170,16 @@ const translations = {
     '10:10 woodland walk':'10:10 balade en forêt', '11:30 garden play':'11:30 jeu au jardin',
     // Voice recorder
     'Voice note':'Note vocale', 'Care update voice note':'Note vocale de soin', '{title} voice note':'Note vocale · {title}', 'Play {label}':'Écouter {label}',
-    'Add a voice note':'Ajouter une note vocale', 'Microphone access is requested only after you choose Record.':'L’accès au micro n’est demandé qu’après avoir choisi Enregistrer.',
-    Record:'Enregistrer', Stop:'Arrêter', 'Recording duration':'Durée de l’enregistrement', 'Discard recording':'Supprimer l’enregistrement',
+    'Dictate or type your note':'Dictez ou écrivez votre note', 'Dictate':'Dicter', 'Dictate your note':'Dictez votre note', 'Stop dictation':'Arrêter la dictée', 'Listening…':'J’écoute…',
+    'Dictate or type: Ate all breakfast, playful with Mabel, loose stool at 10:30…':'Dictez ou écrivez : a mangé tout le petit-déjeuner, joueuse avec Mabel, selles molles à 10:30…',
+    'Tap the mic to dictate — your words fill the note as you speak. The mic is only used after you tap it.':'Touchez le micro pour dicter — vos mots remplissent la note à mesure que vous parlez. Le micro n’est utilisé qu’après l’avoir touché.',
+    Stop:'Arrêter', 'Recording duration':'Durée de l’enregistrement', 'Discard recording':'Supprimer l’enregistrement',
     'AI structuring and audio stay in this browser. Nothing is uploaded or sent.':'La structuration IA et l’audio restent dans ce navigateur. Rien n’est téléversé ni envoyé.',
-    'Recording discarded. Choose Record to make another voice note.':'Enregistrement supprimé. Choisissez Enregistrer pour créer une autre note vocale.',
+    'Voice note cleared. Tap the mic to dictate again.':'Note vocale supprimée. Touchez le micro pour dicter à nouveau.',
     'Voice recording is not available in this browser. You can still type and save the care update.':'L’enregistrement vocal n’est pas disponible dans ce navigateur. Vous pouvez tout de même saisir et enregistrer la note de soin.',
     'Recording stopped because the microphone became unavailable.':'Enregistrement interrompu car le micro est devenu indisponible.',
     'Voice note ready. Play it back, discard it, or save it with the care update.':'Note vocale prête. Écoutez-la, supprimez-la ou enregistrez-la avec la note de soin.',
-    'Recording… choose Stop when you are finished.':'Enregistrement… choisissez Arrêter quand vous avez terminé.',
+    'Speak naturally — your words fill the note. Tap Stop when you’re finished.':'Parlez naturellement — vos mots remplissent la note. Touchez Arrêter quand vous avez terminé.',
     'Two-minute limit reached. Preparing your voice note…':'Limite de deux minutes atteinte. Préparation de votre note vocale…',
     'Microphone access was denied. You can allow it in browser settings or continue with a typed update.':'L’accès au micro a été refusé. Vous pouvez l’autoriser dans les réglages du navigateur ou continuer avec une note saisie.',
     'The microphone could not be started. You can continue with a typed update.':'Le micro n’a pas pu démarrer. Vous pouvez continuer avec une note saisie.',
@@ -341,14 +343,16 @@ const translations = {
     '10:10 woodland walk':'10:10 passeggiata nel bosco', '11:30 garden play':'11:30 gioco in giardino',
     // Voice recorder
     'Voice note':'Nota vocale', 'Care update voice note':'Nota vocale di cura', '{title} voice note':'Nota vocale · {title}', 'Play {label}':'Riproduci {label}',
-    'Add a voice note':'Aggiungi una nota vocale', 'Microphone access is requested only after you choose Record.':'L’accesso al microfono viene richiesto solo dopo aver scelto Registra.',
-    Record:'Registra', Stop:'Ferma', 'Recording duration':'Durata della registrazione', 'Discard recording':'Elimina la registrazione',
+    'Dictate or type your note':'Detta o scrivi la tua nota', 'Dictate':'Detta', 'Dictate your note':'Detta la tua nota', 'Stop dictation':'Ferma la dettatura', 'Listening…':'Sto ascoltando…',
+    'Dictate or type: Ate all breakfast, playful with Mabel, loose stool at 10:30…':'Detta o scrivi: ha mangiato tutta la colazione, giocherellone con Mabel, feci molli alle 10:30…',
+    'Tap the mic to dictate — your words fill the note as you speak. The mic is only used after you tap it.':'Tocca il microfono per dettare — le tue parole riempiono la nota mentre parli. Il microfono si attiva solo dopo averlo toccato.',
+    Stop:'Ferma', 'Recording duration':'Durata della registrazione', 'Discard recording':'Elimina la registrazione',
     'AI structuring and audio stay in this browser. Nothing is uploaded or sent.':'La strutturazione IA e l’audio restano in questo browser. Niente viene caricato o inviato.',
-    'Recording discarded. Choose Record to make another voice note.':'Registrazione eliminata. Scegli Registra per creare un’altra nota vocale.',
+    'Voice note cleared. Tap the mic to dictate again.':'Nota vocale eliminata. Tocca il microfono per dettare di nuovo.',
     'Voice recording is not available in this browser. You can still type and save the care update.':'La registrazione vocale non è disponibile in questo browser. Puoi comunque scrivere e salvare la nota di cura.',
     'Recording stopped because the microphone became unavailable.':'Registrazione interrotta perché il microfono è diventato non disponibile.',
     'Voice note ready. Play it back, discard it, or save it with the care update.':'Nota vocale pronta. Riproducila, eliminala o salvala con la nota di cura.',
-    'Recording… choose Stop when you are finished.':'Registrazione in corso… scegli Ferma quando hai finito.',
+    'Speak naturally — your words fill the note. Tap Stop when you’re finished.':'Parla con naturalezza — le tue parole riempiono la nota. Tocca Ferma quando hai finito.',
     'Two-minute limit reached. Preparing your voice note…':'Raggiunto il limite di due minuti. Preparazione della nota vocale…',
     'Microphone access was denied. You can allow it in browser settings or continue with a typed update.':'L’accesso al microfono è stato negato. Puoi consentirlo nelle impostazioni del browser o continuare con una nota scritta.',
     'The microphone could not be started. You can continue with a typed update.':'Non è stato possibile avviare il microfono. Puoi continuare con una nota scritta.',
@@ -512,14 +516,16 @@ const translations = {
     '10:10 woodland walk':'10:10 Waldspaziergang', '11:30 garden play':'11:30 Spiel im Garten',
     // Voice recorder
     'Voice note':'Sprachnotiz', 'Care update voice note':'Sprachnotiz zur Pflege', '{title} voice note':'Sprachnotiz · {title}', 'Play {label}':'{label} abspielen',
-    'Add a voice note':'Sprachnotiz hinzufügen', 'Microphone access is requested only after you choose Record.':'Der Mikrofonzugriff wird erst angefragt, nachdem Sie Aufnehmen gewählt haben.',
-    Record:'Aufnehmen', Stop:'Stopp', 'Recording duration':'Aufnahmedauer', 'Discard recording':'Aufnahme verwerfen',
+    'Dictate or type your note':'Diktieren oder tippen Sie Ihre Notiz', 'Dictate':'Diktieren', 'Dictate your note':'Notiz diktieren', 'Stop dictation':'Diktat stoppen', 'Listening…':'Ich höre zu…',
+    'Dictate or type: Ate all breakfast, playful with Mabel, loose stool at 10:30…':'Diktieren oder tippen: hat das ganze Frühstück gefressen, verspielt mit Mabel, weicher Stuhl um 10:30…',
+    'Tap the mic to dictate — your words fill the note as you speak. The mic is only used after you tap it.':'Tippen Sie auf das Mikrofon, um zu diktieren — Ihre Worte füllen die Notiz beim Sprechen. Das Mikrofon wird erst nach dem Antippen genutzt.',
+    Stop:'Stopp', 'Recording duration':'Aufnahmedauer', 'Discard recording':'Aufnahme verwerfen',
     'AI structuring and audio stay in this browser. Nothing is uploaded or sent.':'KI-Strukturierung und Audio bleiben in diesem Browser. Nichts wird hochgeladen oder gesendet.',
-    'Recording discarded. Choose Record to make another voice note.':'Aufnahme verworfen. Wählen Sie Aufnehmen, um eine weitere Sprachnotiz zu erstellen.',
+    'Voice note cleared. Tap the mic to dictate again.':'Sprachnotiz gelöscht. Tippen Sie auf das Mikrofon, um erneut zu diktieren.',
     'Voice recording is not available in this browser. You can still type and save the care update.':'Sprachaufnahme ist in diesem Browser nicht verfügbar. Sie können die Pflegenotiz dennoch eintippen und speichern.',
     'Recording stopped because the microphone became unavailable.':'Aufnahme gestoppt, da das Mikrofon nicht mehr verfügbar war.',
     'Voice note ready. Play it back, discard it, or save it with the care update.':'Sprachnotiz bereit. Hören Sie sie ab, verwerfen Sie sie oder speichern Sie sie mit der Pflegenotiz.',
-    'Recording… choose Stop when you are finished.':'Aufnahme läuft… wählen Sie Stopp, wenn Sie fertig sind.',
+    'Speak naturally — your words fill the note. Tap Stop when you’re finished.':'Sprechen Sie natürlich — Ihre Worte füllen die Notiz. Tippen Sie auf Stopp, wenn Sie fertig sind.',
     'Two-minute limit reached. Preparing your voice note…':'Zwei-Minuten-Grenze erreicht. Ihre Sprachnotiz wird vorbereitet…',
     'Microphone access was denied. You can allow it in browser settings or continue with a typed update.':'Der Mikrofonzugriff wurde verweigert. Sie können ihn in den Browsereinstellungen erlauben oder mit einer getippten Notiz fortfahren.',
     'The microphone could not be started. You can continue with a typed update.':'Das Mikrofon konnte nicht gestartet werden. Sie können mit einer getippten Notiz fortfahren.',
@@ -683,14 +689,16 @@ const translations = {
     '10:10 woodland walk':'10:10 paseo por el bosque', '11:30 garden play':'11:30 juego en el jardín',
     // Voice recorder
     'Voice note':'Nota de voz', 'Care update voice note':'Nota de voz de cuidado', '{title} voice note':'Nota de voz · {title}', 'Play {label}':'Reproducir {label}',
-    'Add a voice note':'Añadir una nota de voz', 'Microphone access is requested only after you choose Record.':'El acceso al micrófono solo se solicita después de elegir Grabar.',
-    Record:'Grabar', Stop:'Detener', 'Recording duration':'Duración de la grabación', 'Discard recording':'Descartar la grabación',
+    'Dictate or type your note':'Dicta o escribe tu nota', 'Dictate':'Dictar', 'Dictate your note':'Dicta tu nota', 'Stop dictation':'Detener el dictado', 'Listening…':'Escuchando…',
+    'Dictate or type: Ate all breakfast, playful with Mabel, loose stool at 10:30…':'Dicta o escribe: se comió todo el desayuno, juguetón con Mabel, heces blandas a las 10:30…',
+    'Tap the mic to dictate — your words fill the note as you speak. The mic is only used after you tap it.':'Toca el micrófono para dictar — tus palabras llenan la nota mientras hablas. El micrófono solo se usa después de tocarlo.',
+    Stop:'Detener', 'Recording duration':'Duración de la grabación', 'Discard recording':'Descartar la grabación',
     'AI structuring and audio stay in this browser. Nothing is uploaded or sent.':'La estructuración con IA y el audio permanecen en este navegador. No se sube ni se envía nada.',
-    'Recording discarded. Choose Record to make another voice note.':'Grabación descartada. Elige Grabar para crear otra nota de voz.',
+    'Voice note cleared. Tap the mic to dictate again.':'Nota de voz eliminada. Toca el micrófono para dictar de nuevo.',
     'Voice recording is not available in this browser. You can still type and save the care update.':'La grabación de voz no está disponible en este navegador. Aún puedes escribir y guardar la nota de cuidado.',
     'Recording stopped because the microphone became unavailable.':'La grabación se detuvo porque el micrófono dejó de estar disponible.',
     'Voice note ready. Play it back, discard it, or save it with the care update.':'Nota de voz lista. Reprodúcela, descártala o guárdala con la nota de cuidado.',
-    'Recording… choose Stop when you are finished.':'Grabando… elige Detener cuando hayas terminado.',
+    'Speak naturally — your words fill the note. Tap Stop when you’re finished.':'Habla con naturalidad — tus palabras llenan la nota. Toca Detener cuando termines.',
     'Two-minute limit reached. Preparing your voice note…':'Límite de dos minutos alcanzado. Preparando tu nota de voz…',
     'Microphone access was denied. You can allow it in browser settings or continue with a typed update.':'Se denegó el acceso al micrófono. Puedes permitirlo en los ajustes del navegador o continuar con una nota escrita.',
     'The microphone could not be started. You can continue with a typed update.':'No se pudo iniciar el micrófono. Puedes continuar con una nota escrita.',
@@ -819,7 +827,7 @@ const views = {
   },
   capture() {
     const d=dogs[state.dog]; setHeader('RAPID CAPTURE', 'Capture the moment');
-    return `<div class="page-title-row"><div><h2>${t('What just happened?')}</h2><p>${t('Write naturally. DogCare Brain will organise the useful details.')}</p></div></div><section class="card composer"><label class="label">${t('Who is this about?')}</label><div class="dog-picker">${Object.entries(dogs).map(([k,x])=>`<button class="dog-pick ${k===state.dog?'active':''}" data-capture-dog="${k}"><span>${x.emoji}</span><div><strong>${x.name}</strong><small>${t(x.last)}</small></div></button>`).join('')}</div><label class="label" for="observation">${t('Care update')}</label><textarea id="observation" placeholder="${t('Try: Ate all breakfast, playful with Mabel, loose stool at 10:30…')}"></textarea><section class="voice-recorder" aria-labelledby="voice-title"><div><strong id="voice-title">${t('Add a voice note')}</strong><p id="recording-status" role="status">${t('Microphone access is requested only after you choose Record.')}</p></div><div class="recorder-actions"><button class="ghost" type="button" id="record-audio">● ${t('Record')}</button><button class="secondary" type="button" id="stop-audio" hidden>■ ${t('Stop')}</button><span id="recording-duration" aria-label="${t('Recording duration')}">00:00</span></div><div id="audio-preview">${audioDraft ? `${audioHtml(audioDraft, t('Care update voice note'))}<button class="link-button discard-audio" type="button" id="discard-audio">${t('Discard recording')}</button>` : ''}</div><div class="transcription"><p id="transcription-status" role="status"></p><p class="transcription-privacy">${t('Speech-to-text uses your browser’s speech service. Depending on your browser, audio may be sent to its provider for transcription.')}</p></div></section><label class="label">${t('Detected details')} <small style="font-weight:400;text-transform:none;letter-spacing:0"> ${t('· updates as you type')}</small></label><div class="detected" id="detected"><em>${t('Start typing to see structured care tags')}</em></div><p id="health-safety" class="preview-note" hidden>${t('Health observations are factual notes, not diagnoses. Contact a veterinarian if concerned.')}</p><div class="composer-actions"><small>${t('AI structuring and recorded audio stay in this browser. Speech transcription may use your browser provider’s service.')}</small><button class="primary" id="save-observation">${tf("Save to {name}'s timeline →", {name:d.name.split(' ')[0]})}</button></div></section>`;
+    return `<div class="page-title-row"><div><h2>${t('What just happened?')}</h2><p>${t('Write naturally. DogCare Brain will organise the useful details.')}</p></div></div><section class="card composer"><label class="label">${t('Who is this about?')}</label><div class="dog-picker">${Object.entries(dogs).map(([k,x])=>`<button class="dog-pick ${k===state.dog?'active':''}" data-capture-dog="${k}"><span>${x.emoji}</span><div><strong>${x.name}</strong><small>${t(x.last)}</small></div></button>`).join('')}</div><label class="label" for="observation">${t('Care update')}</label><p class="dictate-hint">${t('Dictate or type your note')}</p><div class="note-field" id="note-field"><textarea id="observation" placeholder="${t('Dictate or type: Ate all breakfast, playful with Mabel, loose stool at 10:30…')}"></textarea><button class="mic-button" type="button" id="record-audio" aria-label="${t('Dictate your note')}"><span class="mic-glyph" aria-hidden="true">🎤</span><span class="mic-text">${t('Dictate')}</span></button><button class="mic-button recording" type="button" id="stop-audio" hidden aria-label="${t('Stop dictation')}"><span class="mic-glyph" aria-hidden="true">■</span><span class="mic-text">${t('Stop')}</span></button><div class="listening-badge" id="listening-badge" hidden><span class="pulse-dot" aria-hidden="true"></span><span class="listening-text">${t('Listening…')}</span><span id="recording-duration" class="listening-timer" aria-label="${t('Recording duration')}">00:00</span></div></div><div class="voice-meta"><p id="recording-status" role="status">${t('Tap the mic to dictate — your words fill the note as you speak. The mic is only used after you tap it.')}</p><p id="transcription-status" role="status" class="voice-meta-status"></p><div id="audio-preview">${audioDraft ? `${audioHtml(audioDraft, t('Care update voice note'))}<button class="link-button discard-audio" type="button" id="discard-audio">${t('Discard recording')}</button>` : ''}</div><p class="transcription-privacy">${t('Speech-to-text uses your browser’s speech service. Depending on your browser, audio may be sent to its provider for transcription.')}</p></div><label class="label">${t('Detected details')} <small style="font-weight:400;text-transform:none;letter-spacing:0"> ${t('· updates as you type')}</small></label><div class="detected" id="detected"><em>${t('Start typing to see structured care tags')}</em></div><p id="health-safety" class="preview-note" hidden>${t('Health observations are factual notes, not diagnoses. Contact a veterinarian if concerned.')}</p><div class="composer-actions"><small>${t('AI structuring and recorded audio stay in this browser. Speech transcription may use your browser provider’s service.')}</small><button class="primary" id="save-observation">${tf("Save to {name}'s timeline →", {name:d.name.split(' ')[0]})}</button></div></section>`;
   },
   gallery() { setHeader('MEDIA LIBRARY','Little moments, safely kept'); const items=[['🐕‍🦺','Billie’s woodland walk','Today · 10:12'],['🐶','Charlie in the garden','Today · 11:34'],['🐾','Muddy-paw evidence','Yesterday · 16:45'],['🌿','The favourite sniff spot','10 July · 09:50'],['🦴','Enrichment time','9 July · 14:20'],['☁️','Post-walk snooze','8 July · 12:15']]; const audioItems=Object.values(state.observations).flat().filter(o=>o.audio?.url); return `<div class="page-title-row"><div><h2>${t('Care gallery')}</h2><p>${t('Demo media and voice notes kept in this browser.')}</p></div></div>${audioItems.length?`<section class="card audio-library"><div class="section-head"><div><h2>${t('Voice notes')}</h2><p>${t('Attached locally to care updates for this browser session')}</p></div></div>${audioItems.map(o=>audioHtml(o.audio,t(o.title))).join('')}</section>`:''}<div class="grid media-grid">${items.map((x,i)=>`<article class="media-item"><div class="media-art" aria-hidden="true">${x[0]}</div>${i<2?`<span class="draft-badge">${t('Story ready')}</span>`:''}<div class="media-copy"><strong>${t(x[1])}</strong><small>${t(x[2])}</small></div></article>`).join('')}</div><section class="card social-preview" aria-labelledby="social-heading"><div class="section-head"><div><h2 id="social-heading">${t('Social access previews')}</h2><p>${t('Explore what a future connection could share. No account is connected and nothing can be posted.')}</p></div></div><div class="social-platforms">${[['Instagram','Photo and story draft'],['Facebook','Page update draft'],['YouTube','Short video draft']].map(([name,detail])=>`<article><span class="platform-mark" aria-hidden="true">${name[0]}</span><div><strong>${name}</strong><small>${t(detail)} · ${t('local preview only')}</small></div><button class="ghost social-access" type="button" data-platform="${name}" aria-label="${escapeHtml(tf('Preview local {name} access', {name}))}">${t('Preview access')}</button></article>`).join('')}</div><div class="local-boundary"><strong>${t('No social connection')}</strong><span>${t('No credentials are collected, no network request is made, and no content is posted.')}</span></div></section>`; },
   story() { const d=dogs[state.dog], latest=state.observations[state.dog][0]; setHeader('OWNER UPDATE · DRAFT','A lovely day, ready to share'); return `<div class="grid page-grid"><div class="story-phone"><div class="story-image">${d.emoji}</div><div class="story-body"><p class="story-date">${t('Sunday, 12 July · Daily story')}</p><h3>${tf('{name}’s day', {name:d.name})}</h3><p class="story-copy">${escapeHtml(t(latest.text))} ${tf('{name} enjoyed plenty of calm attention and is heading home happy and settled.', {name:d.name.split(' ')[0]})}</p><div class="story-stats"><div><strong>${state.dog==='billie'?'42 min':'25 min'}</strong><small>${t('outside')}</small></div><div><strong>${t('All eaten')}</strong><small>${t('meals')}</small></div><div><strong>${t('Calm')}</strong><small>${t('mood')}</small></div></div></div></div><aside><section class="card"><h2 style="font:400 24px Georgia,serif">${t('Owner-ready, not auto-sent')}</h2><p style="font-size:12px;color:var(--muted);line-height:1.6">${t('Review this draft, then share it with the app you choose.')}</p><label class="label">${t('Preview for')}</label><div class="dog-picker">${Object.entries(dogs).map(([k,x])=>`<button class="dog-pick ${k===state.dog?'active':''}" data-story-dog="${k}"><span>${x.emoji}</span><div><strong>${x.name}</strong><small>${x.owner}</small></div></button>`).join('')}</div>${shareControls(latest,'story-share')}</section></aside></div>`; },
@@ -844,9 +852,15 @@ function discardAudioDraft() {
   const preview=document.querySelector('#audio-preview');
   if(preview) preview.innerHTML='';
   const status=document.querySelector('#recording-status');
-  if(status) status.textContent=t('Recording discarded. Choose Record to make another voice note.');
+  if(status) status.textContent=t('Voice note cleared. Tap the mic to dictate again.');
+}
+function setListeningState(on) {
+  const field=document.querySelector('#note-field'), badge=document.querySelector('#listening-badge');
+  if(field) field.classList.toggle('listening', on);
+  if(badge) badge.hidden=!on;
 }
 function stopActiveRecording() {
+  setListeningState(false);
   recordingSession++;
   recordingPending=false;
   clearInterval(recordingTimer);
@@ -873,16 +887,16 @@ async function startAudioRecording() {
     const recorder=new MediaRecorder(stream);
     activeRecorder=recorder;
     recorder.ondataavailable=event=>{if(event.data.size)chunks.push(event.data);};
-    recorder.onerror=()=>{status.textContent=t('Recording stopped because the microphone became unavailable.');stopActiveRecording();};
+    recorder.onerror=()=>{setListeningState(false);status.textContent=t('Recording stopped because the microphone became unavailable.');stopActiveRecording();};
     recorder.onstop=()=>{
       clearInterval(recordingTimer); stream.getTracks().forEach(track=>track.stop());
       activeAudioStream=null;
       const elapsed=Math.max(1,Math.round((Date.now()-started)/1000));
       const blob=new Blob(chunks,{type:recorder.mimeType || 'audio/webm'}), reader=new FileReader();
       reader.onload=()=>{if(session!==recordingSession)return;audioDraft={url:reader.result,duration:elapsed,type:blob.type};const preview=document.querySelector('#audio-preview');if(preview){preview.innerHTML=`${audioHtml(audioDraft,t('Care update voice note'))}<button class="link-button discard-audio" type="button" id="discard-audio">${t('Discard recording')}</button>`;document.querySelector('#discard-audio').onclick=discardAudioDraft;status.textContent=t('Voice note ready. Play it back, discard it, or save it with the care update.');}};
-      reader.readAsDataURL(blob); if(activeRecorder===recorder)activeRecorder=null; recordingPending=false; recordButton.disabled=false; recordButton.hidden=false; stopButton.hidden=true; if(state.page==='capture')recordButton.focus();
+      setListeningState(false); reader.readAsDataURL(blob); if(activeRecorder===recorder)activeRecorder=null; recordingPending=false; recordButton.disabled=false; recordButton.hidden=false; stopButton.hidden=true; if(state.page==='capture')recordButton.focus();
     };
-    recordingPending=false; recordButton.disabled=false; recorder.start(); recordButton.hidden=true; stopButton.hidden=false; stopButton.focus(); status.textContent=t('Recording… choose Stop when you are finished.'); duration.textContent='00:00';
+    recordingPending=false; recordButton.disabled=false; recorder.start(); recordButton.hidden=true; stopButton.hidden=false; stopButton.focus(); setListeningState(true); status.textContent=t('Speak naturally — your words fill the note. Tap Stop when you’re finished.'); duration.textContent='00:00';
     recordingTimer=setInterval(()=>{const seconds=(Date.now()-started)/1000;duration.textContent=formatDuration(seconds);if(seconds>=120 && activeRecorder?.state==='recording'){status.textContent=t('Two-minute limit reached. Preparing your voice note…');activeRecorder.stop();}},250);
   } catch(error) {
     recordingPending=false; recordButton.disabled=false;
