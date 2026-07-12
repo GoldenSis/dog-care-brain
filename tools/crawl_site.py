@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import math
 import time
 import urllib.request
 import urllib.robotparser
@@ -15,6 +16,8 @@ from pathlib import Path
 from urllib.parse import urljoin, urlsplit, urlunsplit
 
 USER_AGENT = "DogCareBrainResearchBot/1.0 (+https://goldensis.github.io/dog-care-brain/)"
+MAX_DISCOVERY_BYTES = 2_000_000
+MAX_PAGE_CHARS = 500_000
 
 
 @dataclass
@@ -33,7 +36,12 @@ def normalize_url(url: str) -> str:
 def read_url(url: str) -> bytes:
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     with urllib.request.urlopen(request, timeout=20) as response:
-        return response.read()
+        if urlsplit(response.geturl()).netloc != urlsplit(url).netloc:
+            raise ValueError(f"Cross-origin redirect refused: {url} -> {response.geturl()}")
+        content = response.read(MAX_DISCOVERY_BYTES + 1)
+        if len(content) > MAX_DISCOVERY_BYTES:
+            raise ValueError(f"Discovery document exceeds {MAX_DISCOVERY_BYTES} bytes: {url}")
+        return content
 
 
 def sitemap_urls(xml: bytes) -> list[str]:
@@ -63,8 +71,23 @@ def allowed_urls(base_url: str, candidates: list[str], robots_text: str, limit: 
 def markdown_text(result: object) -> str:
     markdown = getattr(result, "markdown", "")
     if isinstance(markdown, str):
-        return str(markdown)
-    return (getattr(markdown, "fit_markdown", None) or getattr(markdown, "raw_markdown", "")).strip()
+        return str(markdown)[:MAX_PAGE_CHARS]
+    return (getattr(markdown, "fit_markdown", None) or getattr(markdown, "raw_markdown", "")).strip()[:MAX_PAGE_CHARS]
+
+
+def same_origin(base_url: str, candidate: str) -> bool:
+    return urlsplit(base_url).netloc == urlsplit(candidate).netloc
+
+
+def nonnegative_float(value: str) -> float:
+    parsed = float(value)
+    if not math.isfinite(parsed) or parsed < 0:
+        raise argparse.ArgumentTypeError("must be a finite number greater than or equal to zero")
+    return parsed
+
+
+def output_is_safe(output: Path, workspace: Path) -> bool:
+    return not output.resolve().is_relative_to(workspace.resolve())
 
 
 async def crawl(urls: list[str], delay: float) -> list[Page]:
@@ -74,15 +97,33 @@ async def crawl(urls: list[str], delay: float) -> list[Page]:
         raise SystemExit("Install crawler requirements first: pip install -r requirements-crawler.txt") from error
 
     browser_config = BrowserConfig(headless=True, user_agent=USER_AGENT, verbose=False)
-    run_config = CrawlerRunConfig(cache_mode=CacheMode.ENABLED, check_robots_txt=True)
+    run_config = CrawlerRunConfig(cache_mode=CacheMode.ENABLED, check_robots_txt=True, page_timeout=20_000)
     pages: list[Page] = []
     async with AsyncWebCrawler(config=browser_config) as crawler:
+        origin = urls[0]
+
+        async def restrict_navigation(page: object, **_: object) -> object:
+            async def handle_route(route: object) -> None:
+                request = route.request
+                if request.is_navigation_request() and not same_origin(origin, request.url):
+                    await route.abort()
+                else:
+                    await route.continue_()
+
+            await page.route("**/*", handle_route)
+            return page
+
+        crawler.crawler_strategy.set_hook("on_page_context_created", restrict_navigation)
         for index, url in enumerate(urls):
             if index:
                 await asyncio.sleep(delay)
             result = await crawler.arun(url=url, config=run_config)
             if not result.success:
                 print(f"skip: {url}: {result.error_message}")
+                continue
+            final_url = getattr(result, "redirected_url", None) or getattr(result, "url", url)
+            if not same_origin(origin, final_url):
+                print(f"skip: cross-origin result refused: {url} -> {final_url}")
                 continue
             metadata = result.metadata or {}
             pages.append(Page(url=url, title=metadata.get("title", url), markdown=markdown_text(result)))
@@ -105,8 +146,12 @@ async def main() -> None:
     cli.add_argument("url", help="Public site root, for example https://www.rintintin-pro.com/")
     cli.add_argument("--output", required=True, type=Path, help="Directory for corpus.md and corpus.json")
     cli.add_argument("--max-pages", type=int, default=12, choices=range(1, 51), metavar="1-50")
-    cli.add_argument("--delay", type=float, default=1.0, help="Seconds between page requests")
+    cli.add_argument("--delay", type=nonnegative_float, default=1.0, help="Seconds between page requests")
+    cli.add_argument("--allow-output-in-repo", action="store_true", help="Permit an output path inside the current workspace")
     args = cli.parse_args()
+
+    if not args.allow_output_in_repo and not output_is_safe(args.output, Path.cwd()):
+        cli.error("--output must be outside the repository (or pass --allow-output-in-repo explicitly)")
 
     root = normalize_url(args.url)
     robots_url, sitemap_url = urljoin(root, "/robots.txt"), urljoin(root, "/sitemap.xml")

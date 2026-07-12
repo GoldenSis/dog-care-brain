@@ -48,7 +48,7 @@ Voice transcription uses the browser's built-in speech-recognition feature. Depe
 
 ## Public-site research crawler
 
-An optional Crawl4AI tool can turn an allowed public website into a local Markdown/JSON research corpus. It stays on the supplied origin, reads `robots.txt`, uses sitemap URLs, and limits requests by default. Keep generated corpora outside the repository unless they are intentionally reviewed and licensed for inclusion.
+An optional Crawl4AI tool can turn an allowed public website into a local Markdown/JSON research corpus. It blocks cross-origin navigation, reads `robots.txt`, uses sitemap URLs, and limits requests, discovery-file size, page duration, and retained content by default. Output paths inside the repository require an explicit override; keep generated corpora external unless they are intentionally reviewed and licensed for inclusion.
 
 ```bash
 python3.12 -m venv /tmp/dogcare-crawler
