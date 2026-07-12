@@ -182,9 +182,9 @@ async function startAudioRecording() {
       const elapsed=Math.max(1,Math.round((Date.now()-started)/1000));
       const blob=new Blob(chunks,{type:recorder.mimeType || 'audio/webm'}), reader=new FileReader();
       reader.onload=()=>{if(session!==recordingSession)return;audioDraft={url:reader.result,duration:elapsed,type:blob.type};const preview=document.querySelector('#audio-preview');if(preview){preview.innerHTML=`${audioHtml(audioDraft,'Care update voice note')}<button class="link-button discard-audio" type="button" id="discard-audio">Discard recording</button>`;document.querySelector('#discard-audio').onclick=discardAudioDraft;status.textContent='Voice note ready. Play it back, discard it, or save it with the care update.';}};
-      reader.readAsDataURL(blob); if(activeRecorder===recorder)activeRecorder=null; recordingPending=false; recordButton.disabled=false; recordButton.hidden=false; stopButton.hidden=true;
+      reader.readAsDataURL(blob); if(activeRecorder===recorder)activeRecorder=null; recordingPending=false; recordButton.disabled=false; recordButton.hidden=false; stopButton.hidden=true; if(state.page==='capture')recordButton.focus();
     };
-    recordingPending=false; recordButton.disabled=false; recorder.start(); recordButton.hidden=true; stopButton.hidden=false; status.textContent='Recording… choose Stop when you are finished.'; duration.textContent='00:00';
+    recordingPending=false; recordButton.disabled=false; recorder.start(); recordButton.hidden=true; stopButton.hidden=false; stopButton.focus(); status.textContent='Recording… choose Stop when you are finished.'; duration.textContent='00:00';
     recordingTimer=setInterval(()=>{const seconds=(Date.now()-started)/1000;duration.textContent=formatDuration(seconds);if(seconds>=120 && activeRecorder?.state==='recording'){status.textContent='Two-minute limit reached. Preparing your voice note…';activeRecorder.stop();}},250);
   } catch(error) {
     recordingPending=false; recordButton.disabled=false;
