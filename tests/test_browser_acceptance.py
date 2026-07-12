@@ -74,7 +74,9 @@ class BrowserAcceptanceTest(unittest.IsolatedAsyncioTestCase):
         dimensions = await self.page.evaluate("({ viewport: innerWidth, content: document.documentElement.scrollWidth })")
         self.assertLessEqual(dimensions["content"], dimensions["viewport"])
         self.assertEqual(await self.page.locator("h1").text_content(), "Billie Blue · Next carer")
-        await self.page.locator("[data-evidence-id]").first.click()
+        evidence = self.page.locator("[data-evidence-id]").first
+        observation_id = await evidence.get_attribute("data-evidence-id")
+        await evidence.click()
         self.assertEqual(await self.page.locator("h1").text_content(), "Billie Blue")
-        self.assertGreater(await self.page.locator('[id^="observation-"]').count(), 0)
+        self.assertEqual(await self.page.locator(f"#observation-{observation_id}").count(), 1)
         self.assertEqual(self.console_errors, [])
