@@ -21,10 +21,14 @@ MAX_DISCOVERY_BYTES = 2_000_000
 MAX_PAGE_CHARS = 500_000
 
 
+class CrossOriginRedirectError(urllib.error.HTTPError):
+    """Raised when a discovery fetch is redirected off the origin; never treated as a missing document."""
+
+
 class SameOriginRedirectHandler(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, request: object, file_pointer: object, code: int, message: str, headers: object, new_url: str) -> object:
         if not same_origin(request.full_url, new_url):
-            raise urllib.error.HTTPError(new_url, code, "Cross-origin redirect refused", headers, file_pointer)
+            raise CrossOriginRedirectError(new_url, code, "Cross-origin redirect refused", headers, file_pointer)
         return super().redirect_request(request, file_pointer, code, message, headers, new_url)
 
 
@@ -51,6 +55,15 @@ def read_url(url: str) -> bytes:
         if len(content) > MAX_DISCOVERY_BYTES:
             raise ValueError(f"Discovery document exceeds {MAX_DISCOVERY_BYTES} bytes: {url}")
         return content
+
+
+def read_discovery(url: str) -> bytes | None:
+    try:
+        return read_url(url)
+    except CrossOriginRedirectError:
+        raise
+    except urllib.error.URLError:
+        return None
 
 
 def sitemap_urls(xml: bytes) -> list[str]:
@@ -172,8 +185,15 @@ async def main() -> None:
 
     root = normalize_url(args.url)
     robots_url, sitemap_url = urljoin(root, "/robots.txt"), urljoin(root, "/sitemap.xml")
-    robots = read_url(robots_url).decode("utf-8", errors="replace")
-    candidates = [root, *sitemap_urls(read_url(sitemap_url))]
+    robots_bytes = read_discovery(robots_url)
+    robots = robots_bytes.decode("utf-8", errors="replace") if robots_bytes is not None else ""
+    candidates = [root]
+    sitemap_bytes = read_discovery(sitemap_url)
+    if sitemap_bytes is not None:
+        try:
+            candidates.extend(sitemap_urls(sitemap_bytes))
+        except ET.ParseError:
+            pass
     urls = allowed_urls(root, candidates, robots, args.max_pages)
     if not urls:
         raise SystemExit("No crawlable URLs found after applying robots.txt and origin rules")
