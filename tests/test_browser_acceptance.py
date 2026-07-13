@@ -39,7 +39,7 @@ class BrowserAcceptanceTest(unittest.IsolatedAsyncioTestCase):
         await self.page.add_init_script("""
             class TestSpeechRecognition {
               constructor() { window.testRecognition = this; }
-              start() {}
+              start() { if (this.onstart) this.onstart(); }
               stop() { if (this.onend) this.onend(); }
               emit(text, isFinal = false) {
                 const result = [{ transcript: text }];
@@ -55,12 +55,12 @@ class BrowserAcceptanceTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_voice_note_appears_live_then_edits_and_saves_to_timeline(self):
         await self.page.click('.topbar [data-go="capture"]')
-        await self.page.click("#voice-note")
+        await self.page.click("#record-audio")
         await self.page.evaluate("testRecognition.emit('Billie drank water', false)")
         self.assertEqual(await self.page.input_value("#observation"), "Billie drank water")
-        self.assertTrue(await self.page.is_editable("#observation") is False)
+        self.assertTrue(await self.page.is_editable("#observation"))
 
-        await self.page.click("#voice-note")
+        await self.page.click("#stop-audio")
         await self.page.fill("#observation", "Billie drank water after her walk.")
         await self.page.click("#save-observation")
 
