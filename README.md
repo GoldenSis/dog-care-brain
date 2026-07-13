@@ -34,7 +34,7 @@ Health-watch content is deliberately phrased as factual observation rather than 
 
 ## Try voice notes and social previews
 
-1. Open **Capture update**, add written care context, then choose **Record**. Microphone permission is requested only at that point.
+1. Open **Capture update**, add written care context, then choose **Dictate**. Microphone permission is requested only at that point.
 2. Watch the duration, stop, play back, and either discard the recording or save it with the care update. Recordings are limited to two minutes and retained in local browser storage when capacity allows.
 3. Find retained voice notes on the dog's timeline and in **Gallery**.
 4. In **Gallery**, preview the clearly labelled Instagram, Facebook, and YouTube access states. These controls do not ask for credentials, connect accounts, make network requests, or post content.
