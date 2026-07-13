@@ -54,7 +54,7 @@
   .app-shell { grid-template-columns: 216px 1fr; }
   .sidebar { padding-inline: 13px; }
   .brand { margin-inline: 6px; }
-  .brand-copy small { font-size: 7px; letter-spacing: .6px; }
+  .brand-copy small { font-size: 10px; letter-spacing: .5px; }
   .topbar { align-items: flex-start; gap: 16px; }
   .top-actions { flex-wrap: wrap; justify-content: flex-end; }
 }
@@ -69,7 +69,7 @@
   .top-actions .secondary { display: none; }
   #language-picker { min-height: 39px; padding-left: 9px; }
   .primary.compact { width: 42px; height: 42px; padding: 0; display: grid; place-items: center; border-radius: 14px; font-size: 20px; line-height: 1; }
-  .primary.compact span { display: none; }
+  .primary.compact span { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
   .content { padding: 23px 16px 48px; }
   .card { padding: 19px; border-radius: 22px; }
   .hero { padding: 25px 22px; min-height: 220px; }

@@ -272,7 +272,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 .brand-mark span { margin-left: -2px; color: #fff8e8; font-size: 10px; }
 .brand-copy { display: grid; line-height: 1; }
 .brand-copy strong { font: 800 23px/1 "Avenir Next", Avenir, sans-serif; letter-spacing: -.8px; }
-.brand-copy small { margin-top: 6px; color: #b9d1cc; font-size: 8px; font-weight: 800; letter-spacing: .9px; text-transform: uppercase; }
+.brand-copy small { margin-top: 6px; color: #b9d1cc; font-size: 11px; font-weight: 800; letter-spacing: .7px; text-transform: uppercase; }
 .sidebar nav { gap: 6px; }
 .nav-item { position: relative; min-height: 46px; padding: 11px 13px; border-radius: 15px; color: #c7d9d6; font-size: 13px; font-weight: 700; transition: color .18s, background .18s, transform .18s, box-shadow .18s; }
 .nav-item span { width: 25px; height: 25px; display: grid; place-items: center; border-radius: 9px; font-size: 17px; transition: background .18s, color .18s; }
@@ -285,7 +285,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 .avatar.human { width: 40px; height: 40px; background: var(--lilac); color: #4c416f; box-shadow: inset 0 0 0 3px rgba(255,255,255,.2); }
 .topbar { min-height: 112px; height: auto; padding: 22px clamp(24px, 3.5vw, 58px); border-bottom: 1px solid rgba(84, 72, 61, .08); background: rgba(255, 248, 237, .78); backdrop-filter: blur(14px); }
 .topbar h1 { color: #293650; font: 700 clamp(25px, 2.15vw, 32px)/1.08 Georgia, "Times New Roman", serif; letter-spacing: -.8px; }
-.eyebrow { color: var(--coral-dark); font-size: 9px; letter-spacing: 1.9px; }
+.eyebrow { color: var(--coral-dark); font-size: 11px; letter-spacing: 1.5px; }
 .top-actions { gap: 10px; }
 #language-picker { min-height: 40px; border: 1px solid var(--line); background: rgba(255, 253, 249, .88); color: var(--green); border-radius: 13px; padding: 8px 30px 8px 11px; font-weight: 800; cursor: pointer; }
 .status-pill { border-color: #d9e7d8; background: #f6fff7; color: #58715d; padding: 9px 13px; font-weight: 700; }
