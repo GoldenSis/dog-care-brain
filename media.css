@@ -44,3 +44,60 @@
 .share-fallbacks { display: flex; flex-wrap: wrap; gap: 7px; }
 .share-fallbacks .ghost { display: inline-flex; align-items: center; text-decoration: none; }
 @media (max-width: 760px) { .social-platforms { grid-template-columns: 1fr; } .share-fallbacks .ghost { flex: 1 1 45%; justify-content: center; } }
+
+/* Muse responsive refinements */
+@media (max-width: 1180px) {
+  .status-pill { display: none; }
+  .top-actions { gap: 8px; }
+}
+@media (max-width: 1050px) {
+  .app-shell { grid-template-columns: 216px 1fr; }
+  .sidebar { padding-inline: 13px; }
+  .brand { margin-inline: 6px; }
+  .brand-copy small { font-size: 7px; letter-spacing: .6px; }
+  .topbar { align-items: flex-start; gap: 16px; }
+  .top-actions { flex-wrap: wrap; justify-content: flex-end; }
+}
+@media (max-width: 760px) {
+  body { background: var(--cream); }
+  .sidebar { width: 252px; left: -276px; }
+  .sidebar.open { left: 0; }
+  .topbar { min-height: 88px; padding: 16px 17px; align-items: center; }
+  .mobile-menu { display: grid; place-items: center; flex: none; width: 42px; height: 42px; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); color: var(--green); cursor: pointer; }
+  .topbar > div:first-of-type { margin-left: 2px; }
+  .topbar h1 { max-width: 260px; font-size: clamp(20px, 5.5vw, 25px); }
+  .top-actions .secondary { display: none; }
+  #language-picker { min-height: 39px; padding-left: 9px; }
+  .primary.compact { width: 42px; height: 42px; padding: 0; display: grid; place-items: center; border-radius: 14px; font-size: 20px; line-height: 1; }
+  .primary.compact span { display: none; }
+  .content { padding: 23px 16px 48px; }
+  .card { padding: 19px; border-radius: 22px; }
+  .hero { padding: 25px 22px; min-height: 220px; }
+  .hero h2 { max-width: 90%; font-size: 29px; }
+  .hero p { max-width: 90%; }
+  .hero::after { right: -125px; }
+  .section-head, .page-title-row { align-items: flex-start; gap: 12px; }
+  .page-title-row h2 { font-size: 29px; }
+  .dog-card { padding: 17px; }
+  .dog-avatar { width: 62px; height: 62px; }
+  .composer textarea { min-height: 180px; }
+  .note-field textarea { padding-right: 18px; padding-top: 64px; }
+  .mic-button { left: 13px; right: auto; }
+  .composer-actions { gap: 12px; }
+  .composer-actions small { max-width: 55%; }
+  .week { gap: 8px; }
+  .day { padding: 10px; }
+}
+@media (max-width: 440px) {
+  .eyebrow { letter-spacing: 1.2px; }
+  .topbar h1 { max-width: 190px; font-size: 19px; }
+  #language-picker { width: 55px; padding-right: 5px; }
+  .hero h2 { max-width: 100%; font-size: 27px; }
+  .hero p { max-width: 100%; }
+  .dog-card { gap: 12px; }
+  .dog-avatar { width: 54px; height: 54px; font-size: 30px; }
+  .week { grid-template-columns: 1fr; }
+  .day { min-height: 108px; }
+  .composer-actions { align-items: stretch; flex-direction: column; }
+  .composer-actions small { max-width: none; }
+}
