@@ -25,6 +25,10 @@ class CrossOriginRedirectError(urllib.error.HTTPError):
     """Raised when a discovery fetch is redirected off the origin; never treated as a missing document."""
 
 
+class DiscoveryTooLargeError(ValueError):
+    """Raised when a discovery document exceeds the size cap; treated as a missing document."""
+
+
 class SameOriginRedirectHandler(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, request: object, file_pointer: object, code: int, message: str, headers: object, new_url: str) -> object:
         if not same_origin(request.full_url, new_url):
@@ -53,7 +57,7 @@ def read_url(url: str) -> bytes:
             raise ValueError(f"Cross-origin redirect refused: {url} -> {response.geturl()}")
         content = response.read(MAX_DISCOVERY_BYTES + 1)
         if len(content) > MAX_DISCOVERY_BYTES:
-            raise ValueError(f"Discovery document exceeds {MAX_DISCOVERY_BYTES} bytes: {url}")
+            raise DiscoveryTooLargeError(f"Discovery document exceeds {MAX_DISCOVERY_BYTES} bytes: {url}")
         return content
 
 
@@ -62,7 +66,7 @@ def read_discovery(url: str) -> bytes | None:
         return read_url(url)
     except CrossOriginRedirectError:
         raise
-    except urllib.error.URLError:
+    except (urllib.error.URLError, DiscoveryTooLargeError):
         return None
 
 

@@ -6,7 +6,7 @@ import urllib.error
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from tools.crawl_site import CrossOriginRedirectError, allowed_urls, markdown_text, nonnegative_float, normalize_url, output_is_safe, read_discovery, read_url, repository_root, same_origin, sitemap_urls
+from tools.crawl_site import MAX_DISCOVERY_BYTES, CrossOriginRedirectError, allowed_urls, markdown_text, nonnegative_float, normalize_url, output_is_safe, read_discovery, read_url, repository_root, same_origin, sitemap_urls
 
 
 class CrawlSiteTest(unittest.TestCase):
@@ -80,6 +80,28 @@ class CrawlSiteTest(unittest.TestCase):
         thread.start()
         try:
             self.assertIsNone(read_discovery(f"http://127.0.0.1:{server.server_port}/robots.txt"))
+        finally:
+            server.shutdown()
+            server.server_close()
+
+    def test_read_discovery_returns_none_on_oversized_document(self):
+        body = b"a" * (MAX_DISCOVERY_BYTES + 1)
+
+        class OversizedHandler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *_):
+                pass
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), OversizedHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            self.assertIsNone(read_discovery(f"http://127.0.0.1:{server.server_port}/sitemap.xml"))
         finally:
             server.shutdown()
             server.server_close()
