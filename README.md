@@ -1,6 +1,6 @@
 # DogCare Brain
 
-A polished, dependency-free MVP for a small dog-care business. The demo follows Billie Blue and Charlie Rose from daily care capture through owner updates, scheduling, media, and lightweight business reporting.
+A polished, dependency-free MVP for a small dog-care business. This premium **Muse** edition is branded for Adine-Sophie and Le Bus des Toutous. It follows Billie Blue and Charlie Rose from daily care capture through owner updates, scheduling, media, and lightweight business reporting.
 
 ## Run locally
 
@@ -16,11 +16,12 @@ No install or build step is required. Demo observations are stored in the browse
 
 ## Try the core flow
 
-1. Open **Capture update** from the dashboard or navigation.
-2. Choose a dog and type a note, or use **Start recording** to see a voice note transcribed live into the care-note field.
-3. Edit the text if needed, review the detected tags, and save the observation.
-4. The new structured card appears in the dog's timeline and the owner story preview updates immediately.
-5. Open **Handoff** to review a care-continuity summary for either the owner or next carer, follow its evidence links back to today's observations, and check the suggested next-care actions.
+1. Open **Muse assistant** and ask for today’s briefing, recorded items needing attention, or an owner handoff. Muse answers from deterministic information already held in the browser; it is not connected to a remote AI service.
+2. Use a quick action or open **Capture update** from the dashboard or navigation.
+3. Choose a dog and type a note, or use **Start recording** to see a voice note transcribed live into the care-note field.
+4. Edit the text if needed, review the detected tags, and save the observation.
+5. The new structured card appears in the dog's timeline and the owner story preview updates immediately.
+6. Open **Handoff** to review a care-continuity summary for either the owner or next carer, follow its evidence links back to today's observations, and check the suggested next-care actions.
 
 Health-watch content is deliberately phrased as factual observation rather than diagnosis. The handoff reminds carers to keep observing and contact the owner or a veterinarian when concerned.
 
@@ -42,7 +43,7 @@ Browsers without `getUserMedia`/`MediaRecorder`, insecure non-localhost contexts
 
 ## Product boundaries
 
-This is a local interactive prototype using fictional demo data. AI structuring is represented by deterministic, on-device keyword parsing. Voice audio is captured and retained only in the browser; it is never uploaded. Invite creation, WhatsApp, Instagram, Facebook, YouTube, owner delivery, payments, and cloud sync are clearly labelled previews or drafts and do not connect to external services. Social previews never collect credentials or post to a network.
+This is a local interactive prototype using fictional demo care moments around the named pilot profiles. Muse and AI structuring are represented by deterministic, on-device keyword parsing; Muse is not connected to a remote AI service, and assistant questions and care records stay in the browser. Voice audio is captured and retained only in the browser; it is never uploaded. Invite creation, WhatsApp, Instagram, Facebook, YouTube, owner delivery, payments, and cloud sync are clearly labelled previews or drafts and do not connect to external services. Social previews never collect credentials or post to a network.
 
 Voice transcription uses the browser's built-in speech-recognition feature. Depending on the browser, microphone audio may be processed by the browser provider's speech service; users should check their browser's privacy terms before recording.
 
@@ -66,4 +67,4 @@ The optional crawler environment also supplies Playwright for the committed brow
 /tmp/dogcare-crawler/bin/python -m unittest discover -s tests -v
 ```
 
-The suite covers robots/origin/output boundaries, live voice transcription through editable text into the timeline, and mobile handoff overflow. Browser tests skip with an installation hint when the optional environment is not present; pure crawler-boundary tests always run with the standard library.
+The suite covers robots/origin/output boundaries, the premium Muse briefing-to-handoff journey, live voice transcription through editable text into the timeline, and mobile handoff overflow. Browser tests skip with an installation hint when the optional environment is not present; pure crawler-boundary tests always run with the standard library.

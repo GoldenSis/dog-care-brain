@@ -80,3 +80,39 @@ class BrowserAcceptanceTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await self.page.locator("h1").text_content(), "Billie Blue")
         self.assertEqual(await self.page.locator(f"#observation-{observation_id}").count(), 1)
         self.assertEqual(self.console_errors, [])
+
+    async def test_muse_gives_a_private_briefing_and_opens_the_handoff(self):
+        await self.page.click("#mobile-menu")
+        await self.page.click('[data-page="assistant"]')
+
+        self.assertEqual(await self.page.locator("h1").text_content(), "Muse · Your care assistant")
+        self.assertIn("Billie Blue", await self.page.locator("#assistant-thread").text_content())
+        self.assertIn("Charlie Rose", await self.page.locator("#assistant-thread").text_content())
+        self.assertIn("stay in this browser", await self.page.locator(".assistant-privacy").text_content())
+        dimensions = await self.page.evaluate("({ viewport: innerWidth, content: document.documentElement.scrollWidth })")
+        self.assertLessEqual(dimensions["content"], dimensions["viewport"])
+
+        await self.page.click('[data-assistant-prompt="attention"]')
+        response = await self.page.locator(".assistant-message.muse").last.text_content()
+        self.assertIn("not a diagnosis", response)
+        self.assertTrue(await self.page.locator("#assistant-question").evaluate("element => element === document.activeElement"))
+
+        await self.page.fill("#assistant-question", "Open a new care note")
+        await self.page.press("#assistant-question", "Enter")
+        self.assertIn("speak naturally", await self.page.locator(".assistant-message.muse").last.text_content())
+        self.assertTrue(await self.page.locator("#assistant-question").evaluate("element => element === document.activeElement"))
+
+        await self.page.click('[data-assistant-action="capture"]')
+        self.assertEqual(await self.page.locator("h1").text_content(), "Capture the moment")
+        await self.page.click("#mobile-menu")
+        await self.page.click('[data-page="assistant"]')
+        await self.page.click('[data-assistant-action="story"]')
+        self.assertEqual(await self.page.locator("h1").text_content(), "A lovely day, ready to share")
+        await self.page.click("#mobile-menu")
+        await self.page.click('[data-page="assistant"]')
+
+        await self.page.click('[data-assistant-action="handoff"]')
+        self.assertEqual(await self.page.locator("h1").text_content(), "Billie Blue · Next carer")
+        dimensions = await self.page.evaluate("({ viewport: innerWidth, content: document.documentElement.scrollWidth })")
+        self.assertLessEqual(dimensions["content"], dimensions["viewport"])
+        self.assertEqual(self.console_errors, [])
