@@ -116,3 +116,32 @@ class BrowserAcceptanceTest(unittest.IsolatedAsyncioTestCase):
         dimensions = await self.page.evaluate("({ viewport: innerWidth, content: document.documentElement.scrollWidth })")
         self.assertLessEqual(dimensions["content"], dimensions["viewport"])
         self.assertEqual(self.console_errors, [])
+
+    async def test_french_voice_note_persists_across_invite_and_muse_flows(self):
+        await self.page.select_option("#language-picker", "fr")
+        self.assertEqual(await self.page.locator("html").get_attribute("lang"), "fr")
+
+        await self.page.click('.topbar [data-go="capture"]')
+        await self.page.click("#record-audio")
+        await self.page.evaluate("testRecognition.emit('Billie a bu de l eau', true)")
+        await self.page.click("#stop-audio")
+        await self.page.fill("#observation", "Billie a bu de l’eau après sa promenade.")
+        await self.page.click("#save-observation")
+        self.assertEqual(
+            await self.page.locator(".timeline-card p").first.text_content(),
+            "Billie a bu de l’eau après sa promenade.",
+        )
+
+        await self.page.click("#mobile-menu")
+        await self.page.click('[data-page="invite"]')
+        self.assertEqual(await self.page.locator("h2").first.text_content(), "Préparer une invitation")
+        await self.page.fill("#invite-name", "Camille Martin")
+        await self.page.fill("#invite-email", "camille@example.com")
+        await self.page.click("#create-invite")
+        self.assertIn("Camille Martin", await self.page.locator("#pending-invites").text_content())
+
+        await self.page.click("#mobile-menu")
+        await self.page.click('[data-page="assistant"]')
+        self.assertEqual(await self.page.locator("h1").text_content(), "Muse · Votre assistant de soin")
+        self.assertEqual(await self.page.locator("html").get_attribute("lang"), "fr")
+        self.assertEqual(self.console_errors, [])
