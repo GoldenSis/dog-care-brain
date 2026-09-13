@@ -8,7 +8,7 @@ const serverState = { ok: true, business_id: 1, revision: 0, imported: false, ob
 const response = (data, status = 200) => ({ ok: status < 400, status, text: async () => JSON.stringify(data) });
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
-function adapter({ local = {}, fetcher, confirm = () => true, enabled = true } = {}) {
+function adapter({ local = {}, fetcher, confirm = () => true, enabled = true, timers = {} } = {}) {
   const storage = new Map(Object.entries(local));
   const calls = [], toasts = [], notices = [];
   const window = {
@@ -17,7 +17,7 @@ function adapter({ local = {}, fetcher, confirm = () => true, enabled = true } =
     showToast: text => toasts.push(text),
     confirm: text => { notices.push(text); return confirm(text); },
   };
-  vm.runInNewContext(source, { window, fetch: async (url, options) => {
+  vm.runInNewContext(source, { window, AbortController, setTimeout, clearTimeout, ...timers, fetch: async (url, options) => {
     const call = { url, ...options, payload: options.body && JSON.parse(options.body) };
     calls.push(call);
     return fetcher ? fetcher(call, calls) : response(serverState);
@@ -83,6 +83,46 @@ test('interrupted response bodies resolve hydration failure', async () => {
   const h = adapter({ fetcher: async () => ({ ok: true, status: 200, text: async () => { throw Error('disconnected'); } }) });
   assert.equal(await h.api.ready, false);
 });
+
+for (const phase of ['headers', 'body']) {
+  test(`stalled ${phase} time out during hydration and writes without accepting late state`, async () => {
+    const pending = new Map();
+    const timers = {
+      setTimeout(callback, delay) { assert.ok(delay > 0 && delay <= 30000); pending.set(callback, delay); return callback; },
+      clearTimeout(callback) { pending.delete(callback); },
+    };
+    let release;
+    const stalled = new Promise(resolve => { release = resolve; });
+    const stuck = () => phase === 'headers' ? stalled : { ok: true, status: 200, text: () => stalled };
+    const loading = adapter({ timers, fetcher: stuck });
+    await tick();
+    assert.equal(pending.size, 1);
+    [...pending.keys()].forEach(callback => callback());
+    assert.equal(await loading.api.ready, false);
+    assert.equal(loading.calls[0].signal.aborted, true);
+    assert.equal(pending.size, 0);
+
+    let broken = true;
+    const h = adapter({ timers, fetcher: call => call.method === 'PUT' && broken ? stuck() : response(serverState) });
+    assert.equal(await h.api.ready, true);
+    const saving = h.api.saveLanguage('fr');
+    await tick();
+    assert.equal(pending.size, 1);
+    [...pending.keys()].forEach(callback => callback());
+    assert.equal(await saving, false);
+    assert.equal(h.calls.at(-1).signal.aborted, true);
+    assert.equal(h.api.getLanguage(), 'en');
+    assert.equal(h.toasts.length, 1);
+    assert.equal(pending.size, 0);
+    release(phase === 'headers' ? response({ ...serverState, revision: 99 }) : JSON.stringify({ ...serverState, revision: 99 }));
+    await tick();
+    broken = false;
+    assert.equal(await h.api.saveLanguage('de'), true);
+    assert.equal(h.calls.at(-1).headers['If-Match'], '"0"');
+    assert.equal(h.api.getLanguage(), 'de');
+    assert.equal(pending.size, 0);
+  });
+}
 
 test('failed import preserves authoritative data and leaves migration retryable', async () => {
   const local = { 'dogcare-observations': JSON.stringify({ billie: [{ text: 'Local history' }] }) };

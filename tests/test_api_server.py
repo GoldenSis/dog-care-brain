@@ -14,6 +14,33 @@ from tests.test_tenant_isolation import (
 
 
 class ApiServerRegressionTest(ApiServerTestCase):
+    def test_observation_writes_and_import_reject_non_account_recording_urls(self):
+        cookie = self.account()
+        before = self.state(cookie)
+        valid = "/api/blobs/" + "a" * 32 + ".webm"
+        for url in ('" onerror="alert(1)', 'javascript:alert(1)',
+                    'https://example.com/voice.webm', '//example.com/voice.webm',
+                    'data:audio/webm;base64,YQ==', '/api/auth/logout',
+                    valid + '?extra=1', valid + '\n', valid + '/../../auth/logout'):
+            for method, path in (("PUT", "/api/observations"), ("POST", "/api/import")):
+                with self.subTest(url=url, path=path):
+                    status, body, _ = _http(self.port, method, path, {
+                        "observations": {"billie": [{"audio": {"url": url}}]},
+                    }, cookie)
+                    self.assertEqual(status, 400, body)
+                    self.assertEqual(self.state(cookie), before)
+
+    def test_long_email_signin_uses_bounded_unique_outbox_names(self):
+        email = "a" * 64 + "@" + "b" * 63 + "." + "c" * 63 + "." + "d" * 57 + ".com"
+        self.assertEqual(len(email), 254)
+        before = set(Path(self.outbox).glob("*.json"))
+        for _ in range(2):
+            cookie = self.login(email)
+            self.assertEqual(self.state(cookie)["email"], email)
+        letters = set(Path(self.outbox).glob("*.json")) - before
+        self.assertEqual(len(letters), 2)
+        self.assertTrue(all(len(path.name.encode()) < 100 for path in letters))
+
     def mutation_headers(self, state):
         return {"X-DogCare-Business": str(state["business_id"]),
                 "If-Match": '"' + str(state.get("revision", 0)) + '"'}

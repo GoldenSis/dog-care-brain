@@ -25,6 +25,7 @@
   let loadError = "Could not load your account. Check your connection and reload.";
   let writes = Promise.resolve();
   const uploaded = new Map();
+  const requestTimeout = 15000;
 
   async function req(path, opts) {
     const writing = opts && opts.method && opts.method !== "GET";
@@ -32,10 +33,21 @@
       if (writeBlocked || businessId === null) { failed(); return { ok: false, status: 0, data: {} }; }
       opts = { ...opts, headers: { ...opts.headers, "X-DogCare-Business": String(businessId), "If-Match": `"${revision}"` } };
     }
+    const controller = new AbortController();
+    let timer;
     try {
-      const r = await fetch(url(path), Object.assign({ credentials: "include" }, opts));
-      const text = await r.text();
-      const data = text ? JSON.parse(text) : {};
+      const timeout = new Promise((_, reject) => {
+        timer = setTimeout(() => {
+          reject(new Error("Request timed out"));
+          controller.abort();
+        }, requestTimeout);
+      });
+      const request = (async () => {
+        const r = await fetch(url(path), { credentials: "include", ...opts, signal: controller.signal });
+        const text = await r.text();
+        return { r, data: text ? JSON.parse(text) : {} };
+      })();
+      const { r, data } = await Promise.race([request, timeout]);
       if (writing && (data.reload_required || r.status === 401)) {
         writeBlocked = "Not saved — your account or care records changed. Copy your draft, then reload before saving.";
       }
@@ -51,6 +63,8 @@
     } catch {
       if (writing) failed();
       return { ok: false, status: 0, data: {} };
+    } finally {
+      clearTimeout(timer);
     }
   }
 

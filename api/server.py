@@ -144,7 +144,7 @@ def init():
 
 def write_outbox(email, link):
     os.makedirs(outbox_dir(), exist_ok=True)
-    safe = re.sub(r"[^a-z0-9._+-]+", "_", email.lower())
+    safe = _h(email.lower())[:16]
     name = f"{int(time.time())}-{safe}-{secrets.token_hex(4)}.json"
     path = os.path.join(outbox_dir(), name)
     payload = {
@@ -261,6 +261,8 @@ def validate_care(payload):
                 if audio is not None:
                     if not isinstance(audio, dict) or not isinstance(audio.get("url"), str):
                         raise ValueError("bad audio")
+                    if not audio["url"].startswith("/api/blobs/") or not BLOB_RE.fullmatch(audio["url"][len("/api/blobs/"):]):
+                        raise ValueError("bad audio url")
                     validate_text_fields(audio, ("type",))
                     duration = audio.get("duration")
                     if duration is not None and (type(duration) not in (int, float) or

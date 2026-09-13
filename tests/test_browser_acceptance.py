@@ -86,6 +86,40 @@ class BrowserFixture(unittest.IsolatedAsyncioTestCase, ApiServerTestCase):
 
 
 class BrowserAcceptanceTest(BrowserFixture):
+    async def test_recording_player_keeps_supported_sources_and_escapes_its_label(self):
+        for src in ('data:audio/webm;codecs=opus;base64,YQ==',
+                    'data:audio/mp4;codecs=mp4a.40.2;base64,YQ==',
+                    'data:audio/wav;base64,YQ==', '/api/blobs/' + 'a' * 32 + '.webm'):
+            player = await self.page.evaluate('''src => {
+                const template = document.createElement('template');
+                template.innerHTML = audioHtml({url:src,duration:1}, '<voice "note">');
+                const audio = template.content.querySelector('audio');
+                return {src:audio?.getAttribute('src'), label:audio?.getAttribute('aria-label')};
+            }''', src)
+            self.assertEqual(player, {'src': src, 'label': 'Play <voice "note">'})
+
+    async def test_stored_time_and_date_render_as_text_in_every_view(self):
+        markup = '<svg onload="window.injected=true"></svg>'
+        observations = {"billie": [
+            {"id": 801, "text": "Time check", "title": "Time", "tags": [], "time": markup, "date": "Today"},
+            {"id": 802, "text": "Date check", "title": "Date", "tags": [], "time": "09:00", "date": markup},
+        ], "charlie": []}
+        if self.api_mode:
+            status, body, _ = _http(self.port, "PUT", "/api/observations", {"observations": observations}, self.sid)
+            self.assertEqual(status, 200, body)
+        else:
+            await self.page.evaluate("data => localStorage.setItem('dogcare-observations', JSON.stringify(data))", observations)
+        await self.page.reload()
+        await self.wait_ready()
+        for view in ('dashboard', 'dogs', 'handoff'):
+            await self.page.evaluate('view => navigate(view)', view)
+            self.assertIn(markup, await self.page.locator('#app-content').text_content())
+            self.assertEqual(await self.page.locator('#app-content [onload], #app-content [onerror]').count(), 0)
+            self.assertFalse(await self.page.evaluate('Boolean(window.injected)'))
+        await self.page.evaluate("navigate('dogs')")
+        self.assertEqual(await self.page.locator('#observation-802 time').text_content(), '09:00 · ' + markup)
+        self.assertEqual(self.console_errors, [])
+
     async def test_voice_note_appears_live_then_edits_and_saves_to_timeline(self):
         await self.page.click('.topbar [data-go="capture"]')
         await self.page.click("#record-audio")
@@ -217,6 +251,64 @@ class StaticBrowserAcceptanceTest(BrowserAcceptanceTest):
 
 
 class AccountRecoveryTest(BrowserFixture):
+    async def test_legacy_unsafe_recording_urls_never_render_or_fetch(self):
+        urls = ['" onerror="window.injected=true', 'javascript:alert(1)',
+                'https://example.com/voice.webm', '//example.com/voice.webm',
+                '/api/auth/verify?t=untrusted']
+        observations = {"billie": [{"id": index, "text": "Legacy voice", "title": "Voice",
+                                    "tags": [], "audio": {"url": url, "duration": 1}}
+                                   for index, url in enumerate(urls, 901)]}
+        with self.server_mod.connection() as c:
+            user = c.execute('SELECT id, business_id FROM user WHERE email=?', ('adine@lebusdestoutous.example',)).fetchone()
+            self.server_mod.replace_observations(c, user['business_id'], user['id'], observations)
+        requests = []
+        self.page.on('request', lambda request: requests.append(request.url))
+        await self.page.reload()
+        await self.wait_ready()
+        for view in ('dogs', 'gallery', 'story'):
+            await self.page.evaluate('view => navigate(view)', view)
+            self.assertEqual(await self.page.locator('#app-content audio').count(), 0)
+        for url in urls:
+            self.assertIsNone(await self.page.evaluate('url => audioFile({url})', url))
+        self.assertFalse(any('example.com' in url or 'untrusted' in url for url in requests))
+        self.assertFalse(await self.page.evaluate('Boolean(window.injected)'))
+        self.assertEqual(self.console_errors, [])
+
+    async def test_timed_out_capture_restores_interaction_and_keeps_draft(self):
+        release = asyncio.Event()
+        started = asyncio.Event()
+        finished = asyncio.Event()
+
+        async def stall(route):
+            started.set()
+            await release.wait()
+            await route.abort()
+            finished.set()
+
+        await self.page.route('**/api/blobs', stall)
+        await self.page.clock.install()
+        await self.page.click('.topbar [data-go="capture"]')
+        await self.page.fill('#observation', 'Keep this timed out draft')
+        await self.page.evaluate("audioDraft = {url:'data:audio/webm;base64,YQ==',duration:1}")
+        await self.page.click('#save-observation')
+        await asyncio.wait_for(started.wait(), timeout=5)
+        try:
+            await self.page.clock.fast_forward(30001)
+            self.assertFalse(await self.page.evaluate('savePending'))
+            self.assertFalse(await self.page.evaluate("document.querySelector('.app-shell').inert"))
+            self.assertTrue(await self.page.is_editable('#observation'))
+            self.assertFalse(await self.page.is_disabled('#save-observation'))
+            self.assertEqual(await self.page.input_value('#observation'), 'Keep this timed out draft')
+            self.assertEqual(await self.page.evaluate('audioDraft.url'), 'data:audio/webm;base64,YQ==')
+            await self.page.fill('#observation', 'Edited after timeout')
+        finally:
+            release.set()
+            await asyncio.wait_for(finished.wait(), timeout=5)
+        await self.page.unroute('**/api/blobs', stall)
+        await self.page.click('#save-observation')
+        await self.page.wait_for_selector('.timeline-card')
+        self.assertEqual(await self.page.locator('.timeline-card p').first.text_content(), 'Edited after timeout')
+
     async def test_switching_accounts_in_another_tab_cannot_save_old_history_or_audio(self):
         original_sid = self.sid
         _, original, _ = _http(self.port, 'GET', '/api/state', cookie=original_sid)
