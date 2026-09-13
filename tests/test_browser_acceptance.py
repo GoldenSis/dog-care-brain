@@ -1,30 +1,57 @@
-import functools
+import os
+import sys
+import tempfile
 import threading
 import unittest
-from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from http.server import ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import urlparse
 
 try:
     from playwright.async_api import async_playwright
 except ImportError:
     async_playwright = None
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from test_tenant_isolation import _cookie_from, _http, _latest_link  # noqa: E402
+
+ROOT = Path(__file__).resolve().parents[1]
+
 
 @unittest.skipIf(async_playwright is None, "install requirements-crawler.txt and run crawl4ai-setup")
 class BrowserAcceptanceTest(unittest.IsolatedAsyncioTestCase):
     @classmethod
     def setUpClass(cls):
-        root = Path(__file__).resolve().parents[1]
-        handler = functools.partial(SimpleHTTPRequestHandler, directory=root)
-        cls.server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
-        cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
+        cls.tmp = Path(tempfile.mkdtemp(prefix="dogcare-browser-"))
+        os.environ["DC_DB"] = str(cls.tmp / "t.db")
+        os.environ["DC_OUTBOX"] = str(cls.tmp / "outbox")
+        os.environ["DC_BLOBS"] = str(cls.tmp / "blobs")
+        os.environ["DC_ROOT"] = str(ROOT)
+        os.environ["DC_INSECURE_COOKIE"] = "1"
+        sys.path.insert(0, str(ROOT / "api"))
+        import server  # noqa: E402
+        server.init()
+        cls.httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.Handler)
+        cls.thread = threading.Thread(target=cls.httpd.serve_forever, daemon=True)
         cls.thread.start()
-        cls.url = f"http://127.0.0.1:{cls.server.server_port}"
+        cls.port = cls.httpd.server_address[1]
+        cls.url = f"http://127.0.0.1:{cls.port}"
+        status, body, _ = _http(cls.port, "POST", "/api/auth/request",
+                                {"email": "adine@lebusdestoutous.example"})
+        assert status == 200, body
+        link = _latest_link(os.environ["DC_OUTBOX"], "adine@lebusdestoutous.example")
+        path = urlparse(link).path + "?" + urlparse(link).query
+        status, _, headers = _http(cls.port, "GET", path)
+        assert status == 302, status
+        cls.sid = _cookie_from(headers)
+        assert cls.sid
+        import server as _server  # noqa: E402
+        cls.seed_obs = _server.SEED_OBS
 
     @classmethod
     def tearDownClass(cls):
-        cls.server.shutdown()
-        cls.server.server_close()
+        cls.httpd.shutdown()
+        cls.httpd.server_close()
         cls.thread.join(timeout=2)
 
     async def asyncSetUp(self):
@@ -32,7 +59,12 @@ class BrowserAcceptanceTest(unittest.IsolatedAsyncioTestCase):
         self.addAsyncCleanup(self.playwright.stop)
         self.browser = await self.playwright.chromium.launch(headless=True)
         self.addAsyncCleanup(self.browser.close)
-        self.page = await self.browser.new_page(viewport={"width": 390, "height": 844})
+        self.context = await self.browser.new_context(viewport={"width": 390, "height": 844})
+        self.addAsyncCleanup(self.context.close)
+        await self.context.add_cookies([{
+            "name": "dc_s", "value": self.sid, "url": self.url, "httpOnly": True,
+        }])
+        self.page = await self.context.new_page()
         self.console_errors = []
         self.page.on("console", lambda message: self.console_errors.append(message.text) if message.type == "error" else None)
         self.page.on("pageerror", lambda error: self.console_errors.append(str(error)))
@@ -49,9 +81,14 @@ class BrowserAcceptanceTest(unittest.IsolatedAsyncioTestCase):
             }
             window.SpeechRecognition = TestSpeechRecognition;
         """)
+        _http(self.port, "PUT", "/api/prefs", {"language": "en"}, cookie=self.sid)
+        _http(self.port, "PUT", "/api/observations", {"observations": self.seed_obs}, cookie=self.sid)
+        _http(self.port, "PUT", "/api/invites", {"invites": []}, cookie=self.sid)
         await self.page.goto(self.url)
+        await self.page.wait_for_function("() => document.querySelector('h1')?.textContent")
         await self.page.evaluate("localStorage.removeItem('dogcare-observations')")
         await self.page.reload()
+        await self.page.wait_for_function("() => document.querySelector('h1')?.textContent")
 
     async def test_voice_note_appears_live_then_edits_and_saves_to_timeline(self):
         await self.page.click('.topbar [data-go="capture"]')

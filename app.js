@@ -743,7 +743,7 @@ Object.assign(translations.it, { "Speech-to-text is not available in this browse
 Object.assign(translations.de, { "Speech-to-text is not available in this browser. Recording still saves an audio note; you can also type your update.": "Spracherkennung ist in diesem Browser nicht verfügbar. Die Aufnahme speichert trotzdem eine Audionotiz; du kannst deine Notiz auch tippen." });
 Object.assign(translations.es, { "Speech-to-text is not available in this browser. Recording still saves an audio note; you can also type your update.": "El reconocimiento de voz no está disponible en este navegador. La grabación guarda igualmente una nota de audio; también puedes escribir tu actualización." });
 
-let state = { page: 'dashboard', dog: 'billie', handoffAudience: 'carer', language: localStorage.getItem('dogcare-language') || 'en', observations: loadObservations(), invites: loadInvites(), assistantMessages: [] };
+let state = { page: 'dashboard', dog: 'billie', handoffAudience: 'carer', language: 'en', observations: structuredClone(baseObservations), invites: [], assistantMessages: [] };
 let audioDraft = null;
 let activeRecorder = null;
 let recordingTimer = null;
@@ -884,12 +884,18 @@ function loadObservations() {
   try { return JSON.parse(localStorage.getItem('dogcare-observations')) || structuredClone(baseObservations); }
   catch { return structuredClone(baseObservations); }
 }
-function saveObservations() { try { localStorage.setItem('dogcare-observations', JSON.stringify(state.observations)); } catch { showToast(t('Saved for this session, but browser storage is full')); } }
+function saveObservations() {
+  if (window.DogCareAPI) { window.DogCareAPI.saveObservations(state.observations); return; }
+  try { localStorage.setItem('dogcare-observations', JSON.stringify(state.observations)); } catch { showToast(t('Saved for this session, but browser storage is full')); }
+}
 function loadInvites() {
   try { return JSON.parse(localStorage.getItem('dogcare-invites')) || []; }
   catch { return []; }
 }
-function saveInvites() { localStorage.setItem('dogcare-invites', JSON.stringify(state.invites)); }
+function saveInvites() {
+  if (window.DogCareAPI) { window.DogCareAPI.saveInvites(state.invites); return; }
+  localStorage.setItem('dogcare-invites', JSON.stringify(state.invites));
+}
 function escapeHtml(value) { return String(value).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
 function showToast(message) { const toast=document.querySelector('#toast'); toast.textContent=message; toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'),2500); }
 function dogAvatar(key) { const d=dogs[key]; return `<div class="dog-avatar ${d.colour}">${d.emoji}</div>`; }
@@ -1209,6 +1215,25 @@ document.querySelectorAll('.nav-item[data-page]').forEach(el=>el.onclick=()=>nav
 document.querySelectorAll('[data-route]').forEach(el=>el.onclick=e=>{e.preventDefault();navigate(el.dataset.route)});
 document.querySelector('#mobile-menu').onclick=()=>document.querySelector('.sidebar').classList.toggle('open');
 const languagePicker=document.querySelector('#language-picker');
-languagePicker.value=state.language;
-languagePicker.onchange=()=>{state.language=languagePicker.value;localStorage.setItem('dogcare-language',state.language);navigate(state.page);};
-navigate('dashboard');
+languagePicker.onchange=()=>{
+  state.language=languagePicker.value;
+  if (window.DogCareAPI) window.DogCareAPI.saveLanguage(state.language);
+  else localStorage.setItem('dogcare-language',state.language);
+  navigate(state.page);
+};
+function boot() {
+  if (window.DogCareAPI) {
+    state.language = window.DogCareAPI.getLanguage() || 'en';
+    const obs = window.DogCareAPI.getObservations();
+    state.observations = (obs && Object.keys(obs).length) ? obs : structuredClone(baseObservations);
+    state.invites = window.DogCareAPI.getInvites() || [];
+  } else {
+    state.language = localStorage.getItem('dogcare-language') || 'en';
+    state.observations = loadObservations();
+    state.invites = loadInvites();
+  }
+  languagePicker.value = state.language;
+  navigate('dashboard');
+}
+if (window.DogCareAPI) window.DogCareAPI.ready.then(boot);
+else boot();

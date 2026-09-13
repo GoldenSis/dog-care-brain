@@ -14,6 +14,13 @@ Then open [http://localhost:4173](http://localhost:4173).
 
 No install or build step is required. Demo observations are stored in the browser's `localStorage`; use **Reset demo** in Settings to restore the original data.
 
+Slice 1 (accounts, SQLite, still zero pip deps) — local only, no email keys:
+
+```bash
+python3 api/server.py          # http://127.0.0.1:8787  (sets window.DOGCARE_API)
+# POST /api/auth/request {"email":"you@example.com"} then open the link in .dev-outbox/
+```
+
 ## Try the core flow
 
 1. Open **Muse assistant** and ask for today’s briefing, recorded items needing attention, or an owner handoff. Muse answers from deterministic information already held in the browser; it is not connected to a remote AI service.
