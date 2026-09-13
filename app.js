@@ -898,6 +898,7 @@ assistantCopy.es.edition='ASISTENTE DE CUIDADOS PRIVADO';
 assistantCopy.de={...assistantCopy.en,edition:'PRIVATER PFLEGEASSISTENT',heroHeading:'Guten Morgen, Adine-Sophie.',heroText:'Billie Blue und Charlie Rose sind beide angemeldet. Ich habe ihren Pflegekontext und die nächsten Momente von heute für Sie zusammengestellt.',talk:'Mit Muse sprechen ✦',add:'Einen Pflegemoment hinzufügen',eyebrow:'PRIVATER ASSISTENT · LE BUS DES TOUTOUS',heading:'Muse · Ihr Pflegeassistent',introKicker:'MUSE FÜR ADINE-SOPHIE',introHeading:'Wie kann ich heute bei der Pflege helfen?',introText:'Fragen Sie ganz natürlich. Muse nutzt die Pflegedaten, die bereits in diesem privaten Prototyp vorliegen.',prompts:['Fass mir den heutigen Tag zusammen','Was braucht Aufmerksamkeit?','Übergabe an den Besitzer vorbereiten'],ask:'Muse fragen',placeholder:'Fragen Sie nach heute, einem Hund oder der nächsten Übergabe…',privacy:'Privater Prototyp · Ihre Frage und der Pflegeverlauf bleiben in diesem Browser. Muse kontaktiert keine Kunden oder externen Dienste.',quick:'SCHNELLAKTIONEN',keep:'Pflege am Laufen halten',you:'Sie',actions:[['Pflegenotiz hinzufügen','Sprechen, bearbeiten und bestätigen'],['Übergabe prüfen','Höhepunkte, Belege und nächste Pflege'],['Besitzer-Story ansehen','Vor dem Teilen prüfen']],briefing:(billie,charlie)=>`Guten Morgen, Adine-Sophie. Billie Blue hat heute ${billie} Pflegemomente erfasst und Charlie Rose ${charlie}. Beide sind angemeldet; Mittagessen und Ruhezeit sind als Nächstes um 12:30.`,noHealth:'Heute sind für Billie Blue oder Charlie Rose keine zu beobachtenden Gesundheitsnotizen erfasst. Das spiegelt nur das heutige Pflegeprotokoll wider und ist keine Diagnose. Beobachten Sie weiter und notieren Sie jede Veränderung sachlich.',health:(count,notes)=>`Ich habe ${count} sachliche Gesundheitsnotiz${count===1?'':'en'} gefunden: ${notes} Das ist Pflegekontext, keine Diagnose; beobachten Sie weiter und kontaktieren Sie bei Sorge den Besitzer oder einen Tierarzt.`,handoff:'Die Pflegeübergabe ist bereit zur Prüfung. Sie verknüpft jeden Höhepunkt mit seiner Quellbeobachtung und hält die Gesundheitsformulierung sachlich und nicht diagnostisch.',capture:'Ich kann Ihnen helfen, das zu erfassen. Öffnen Sie eine Pflegenotiz, sprechen Sie natürlich, stoppen Sie die Aufnahme, bearbeiten Sie den Text und bestätigen Sie ihn in die Chronik des Hundes.',fallback:'Ich kann den heutigen Tag zusammenfassen, erfasste Beobachtungen hervorheben, die Aufmerksamkeit brauchen könnten, eine Übergabe vorbereiten oder eine neue Pflegenotiz öffnen. Dieser Prototyp antwortet nur mit den Pflegeinformationen in diesem Browser.'};
 function assistantText() { return assistantCopy[state.language] || assistantCopy.en; }
 let appReady = !window.DogCareAPI;
+let savePending = false;
 const content = document.querySelector('#app-content');
 const title = document.querySelector('#page-title');
 const eyebrow = document.querySelector('#page-eyebrow');
@@ -906,18 +907,42 @@ function loadObservations() {
   try { return JSON.parse(localStorage.getItem('dogcare-observations')) || structuredClone(baseObservations); }
   catch { return structuredClone(baseObservations); }
 }
-function saveObservations() {
-  if (window.DogCareAPI) { window.DogCareAPI.saveObservations(state.observations); return; }
-  try { localStorage.setItem('dogcare-observations', JSON.stringify(state.observations)); } catch { showToast(t('Saved for this session, but browser storage is full')); }
+function saveObservations(observations = state.observations) {
+  if (window.DogCareAPI) return window.DogCareAPI.saveObservations(observations);
+  try { localStorage.setItem('dogcare-observations', JSON.stringify(observations)); } catch { showToast(t('Saved for this session, but browser storage is full')); }
+  return true;
 }
 function loadInvites() {
   try { return JSON.parse(localStorage.getItem('dogcare-invites')) || []; }
   catch { return []; }
 }
-function saveInvites() {
-  if (window.DogCareAPI) { window.DogCareAPI.saveInvites(state.invites); return; }
-  localStorage.setItem('dogcare-invites', JSON.stringify(state.invites));
+function saveInvites(invites = state.invites) {
+  if (window.DogCareAPI) return window.DogCareAPI.saveInvites(invites);
+  localStorage.setItem('dogcare-invites', JSON.stringify(invites));
+  return true;
 }
+async function persistChange(save, button) {
+  if (!window.DogCareAPI) return save();
+  if (savePending) return false;
+  const shell = document.querySelector('.app-shell');
+  const focused = document.activeElement;
+  savePending = true;
+  shell.inert = true;
+  content.setAttribute('aria-busy', 'true');
+  if (button) button.disabled = true;
+  try {
+    return await save();
+  } finally {
+    savePending = false;
+    shell.inert = false;
+    content.removeAttribute('aria-busy');
+    if (button) button.disabled = false;
+    focused?.focus();
+  }
+}
+window.addEventListener('beforeunload', event => {
+  if (savePending) { event.preventDefault(); event.returnValue = ''; }
+});
 function escapeHtml(value) { return String(value).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
 function showToast(message) { const toast=document.querySelector('#toast'); toast.textContent=message; toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'),2500); }
 function dogAvatar(key) { const d=dogs[key]; return `<div class="dog-avatar ${d.colour}">${d.emoji}</div>`; }
@@ -1193,7 +1218,7 @@ function updateInviteSummary() {
   const permissionLabels = formatPermissions(invite.permissions);
   summary.innerHTML = `<div class="summary-person"><span>${invite.role === 'trusted-carer' ? '🤝' : '🏡'}</span><div><strong>${escapeHtml(firstName)}</strong><small>${escapeHtml(invite.email || t('Email needed before preview'))}</small></div></div><div class="summary-line"><b>${t('Role')}</b><span>${inviteRoleLabel(invite.role)}</span></div><div class="summary-line"><b>${t('Shared care context')}</b><span>${permissionLabels.length ? permissionLabels.map(label => escapeHtml(t(label))).join(', ') : t('Choose at least one area')}</span></div><div class="notice compact"><strong>${t('Ready as a pending preview')}</strong>${t('No delivery will happen from this demo. Review the summary with the sitter before copying anything elsewhere.')}</div>`;
 }
-function navigate(page) { if(!appReady){document.querySelector('.sidebar').classList.remove('open');return;} if(page!=='capture'){stopActiveRecording();stopTranscription();} state.page=page; document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.page===page)); content.innerHTML=views[page](); localizeContent(); bindView(); document.querySelector('.sidebar').classList.remove('open'); window.scrollTo({top:0}); }
+function navigate(page) { if(savePending)return; if(!appReady){document.querySelector('.sidebar').classList.remove('open');return;} if(page!=='capture'){stopActiveRecording();stopTranscription();} state.page=page; document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.page===page)); content.innerHTML=views[page](); localizeContent(); bindView(); document.querySelector('.sidebar').classList.remove('open'); window.scrollTo({top:0}); }
 function bindView() {
   document.querySelectorAll('[data-go]').forEach(el=>el.onclick=()=>navigate(el.dataset.go));
   document.querySelectorAll('[data-assistant-action]').forEach(el=>el.onclick=()=>navigate(el.dataset.assistantAction));
@@ -1215,14 +1240,37 @@ function bindView() {
     const Recognition=window.SpeechRecognition || window.webkitSpeechRecognition;
     if(!Recognition) document.querySelector('#transcription-status').textContent=t('Speech-to-text is not available in this browser. Recording still saves an audio note; you can also type your update.');
     const discard=document.querySelector('#discard-audio'); if(discard)discard.onclick=discardAudioDraft;
-    document.querySelector('#save-observation').onclick=()=>{const text=input.value.trim();if(!text){input.focus();showToast(t('Add a care update first'));return}if(activeRecorder?.state==='recording'){showToast(t('Stop the recording before saving'));return}const tags=infer(text), now=new Date();state.observations[state.dog].unshift({id:Date.now(),time:now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),date:'Today',title:titleFrom(text,tags),text,tags,audio:audioDraft});audioDraft=null;saveObservations();showToast(tf('Saved to {name}’s timeline', {name:dogs[state.dog].name}));navigate('dogs');};
+    document.querySelector('#save-observation').onclick=async event=>{
+      const text=input.value.trim();
+      if(!text){input.focus();showToast(t('Add a care update first'));return;}
+      if(activeRecorder?.state==='recording'){showToast(t('Stop the recording before saving'));return;}
+      stopTranscription();
+      const tags=infer(text), now=new Date(), dog=state.dog;
+      const observation={id:Date.now(),time:now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),date:'Today',title:titleFrom(text,tags),text,tags,audio:audioDraft};
+      const observations={...state.observations,[dog]:[observation,...state.observations[dog]]};
+      if(!await persistChange(()=>saveObservations(observations),event.currentTarget))return;
+      state.observations=observations;
+      audioDraft=null;
+      showToast(tf('Saved to {name}’s timeline', {name:dogs[dog].name}));
+      navigate('dogs');
+    };
   }
   const inviteButton=document.querySelector('#create-invite');
   if(inviteButton){
     document.querySelectorAll('input[name="invite-role"], input[name="invite-permission"], #invite-name, #invite-email').forEach(el=>el.addEventListener('input',updateInviteSummary));
     document.querySelectorAll('input[name="invite-role"], input[name="invite-permission"]').forEach(el=>el.addEventListener('change',updateInviteSummary));
     updateInviteSummary();
-    inviteButton.onclick=()=>{const invite=readInviteForm();if(!invite.name){document.querySelector('#invite-name').focus();showToast(t('Add a name for the invite preview'));return}if(!invite.email){document.querySelector('#invite-email').focus();showToast(t('Add an email for the invite preview'));return}if(!invite.permissions.length){showToast(t('Choose at least one thing to share'));return}state.invites.unshift({...invite,id:Date.now(),created:'Today'});saveInvites();document.querySelector('#pending-invites').innerHTML=pendingInvitesHtml();showToast(t('Pending invite preview created — nothing was sent'));};
+    inviteButton.onclick=async()=>{
+      const invite=readInviteForm();
+      if(!invite.name){document.querySelector('#invite-name').focus();showToast(t('Add a name for the invite preview'));return;}
+      if(!invite.email){document.querySelector('#invite-email').focus();showToast(t('Add an email for the invite preview'));return;}
+      if(!invite.permissions.length){showToast(t('Choose at least one thing to share'));return;}
+      const invites=[{...invite,id:Date.now(),created:'Today'},...state.invites];
+      if(!await persistChange(()=>saveInvites(invites),inviteButton))return;
+      state.invites=invites;
+      document.querySelector('#pending-invites').innerHTML=pendingInvitesHtml();
+      showToast(t('Pending invite preview created — nothing was sent'));
+    };
   }
   const preview=document.querySelector('#whatsapp-preview'); if(preview)preview.onclick=()=>showToast(t('WhatsApp preview only — nothing was sent'));
   const vetCall=document.querySelector('#vet-call'); if(vetCall)vetCall.onclick=()=>showToast(t('Clinic call preview — verify contact details before calling'));
@@ -1230,18 +1278,29 @@ function bindView() {
   document.querySelectorAll('.social-access').forEach(button=>button.onclick=()=>showToast(tf('{platform} access preview — no account connected or content posted', {platform:button.dataset.platform})));
   const booking=document.querySelector('#new-booking'); if(booking)booking.onclick=()=>showToast(t('Booking creation is a demo preview'));
   const expense=document.querySelector('#add-expense'); if(expense)expense.onclick=()=>showToast(t('Expense entry is a demo preview'));
-  const reset=document.querySelector('#reset-demo'); if(reset)reset.onclick=()=>{state.observations=structuredClone(baseObservations);saveObservations();showToast(t('Demo observations reset'));navigate('dashboard');};
+  const reset=document.querySelector('#reset-demo'); if(reset)reset.onclick=async()=>{
+    const observations=structuredClone(baseObservations);
+    if(!await persistChange(()=>saveObservations(observations),reset))return;
+    state.observations=observations;
+    showToast(t('Demo observations reset'));
+    navigate('dashboard');
+  };
   bindShareControls();
 }
 document.querySelectorAll('.nav-item[data-page]').forEach(el=>el.onclick=()=>navigate(el.dataset.page));
 document.querySelectorAll('[data-route]').forEach(el=>el.onclick=e=>{e.preventDefault();navigate(el.dataset.route)});
 document.querySelector('#mobile-menu').onclick=()=>document.querySelector('.sidebar').classList.toggle('open');
 const languagePicker=document.querySelector('#language-picker');
-languagePicker.onchange=()=>{
+languagePicker.onchange=async()=>{
   if(!appReady)return;
-  state.language=languagePicker.value;
-  if (window.DogCareAPI) window.DogCareAPI.saveLanguage(state.language);
-  else localStorage.setItem('dogcare-language',state.language);
+  const language=languagePicker.value;
+  if (window.DogCareAPI) {
+    if(!await persistChange(()=>window.DogCareAPI.saveLanguage(language),languagePicker)){
+      languagePicker.value=state.language;
+      return;
+    }
+  } else localStorage.setItem('dogcare-language',language);
+  state.language=language;
   navigate(state.page);
 };
 function boot() {

@@ -96,7 +96,7 @@ class BrowserAcceptanceTest(BrowserFixture):
         await self.page.click("#stop-audio")
         await self.page.fill("#observation", "Billie drank water after her walk.")
         await self.page.click("#save-observation")
-
+        await self.page.wait_for_selector('.timeline-card')
         self.assertEqual(await self.page.locator("h1").text_content(), "Billie Blue")
         self.assertEqual(await self.page.locator(".timeline-card p").first.text_content(), "Billie drank water after her walk.")
         self.assertEqual(self.console_errors, [])
@@ -152,6 +152,7 @@ class BrowserAcceptanceTest(BrowserFixture):
 
     async def test_french_voice_note_persists_across_invite_and_muse_flows(self):
         await self.page.select_option("#language-picker", "fr")
+        await self.page.wait_for_function('document.documentElement.lang === "fr"')
         self.assertEqual(await self.page.locator("html").get_attribute("lang"), "fr")
 
         await self.page.click('.topbar [data-go="capture"]')
@@ -160,6 +161,7 @@ class BrowserAcceptanceTest(BrowserFixture):
         await self.page.click("#stop-audio")
         await self.page.fill("#observation", "Billie a bu de l’eau après sa promenade.")
         await self.page.click("#save-observation")
+        await self.page.wait_for_selector('.timeline-card')
         self.assertEqual(
             await self.page.locator(".timeline-card p").first.text_content(),
             "Billie a bu de l’eau après sa promenade.",
@@ -171,6 +173,7 @@ class BrowserAcceptanceTest(BrowserFixture):
         await self.page.fill("#invite-name", "Camille Martin")
         await self.page.fill("#invite-email", "camille@example.com")
         await self.page.click("#create-invite")
+        await self.page.wait_for_function('document.querySelector("#pending-invites").textContent.includes("Camille Martin")')
         self.assertIn("Camille Martin", await self.page.locator("#pending-invites").text_content())
 
         await self.page.click("#mobile-menu")
@@ -214,6 +217,122 @@ class StaticBrowserAcceptanceTest(BrowserAcceptanceTest):
 
 
 class AccountRecoveryTest(BrowserFixture):
+    async def test_switching_accounts_in_another_tab_cannot_save_old_history_or_audio(self):
+        original_sid = self.sid
+        _, original, _ = _http(self.port, 'GET', '/api/state', cookie=original_sid)
+        await self.page.click('.topbar [data-go="capture"]')
+        await self.page.fill('#observation', 'Old account draft')
+        await self.page.evaluate("audioDraft = {url:'data:audio/webm;base64,YQ==',duration:1}")
+        other_sid = await self.fresh_account()
+        other = await self.context.new_page()
+        await other.goto(self.url)
+        await other.wait_for_function('document.querySelector("#app-content").dataset.ready === "true"')
+        _, before, _ = _http(self.port, 'GET', '/api/state', cookie=other_sid)
+        await self.page.click('#save-observation')
+        await self.page.evaluate('DogCareAPI.whenSaved()')
+        self.assertEqual(await self.page.input_value('#observation'), 'Old account draft')
+        self.assertIn('reload', await self.page.locator('#toast').text_content())
+        _, after, _ = _http(self.port, 'GET', '/api/state', cookie=other_sid)
+        self.assertEqual(after, before)
+        _, after, _ = _http(self.port, 'GET', '/api/state', cookie=original_sid)
+        self.assertEqual(after, original)
+        self.assertFalse((Path(self.server_mod.blobs_dir()) / str(before['business_id'])).exists())
+
+    async def test_two_tabs_keep_first_saved_note_and_preserve_stale_draft(self):
+        other = await self.context.new_page()
+        await other.goto(self.url)
+        await other.wait_for_function('document.querySelector("#app-content").dataset.ready === "true"')
+        await self.page.click('.topbar [data-go="capture"]')
+        await self.page.fill('#observation', 'First tab note')
+        await self.page.click('#save-observation')
+        await self.page.wait_for_selector('.timeline-card')
+        await other.click('.topbar [data-go="capture"]')
+        await other.fill('#observation', 'Second tab draft')
+        await other.click('#save-observation')
+        await other.evaluate('DogCareAPI.whenSaved()')
+        self.assertEqual(await other.input_value('#observation'), 'Second tab draft')
+        self.assertIn('reload', await other.locator('#toast').text_content())
+        _, saved, _ = _http(self.port, 'GET', '/api/state', cookie=self.sid)
+        self.assertEqual(saved['observations']['billie'][0]['text'], 'First tab note')
+        self.assertNotIn('Second tab draft', [item['text'] for item in saved['observations']['billie']])
+
+    async def test_invitation_waits_for_save_and_failed_preferences_preserve_state(self):
+        await self.page.click('#mobile-menu')
+        await self.page.click('[data-page="invite"]')
+        await self.page.fill('#invite-name', 'Waiting Carer')
+        await self.page.fill('#invite-email', 'waiting@example.com')
+        release = asyncio.Event()
+        started = asyncio.Event()
+
+        async def delay(route):
+            started.set()
+            await release.wait()
+            await route.continue_()
+
+        await self.page.route('**/api/invites', delay)
+        await self.page.click('#create-invite')
+        await asyncio.wait_for(started.wait(), timeout=5)
+        try:
+            self.assertNotIn('Waiting Carer', await self.page.locator('#pending-invites').text_content())
+            self.assertTrue(await self.page.is_disabled('#create-invite'))
+        finally:
+            release.set()
+        await self.page.wait_for_function('document.querySelector("#pending-invites").textContent.includes("Waiting Carer")')
+        await self.page.route('**/api/prefs', lambda route: route.fulfill(status=503, content_type='application/json', body='{}'))
+        await self.page.select_option('#language-picker', 'fr')
+        await self.page.evaluate('DogCareAPI.whenSaved()')
+        self.assertEqual(await self.page.input_value('#language-picker'), 'en')
+        self.assertEqual(await self.page.locator('html').get_attribute('lang'), 'en')
+
+    async def test_capture_waits_for_upload_and_save_before_clearing_draft(self):
+        release = asyncio.Event()
+        started = asyncio.Event()
+
+        async def delay(route):
+            started.set()
+            await release.wait()
+            await route.continue_()
+
+        await self.page.route('**/api/blobs', delay)
+        await self.page.evaluate("audioDraft = {url:'data:audio/webm;base64,YQ==',duration:1}")
+        await self.page.click('.topbar [data-go="capture"]')
+        await self.page.fill('#observation', 'Wait for my recording')
+        await self.page.click('#save-observation')
+        await asyncio.wait_for(started.wait(), timeout=5)
+        try:
+            self.assertEqual(await self.page.locator('#observation').count(), 1)
+            self.assertEqual(await self.page.input_value('#observation'), 'Wait for my recording')
+            self.assertTrue(await self.page.is_disabled('#save-observation'))
+            self.assertTrue(await self.page.evaluate('Boolean(audioDraft)'))
+            self.assertNotIn('Saved to', await self.page.locator('#toast').text_content())
+        finally:
+            release.set()
+        await self.page.wait_for_selector('.timeline-card')
+        self.assertEqual(await self.page.locator('.timeline-card p').first.text_content(), 'Wait for my recording')
+        self.assertTrue(await self.page.evaluate('audioDraft === null'))
+        await self.page.reload()
+        await self.wait_ready()
+        self.assertEqual(await self.page.evaluate('state.observations.billie[0].text'), 'Wait for my recording')
+
+    async def test_failed_capture_keeps_text_and_audio_for_retry_without_duplicates(self):
+        await self.page.route('**/api/observations', lambda route: route.fulfill(status=503, content_type='application/json', body='{}'))
+        await self.page.evaluate("audioDraft = {url:'data:audio/webm;base64,YQ==',duration:1}")
+        await self.page.click('.topbar [data-go="capture"]')
+        await self.page.fill('#observation', 'Retry this note')
+        await self.page.click('#save-observation')
+        await self.page.evaluate('DogCareAPI.whenSaved()')
+        self.assertEqual(await self.page.locator('#observation').count(), 1)
+        self.assertEqual(await self.page.input_value('#observation'), 'Retry this note')
+        self.assertTrue(await self.page.evaluate('Boolean(audioDraft)'))
+        self.assertNotIn('Saved to', await self.page.locator('#toast').text_content())
+        self.assertEqual(await self.page.evaluate('state.observations.billie.filter(item => item.text === "Retry this note").length'), 0)
+        await self.page.unroute('**/api/observations')
+        await self.page.click('#save-observation')
+        await self.page.wait_for_selector('.timeline-card')
+        await self.page.reload()
+        await self.wait_ready()
+        self.assertEqual(await self.page.evaluate('state.observations.billie.filter(item => item.text === "Retry this note").length'), 1)
+
     async def fresh_account(self):
         sid = self.login(self.id().rsplit('.', 1)[-1] + '@example.com')
         await self.context.add_cookies([{'name': 'dc_s', 'value': sid, 'url': self.url, 'httpOnly': True}])

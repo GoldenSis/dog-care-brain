@@ -23,11 +23,26 @@ curl -X POST http://127.0.0.1:8787/api/auth/request \
 # Open the link in ~/.local/share/dogcare-brain/.dev-outbox/*.json
 ```
 
+To import existing static-mode records, stop the static server and start account mode on the **same hostname and port** before saving anything to the business account. For the static URL above:
+
+```bash
+DC_HOST=localhost DC_PORT=4173 python3 api/server.py
+curl -X POST http://localhost:4173/api/auth/request \
+  -H 'Content-Type: application/json' -d '{"email":"you@example.com"}'
+# Open the outbox link in the same browser profile used for the static app.
+```
+
+Use your original scheme, hostname, and port if different. `localhost:4173` and `127.0.0.1:8787` have separate browser storage; the default account URL cannot see records from the static URL. Sign in to an unused business account at the original origin, accept the recording notice if shown, and let the import finish before making account writes. Browser copies stay intact, but an account already used for care writes cannot import them.
+
 The default launcher binds to loopback HTTP; magic links use HTTP and the session cookie is HttpOnly and SameSite=Lax. `DC_INSECURE_COOKIE=0` switches links and cookies to HTTPS for an HTTPS reverse proxy; the stdlib listener itself still serves HTTP.
 
 Private runtime files live under `~/.local/share/dogcare-brain/`: `dogcare.db`, `.dev-outbox/`, and `blobs/`. Set `DC_DATA_DIR` to choose another private directory; `DC_DB`, `DC_OUTBOX`, and `DC_BLOBS` can override individual paths. Every private path must be outside the static document root (`DC_ROOT`, the repository by default); startup rejects paths or symlinks that resolve inside it. If you ran an earlier version, stop it and move `api/dogcare.db` together with any `-wal`/`-shm` files, `.dev-outbox/`, and `api/blobs/` into that private directory before using either launcher. Startup refuses legacy private locations still present in the document root.
 
 Account mode imports populated browser observations, invitation previews, and language once into an unused business account. A one-line notice appears before existing recordings transfer. Cancel leaves browser data intact; reload to continue. Failed imports remain retryable and keep capture disabled until account loading succeeds. Any saved care data closes import eligibility, including existing data from an earlier API version. Audio is uploaded separately before the snapshot; JSON requests allow up to 32 MiB to accommodate existing localStorage snapshots, including UTF-8 text. Local browser copies are retained.
+
+Account saves complete before the app clears a draft or reports success. If another tab changes accounts or saves newer care data, the stale tab cannot overwrite it: copy any unsaved draft, reload, then reapply it to the current records. Protected recordings are served with `Cache-Control: no-store`.
+
+For CLI writes, first read `/api/state` with your session cookie, then include `X-DogCare-Business: <business_id>` and `If-Match: "<revision>"` from that response along with `Content-Type: application/json`. Each care write advances the revision; use the revision returned by the successful response for your next write. Uploads require the business header but do not advance the revision. Browser mutations must come from the server's own origin; CLI requests without an `Origin` header remain supported.
 
 ## Try the core flow
 

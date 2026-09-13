@@ -131,6 +131,8 @@ def init():
         cols = [r[1] for r in c.execute("PRAGMA table_info(business)")]
         if "imported" not in cols:
             c.execute("ALTER TABLE business ADD COLUMN imported INTEGER NOT NULL DEFAULT 0")
+        if "revision" not in cols:
+            c.execute("ALTER TABLE business ADD COLUMN revision INTEGER NOT NULL DEFAULT 0")
         for row in c.execute("SELECT id FROM business WHERE imported=0").fetchall():
             bid = row["id"]
             invites = c.execute("SELECT 1 FROM invite WHERE business_id=? LIMIT 1", (bid,)).fetchone()
@@ -356,7 +358,7 @@ def observations_map(c, bid):
 
 def invites_list(c, bid):
     rows = c.execute(
-        "SELECT * FROM invite WHERE business_id=? ORDER BY id DESC", (bid,))
+        "SELECT * FROM invite WHERE business_id=? ORDER BY id ASC", (bid,))
     out = []
     for r in rows:
         out.append({
@@ -422,8 +424,11 @@ def do_auth_verify(query):
     return sid, None
 
 
-def state_of(user):
-    c = db()
+def state_of(user, c=None):
+    if c is None:
+        with connection() as c:
+            c.execute("BEGIN")
+            return state_of(user, c)
     lang = "en"
     row = c.execute("SELECT language FROM pref WHERE user_id=?", (user["id"],)).fetchone()
     if row:
@@ -431,11 +436,11 @@ def state_of(user):
     dogs = [{"id": r["id"], "slug": r["slug"], "name": r["name"]}
             for r in c.execute("SELECT id, slug, name FROM dog WHERE business_id=? ORDER BY id",
                                (user["business_id"],))]
-    imported = c.execute("SELECT imported FROM business WHERE id=?", (user["business_id"],)).fetchone()[0]
+    business = c.execute("SELECT imported, revision FROM business WHERE id=?", (user["business_id"],)).fetchone()
     obs = observations_map(c, user["business_id"])
     inv = invites_list(c, user["business_id"])
-    c.close()
-    return {"ok": True, "business_id": user["business_id"], "imported": bool(imported),
+    return {"ok": True, "business_id": user["business_id"], "imported": bool(business["imported"]),
+            "revision": business["revision"],
             "email": user["email"], "role": user["role"],
             "language": lang, "dogs": dogs, "observations": obs, "invites": inv}
 
@@ -482,6 +487,41 @@ class Handler(BaseHTTPRequestHandler):
             return None
         return payload
 
+    def _check_browser_write(self):
+        origin = self.headers.get("Origin")
+        scheme = "http" if cfg("DC_INSECURE_COOKIE", "1") == "1" else "https"
+        if origin is not None and origin != f"{scheme}://{self.headers.get('Host')}":
+            self._send({"ok": False, "error": "cross-origin write rejected"}, 403)
+            return False
+        content_type = self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
+        if content_type != "application/json":
+            self._send({"ok": False, "error": "application/json required"}, 415)
+            return False
+        return True
+
+    def _need_mutation_user(self):
+        user = self._need_user()
+        if not user:
+            return None
+        business = self.headers.get("X-DogCare-Business")
+        if business != str(user["business_id"]):
+            self._send({"ok": False, "error": "account changed; reload before saving",
+                        "reload_required": True}, 428 if business is None else 409)
+            return None
+        return user
+
+    def _advance_revision(self, c, user):
+        revision = c.execute("SELECT revision FROM business WHERE id=?",
+                             (user["business_id"],)).fetchone()[0]
+        expected = self.headers.get("If-Match")
+        if expected != f'"{revision}"':
+            self._send({"ok": False, "error": "care records changed; reload before saving",
+                        "reload_required": True}, 428 if expected is None else 409)
+            return None
+        c.execute("UPDATE business SET imported=1, revision=revision+1 WHERE id=?",
+                  (user["business_id"],))
+        return revision + 1
+
     def _write_care(self, user, payload, importing=False):
         try:
             validate_care(payload)
@@ -491,15 +531,16 @@ class Handler(BaseHTTPRequestHandler):
                                  (user["business_id"],)).fetchone()[0]
                 skipped = importing and bool(done)
                 if not skipped:
+                    if self._advance_revision(c, user) is None:
+                        return
                     apply_care(c, user, payload)
-                    c.execute("UPDATE business SET imported=1 WHERE id=?", (user["business_id"],))
+                out = state_of(user, c)
         except ValueError as error:
             return self._send({"ok": False, "error": str(error)}, 400)
         except sqlite3.IntegrityError:
             return self._send({"ok": False, "error": "conflicting care data"}, 409)
         except sqlite3.Error:
             return self._send({"ok": False, "error": "care data could not be saved"}, 500)
-        out = state_of(user)
         if importing:
             out["skipped"] = skipped
         return self._send(out)
@@ -583,7 +624,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", mime)
             self.send_header("Content-Length", str(len(blob)))
-            self.send_header("Cache-Control", "private, max-age=86400")
+            self.send_header("Cache-Control", "no-store")
             self.end_headers()
             self.wfile.write(blob)
             return
@@ -593,7 +634,11 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urlparse(self.path).path
+        if not self._check_browser_write():
+            return
         if path == "/api/auth/logout":
+            if not self._need_mutation_user():
+                return
             raw = self.headers.get("Cookie")
             if raw:
                 try:
@@ -614,7 +659,7 @@ class Handler(BaseHTTPRequestHandler):
             host = (self.headers.get("Host") or "127.0.0.1").split(",")[0].strip()
             obj, code = do_auth_request(payload, host)
             return self._send(obj, code)
-        u = self._need_user()
+        u = self._need_mutation_user()
         if not u:
             return
         if path == "/api/import":
@@ -626,15 +671,19 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send({"ok": False, "error": "bad slug"}, 400)
             try:
                 with _lock, connection() as c:
+                    c.execute("BEGIN IMMEDIATE")
+                    revision = self._advance_revision(c, u)
+                    if revision is None:
+                        return
                     c.execute(
                         "INSERT INTO dog(business_id, slug, name, created) VALUES(?,?,?,?)",
                         (u["business_id"], slug, name or slug, int(time.time())),
                     )
                     did = c.execute("SELECT last_insert_rowid()").fetchone()[0]
-                    c.execute("UPDATE business SET imported=1 WHERE id=?", (u["business_id"],))
             except sqlite3.IntegrityError:
                 return self._send({"ok": False, "error": "exists"}, 409)
-            return self._send({"ok": True, "dog": {"id": did, "slug": slug, "name": name}})
+            return self._send({"ok": True, "business_id": u["business_id"], "revision": revision,
+                               "dog": {"id": did, "slug": slug, "name": name}})
         if path == "/api/blobs":
             raw = payload.get("data") or ""
             typ = str(payload.get("type") or "audio/webm")
@@ -672,10 +721,12 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_PUT(self):
         path = urlparse(self.path).path
+        if not self._check_browser_write():
+            return
         payload = self._read_json()
         if payload is None:
             return
-        u = self._need_user()
+        u = self._need_mutation_user()
         if not u:
             return
         key = {"/api/observations": "observations", "/api/invites": "invites",

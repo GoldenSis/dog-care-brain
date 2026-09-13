@@ -9,6 +9,7 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 - Risk tiers determine the minimum gate: low (docs/copy only) requires syntax/unit checks; medium (UI, capture, storage, crawler behavior) requires the full relevant suite and browser evidence; high (microphone/privacy wording, non-diagnostic health language, stored-data compatibility, crawl boundaries, authentication, payments, or destructive actions) requires the full suite, independent review, and explicit human approval before external release.
 - Slice 1 gates: `python3 -m unittest tests.test_api_server tests.test_tenant_isolation tests.test_crawl_site -v`, `node --test tests/test_api_adapter.js`, and `uv run --python 3.12 --with playwright python -m unittest discover -s tests -v` (cached Chromium). Browser checks cover both modes and await rendered readiness. Flag off = `python3 -m http.server`; flag on is injected only by `api/server.py`.
 - Private API storage defaults to `~/.local/share/dogcare-brain`; runtime paths must resolve outside the static root. See README for legacy data relocation. Import eligibility closes on care writes; initialization protects pre-fix saved history too.
+- Account mutations bind to the loaded business and check care revisions; see README for the CLI contract and stale-draft recovery. Read snapshots and their revisions in the same transaction.
 - Generated crawl corpora belong outside the repository unless explicitly reviewed and approved for inclusion.
 
 ## Maintaining this file

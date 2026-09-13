@@ -4,7 +4,7 @@ const vm = require('node:vm');
 const { test } = require('node:test');
 
 const source = fs.readFileSync(require('node:path').join(__dirname, '..', 'api.js'), 'utf8');
-const serverState = { ok: true, business_id: 1, imported: false, observations: { billie: [{ id: 1, text: 'Server history' }] }, invites: [], language: 'en' };
+const serverState = { ok: true, business_id: 1, revision: 0, imported: false, observations: { billie: [{ id: 1, text: 'Server history' }] }, invites: [], language: 'en' };
 const response = (data, status = 200) => ({ ok: status < 400, status, text: async () => JSON.stringify(data) });
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
@@ -29,6 +29,44 @@ test('flag off leaves storage and network untouched', () => {
   const h = adapter({ enabled: false });
   assert.equal(h.api, undefined);
   assert.equal(h.calls.length, 0);
+});
+
+test('every mutation uses the hydrated business including import and recordings', async () => {
+  const h = adapter({ local: { 'dogcare-language': 'fr' }, fetcher: async call => {
+    if (call.method && call.method !== 'GET') assert.equal(call.headers['X-DogCare-Business'], '1');
+    if (call.url.endsWith('/blobs')) return response({ ok: true, ref: 'bound.webm' });
+    return response({ ...serverState, imported: call.url.endsWith('/import') });
+  } });
+  assert.equal(await h.api.ready, true);
+  assert.equal(await h.api.saveObservations({ billie: [{ audio: { url: 'data:audio/webm;base64,YQ==' } }] }), true);
+  assert.equal(await h.api.saveInvites([]), true);
+  assert.equal(await h.api.saveLanguage('fr'), true);
+  assert.equal(h.calls.filter(call => call.method && call.method !== 'GET').length, 5);
+});
+
+test('queued writes advance revisions only after a successful preceding write', async () => {
+  let revision = 0;
+  const h = adapter({ fetcher: async call => {
+    if (call.method === 'PUT') {
+      assert.equal(call.headers['If-Match'], `"${revision}"`);
+      revision++;
+    }
+    return response({ ...serverState, revision });
+  } });
+  assert.equal(await h.api.ready, true);
+  assert.deepEqual(await Promise.all([h.api.saveLanguage('fr'), h.api.saveInvites([]), h.api.saveObservations({})]), [true, true, true]);
+  assert.equal(revision, 3);
+});
+
+test('stale or switched accounts stop queued writes and retain the hydrated identity', async () => {
+  const h = adapter({ fetcher: async call => call.method === 'PUT'
+    ? response({ ok: false, reload_required: true, error: 'Account changed' }, 409)
+    : response(serverState) });
+  await h.api.ready;
+  const results = await Promise.all([h.api.saveLanguage('fr'), h.api.saveInvites([]), h.api.saveObservations({})]);
+  assert.deepEqual(results, [false, false, false]);
+  assert.equal(h.calls.filter(call => call.method === 'PUT').length, 1);
+  assert.match(h.toasts[0], /reload/i);
 });
 
 test('failed hydration blocks all persistence', async () => {

@@ -15,20 +15,37 @@
   }
 
   function failed() {
-    if (typeof w.showToast === "function") w.showToast("Not saved — check your connection and try again");
+    if (typeof w.showToast === "function") w.showToast(writeBlocked || "Not saved — check your connection and try again");
   }
 
   let hydrated = false;
+  let businessId = null;
+  let revision = null;
+  let writeBlocked = "";
   let loadError = "Could not load your account. Check your connection and reload.";
   let writes = Promise.resolve();
   const uploaded = new Map();
 
   async function req(path, opts) {
     const writing = opts && opts.method && opts.method !== "GET";
+    if (writing) {
+      if (writeBlocked || businessId === null) { failed(); return { ok: false, status: 0, data: {} }; }
+      opts = { ...opts, headers: { ...opts.headers, "X-DogCare-Business": String(businessId), "If-Match": `"${revision}"` } };
+    }
     try {
       const r = await fetch(url(path), Object.assign({ credentials: "include" }, opts));
       const text = await r.text();
       const data = text ? JSON.parse(text) : {};
+      if (writing && (data.reload_required || r.status === 401)) {
+        writeBlocked = "Not saved — your account or care records changed. Copy your draft, then reload before saving.";
+      }
+      if (writing && r.ok && path !== "/blobs") {
+        if (data.business_id !== businessId || !Number.isSafeInteger(data.revision)) {
+          failed();
+          return { ok: false, status: r.status, data: {} };
+        }
+        revision = data.revision;
+      }
       if (!r.ok && writing) failed();
       return { ok: r.ok, status: r.status, data };
     } catch {
@@ -90,7 +107,11 @@
 
   function acceptState(data) {
     if (!data.ok || !data.observations || typeof data.observations !== "object" ||
-        Array.isArray(data.observations) || !Array.isArray(data.invites)) return false;
+        Array.isArray(data.observations) || !Array.isArray(data.invites) ||
+        !Number.isSafeInteger(data.business_id) || !Number.isSafeInteger(data.revision) ||
+        (businessId !== null && data.business_id !== businessId)) return false;
+    businessId = data.business_id;
+    revision = data.revision;
     cache.observations = data.observations;
     cache.invites = data.invites;
     cache.language = data.language || "en";
@@ -132,7 +153,10 @@
 
   function enqueue(save) {
     if (!hydrated) { failed(); return Promise.resolve(false); }
-    writes = writes.then(save).catch(() => { failed(); return false; });
+    writes = writes.then(() => {
+      if (writeBlocked) { failed(); return false; }
+      return save();
+    }).catch(() => { failed(); return false; });
     return writes;
   }
 
@@ -151,23 +175,30 @@
     },
     saveObservations(obs) {
       if (!hydrated) return enqueue(() => false);
-      cache.observations = obs;
       const snapshot = JSON.parse(JSON.stringify(obs));
       return enqueue(async () => {
         if (!await extractAudio(snapshot, obs)) return false;
-        return (await putJson("/observations", { observations: snapshot })).ok;
+        const result = await putJson("/observations", { observations: snapshot });
+        if (result.ok) cache.observations = obs;
+        return result.ok;
       });
     },
     saveInvites(invites) {
       if (!hydrated) return enqueue(() => false);
-      cache.invites = invites;
       const snapshot = JSON.parse(JSON.stringify(invites));
-      return enqueue(async () => (await putJson("/invites", { invites: snapshot })).ok);
+      return enqueue(async () => {
+        const result = await putJson("/invites", { invites: snapshot });
+        if (result.ok) cache.invites = invites;
+        return result.ok;
+      });
     },
     saveLanguage(language) {
       if (!hydrated) return enqueue(() => false);
-      cache.language = language;
-      return enqueue(async () => (await putJson("/prefs", { language })).ok);
+      return enqueue(async () => {
+        const result = await putJson("/prefs", { language });
+        if (result.ok) cache.language = language;
+        return result.ok;
+      });
     },
   };
 })(window);

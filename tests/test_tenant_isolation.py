@@ -17,8 +17,14 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def _http(port, method, path, body=None, cookie=None):
+def _http(port, method, path, body=None, cookie=None, headers=None):
+    if headers is None and cookie and method in ("PUT", "POST") and path != "/api/auth/request":
+        status, state, _ = _http(port, "GET", "/api/state", cookie=cookie)
+        if status == 200:
+            headers = {"X-DogCare-Business": str(state["business_id"]),
+                       "If-Match": '"' + str(state["revision"]) + '"'}
     conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+    extra_headers = headers or {}
     headers = {}
     data = None
     if body is not None:
@@ -27,6 +33,7 @@ def _http(port, method, path, body=None, cookie=None):
         headers["Content-Length"] = str(len(data))
     if cookie:
         headers["Cookie"] = f"dc_s={cookie}"
+    headers.update(extra_headers)
     try:
         conn.request(method, path, body=data, headers=headers)
         resp = conn.getresponse()

@@ -14,6 +14,138 @@ from tests.test_tenant_isolation import (
 
 
 class ApiServerRegressionTest(ApiServerTestCase):
+    def mutation_headers(self, state):
+        return {"X-DogCare-Business": str(state["business_id"]),
+                "If-Match": '"' + str(state.get("revision", 0)) + '"'}
+
+    def test_mutations_reject_a_changed_or_missing_business_binding(self):
+        cookie_a, cookie_b = self.account("a"), self.account("b")
+        before_a, before_b = self.state(cookie_a), self.state(cookie_b)
+        writes = (
+            ("PUT", "/api/observations", {"observations": {"billie": [{"text": "A history"}]}}),
+            ("PUT", "/api/invites", {"invites": [{"email": "a@example.com"}]}),
+            ("PUT", "/api/prefs", {"language": "fr"}),
+            ("POST", "/api/dogs", {"slug": "a-dog", "name": "A Dog"}),
+            ("POST", "/api/import", {"language": "fr"}),
+            ("POST", "/api/blobs", {"type": "audio/webm", "data": "YQ=="}),
+        )
+        for headers in ({}, self.mutation_headers(before_a)):
+            for method, path, body in writes:
+                with self.subTest(headers=headers, path=path):
+                    status, body, _ = _http(self.port, method, path, body, cookie_b, headers)
+                    self.assertIn(status, (409, 428), body)
+                    self.assertEqual(self.state(cookie_a), before_a)
+                    self.assertEqual(self.state(cookie_b), before_b)
+        self.assertFalse((Path(self.server_mod.blobs_dir()) / str(before_b["business_id"])).exists())
+
+    def test_concurrent_snapshots_cannot_overwrite_another_clients_history(self):
+        cookie = self.account()
+        before = self.state(cookie)
+        headers = self.mutation_headers(before)
+        barrier = threading.Barrier(2)
+
+        def save(text):
+            barrier.wait(timeout=5)
+            return _http(self.port, "PUT", "/api/observations", {
+                "observations": {"billie": [{"text": text}]},
+            }, cookie, headers)
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(save, ("First client", "Second client")))
+        self.assertEqual(sorted(status for status, _, _ in results), [200, 409])
+        winner = next(index for index, result in enumerate(results) if result[0] == 200)
+        after = self.state(cookie)
+        self.assertEqual(after["observations"]["billie"][0]["text"], ("First client", "Second client")[winner])
+        self.assertEqual(after["revision"], before["revision"] + 1)
+        for method, path, payload in (
+            ("PUT", "/api/invites", {"invites": []}),
+            ("PUT", "/api/prefs", {"language": "fr"}),
+            ("POST", "/api/dogs", {"slug": "stale", "name": "Stale"}),
+        ):
+            status, body, _ = _http(self.port, method, path, payload, cookie, headers)
+            self.assertEqual(status, 409, body)
+            self.assertEqual(self.state(cookie), after)
+
+    def test_missing_revision_cannot_bypass_stale_snapshot_protection(self):
+        cookie = self.account()
+        before = self.state(cookie)
+        for revision in (None, '*', '"-1"', '0'):
+            headers = {"X-DogCare-Business": str(before["business_id"])}
+            if revision is not None:
+                headers["If-Match"] = revision
+            status, body, _ = _http(self.port, "PUT", "/api/observations", {
+                "observations": {},
+            }, cookie, headers)
+            self.assertIn(status, (409, 428), body)
+            self.assertTrue(body["reload_required"])
+            self.assertEqual(self.state(cookie), before)
+
+    def test_init_adds_revision_without_changing_existing_care_history(self):
+        cookie = self.account()
+        _http(self.port, "PUT", "/api/observations", {
+            "observations": {"billie": [{"text": "History before revisions"}]},
+        }, cookie)
+        before = self.state(cookie)
+        with self.server_mod.connection() as c:
+            c.execute("ALTER TABLE business DROP COLUMN revision")
+        self.server_mod.init()
+        after = self.state(cookie)
+        self.assertEqual(after, {**before, "revision": 0})
+        self.server_mod.init()
+        self.assertEqual(self.state(cookie), after)
+
+    def test_import_response_uses_current_state_after_another_client_saved(self):
+        cookie = self.account()
+        stale = self.mutation_headers(self.state(cookie))
+        _http(self.port, "PUT", "/api/observations", {
+            "observations": {"billie": [{"text": "Saved by another client"}]},
+        }, cookie)
+        before = self.state(cookie)
+        status, body, _ = _http(self.port, "POST", "/api/import", {
+            "observations": {"billie": [{"text": "Stale browser history"}]},
+        }, cookie, stale)
+        self.assertEqual(status, 200, body)
+        self.assertEqual(body, {**before, "skipped": True})
+        self.assertEqual(self.state(cookie), before)
+
+    def test_recordings_must_not_be_cached_after_signout(self):
+        cookie = self.account()
+        status, body, _ = _http(self.port, "POST", "/api/blobs", {
+            "type": "audio/webm", "data": "YQ==",
+        }, cookie)
+        self.assertEqual(status, 200, body)
+        status, _, headers = _http(self.port, "GET", "/api/blobs/" + body["ref"], cookie=cookie)
+        self.assertEqual(status, 200)
+        self.assertEqual(headers["cache-control"], "no-store")
+
+    def test_browser_mutations_require_same_origin_and_json(self):
+        cookie = self.account()
+        before = self.state(cookie)
+        for path, payload in (("/api/dogs", {"slug": "forged", "name": "Forged"}),
+                              ("/api/import", {"language": "fr"}),
+                              ("/api/auth/logout", {}),
+                              ("/api/auth/request", {"email": "forged@example.com"})):
+            for extra, expected in (({"Origin": "http://127.0.0.1:1"}, 403),
+                                    ({"Origin": "null"}, 403),
+                                    ({"Content-Type": "text/plain"}, 415)):
+                with self.subTest(path=path, extra=extra):
+                    headers = {**self.mutation_headers(before), **extra}
+                    status, body, _ = _http(self.port, "POST", path, payload, cookie, headers)
+                    self.assertEqual(status, expected, body)
+                    self.assertEqual(self.state(cookie), before)
+        headers = {**self.mutation_headers(before), "Origin": f"http://127.0.0.1:{self.port}"}
+        status, body, _ = _http(self.port, "PUT", "/api/prefs", {"language": "fr"}, cookie, headers)
+        self.assertEqual(status, 200, body)
+
+    def test_invitation_order_survives_repeated_replacements(self):
+        cookie = self.account()
+        invites = [{"email": "newest@example.com"}, {"email": "oldest@example.com"}]
+        for _ in range(3):
+            status, body, _ = _http(self.port, "PUT", "/api/invites", {"invites": invites}, cookie)
+            self.assertEqual(status, 200, body)
+            invites = self.state(cookie)["invites"]
+            self.assertEqual([invite["email"] for invite in invites], ["newest@example.com", "oldest@example.com"])
+
     def account(self, suffix="owner"):
         return self.login(f"{self._testMethodName}-{suffix}@example.com")
 
