@@ -86,6 +86,14 @@ class BrowserFixture(unittest.IsolatedAsyncioTestCase, ApiServerTestCase):
 
 
 class BrowserAcceptanceTest(BrowserFixture):
+    async def test_audio_file_preserves_inline_recordings(self):
+        result = await self.page.evaluate('''async () => {
+            const file = await audioFile({url:'data:audio/webm;base64,YQ=='});
+            return {type:file.type, text:await file.text(), name:file.name};
+        }''')
+        self.assertEqual(result, {'type': 'audio/webm', 'text': 'a', 'name': 'dogcare-voice-note.webm'})
+        self.assertEqual(self.console_errors, [])
+
     async def test_recording_player_keeps_supported_sources_and_escapes_its_label(self):
         for src in ('data:audio/webm;codecs=opus;base64,YQ==',
                     'data:audio/mp4;codecs=mp4a.40.2;base64,YQ==',
@@ -251,6 +259,39 @@ class StaticBrowserAcceptanceTest(BrowserAcceptanceTest):
 
 
 class AccountRecoveryTest(BrowserFixture):
+    async def test_sharing_recording_rejects_expired_and_switched_sessions(self):
+        status, body, _ = _http(self.port, 'POST', '/api/blobs',
+                               {'type': 'audio/webm', 'data': 'YQ=='}, cookie=self.sid)
+        self.assertEqual(status, 200, body)
+        src = '/api/blobs/' + body['ref']
+        for status in (200, 401, 404):
+            with self.subTest(status=status):
+                if status == 401:
+                    await self.context.clear_cookies()
+                elif status == 404:
+                    await self.fresh_account()
+                async with self.page.expect_response(self.url + src) as response:
+                    result = await self.page.evaluate('''async src => {
+                        const shares = [];
+                        let failures = 0;
+                        Object.defineProperty(navigator, 'canShare', {configurable:true, value:() => true});
+                        Object.defineProperty(navigator, 'share', {configurable:true, value:async data => {
+                            shares.push(await Promise.all((data.files || []).map(async file =>
+                                ({type:file.type, text:await file.text()}))));
+                        }});
+                        await shareObservation({...state.observations.billie[0], audio:{url:src}},
+                            () => { failures++; });
+                        return {shares, failures};
+                    }''', src)
+                self.assertEqual((await response.value).status, status)
+                if status == 200:
+                    self.assertEqual(result, {'shares': [[{'type': 'audio/webm', 'text': 'a'}]], 'failures': 0})
+                else:
+                    self.assertEqual(result, {'shares': [], 'failures': 1})
+                    self.assertEqual(await self.page.locator('#toast').text_content(),
+                                     'The share sheet could not open. Use one of the sharing options below.')
+        self.assertTrue(all('401' in error or '404' in error for error in self.console_errors), self.console_errors)
+
     async def test_legacy_unsafe_recording_urls_never_render_fetch_or_block_saves(self):
         urls = ['" onerror="window.injected=true', 'javascript:alert(1)',
                 'https://example.com/voice.webm', '//example.com/voice.webm',

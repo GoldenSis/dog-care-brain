@@ -1184,7 +1184,9 @@ function startTranscription() {
 async function audioFile(audio) {
   const src=recordingUrl(audio?.url);
   if(!src) return null;
-  const blob=await (await fetch(src)).blob();
+  const response=await fetch(src);
+  if(!response.ok) throw new Error(`Recording could not be loaded (${response.status})`);
+  const blob=await response.blob();
   const extension=blob.type.includes('ogg')?'ogg':blob.type.includes('mp4')?'m4a':'webm';
   return new File([blob],`dogcare-voice-note.${extension}`,{type:blob.type || 'audio/webm'});
 }
