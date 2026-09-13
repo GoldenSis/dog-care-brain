@@ -136,9 +136,11 @@ def init():
         for row in c.execute("SELECT id FROM business WHERE imported=0").fetchall():
             bid = row["id"]
             invites = c.execute("SELECT 1 FROM invite WHERE business_id=? LIMIT 1", (bid,)).fetchone()
+            recordings = c.execute("SELECT 1 FROM observation WHERE business_id=? "
+                                   "AND audio_json IS NOT NULL LIMIT 1", (bid,)).fetchone()
             prefs = c.execute("SELECT 1 FROM pref p JOIN user u ON p.user_id=u.id "
                               "WHERE u.business_id=? AND p.language != 'en' LIMIT 1", (bid,)).fetchone()
-            if observations_map(c, bid) != SEED_OBS or invites or prefs:
+            if observations_map(c, bid) != SEED_OBS or invites or recordings or prefs:
                 c.execute("UPDATE business SET imported=1 WHERE id=?", (bid,))
 
 
@@ -238,6 +240,11 @@ def validate_string_list(value, key):
         raise ValueError("bad " + key)
 
 
+def is_account_recording_url(url):
+    return (isinstance(url, str) and url.startswith("/api/blobs/") and
+            BLOB_RE.fullmatch(url[len("/api/blobs/"):]) is not None)
+
+
 def validate_care(payload):
     if not any(key in payload for key in ("observations", "invites", "language")):
         raise ValueError("missing care data")
@@ -261,7 +268,7 @@ def validate_care(payload):
                 if audio is not None:
                     if not isinstance(audio, dict) or not isinstance(audio.get("url"), str):
                         raise ValueError("bad audio")
-                    if not audio["url"].startswith("/api/blobs/") or not BLOB_RE.fullmatch(audio["url"][len("/api/blobs/"):]):
+                    if not is_account_recording_url(audio["url"]):
                         raise ValueError("bad audio url")
                     validate_text_fields(audio, ("type",))
                     duration = audio.get("duration")
@@ -351,7 +358,9 @@ def observations_map(c, bid):
         }
         if r["audio_json"]:
             try:
-                item["audio"] = json.loads(r["audio_json"])
+                audio = json.loads(r["audio_json"])
+                if isinstance(audio, dict) and is_account_recording_url(audio.get("url")):
+                    item["audio"] = audio
             except json.JSONDecodeError:
                 pass
         out.setdefault(r["slug"], []).append(item)

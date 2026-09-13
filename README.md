@@ -42,6 +42,8 @@ Account mode imports populated browser observations, invitation previews, and la
 
 Account saves complete before the app clears a draft or reports success. Each API request has a 15-second deadline, including reading the response; a timeout restores interaction and keeps the draft available to edit, copy, or retry. If another tab changes accounts or saves newer care data, the stale tab cannot overwrite it: copy any unsaved draft, reload, then reapply it to the current records. Protected recordings are served with `Cache-Control: no-store`.
 
+When loading older account history, unsupported recording references are omitted while care text and supported account recordings are retained, so later notes can still be saved.
+
 For CLI writes, first read `/api/state` with your session cookie, then include `X-DogCare-Business: <business_id>` and `If-Match: "<revision>"` from that response along with `Content-Type: application/json`. Each care write advances the revision; use the revision returned by the successful response for your next write. Uploads require the business header but do not advance the revision. Observation recording URLs must be `/api/blobs/<ref>`, using the reference returned by an upload; external URLs and inline recordings are rejected. Browser mutations must come from the server's own origin; CLI requests without an `Origin` header remain supported.
 
 ## Try the core flow

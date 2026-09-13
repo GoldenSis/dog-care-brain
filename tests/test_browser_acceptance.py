@@ -251,7 +251,7 @@ class StaticBrowserAcceptanceTest(BrowserAcceptanceTest):
 
 
 class AccountRecoveryTest(BrowserFixture):
-    async def test_legacy_unsafe_recording_urls_never_render_or_fetch(self):
+    async def test_legacy_unsafe_recording_urls_never_render_fetch_or_block_saves(self):
         urls = ['" onerror="window.injected=true', 'javascript:alert(1)',
                 'https://example.com/voice.webm', '//example.com/voice.webm',
                 '/api/auth/verify?t=untrusted']
@@ -270,6 +270,17 @@ class AccountRecoveryTest(BrowserFixture):
             self.assertEqual(await self.page.locator('#app-content audio').count(), 0)
         for url in urls:
             self.assertIsNone(await self.page.evaluate('url => audioFile({url})', url))
+        await self.page.click('.topbar [data-go="capture"]')
+        await self.page.fill('#observation', 'A new note after loading legacy recordings')
+        await self.page.click('#save-observation')
+        await self.page.wait_for_selector('.timeline-card')
+        await self.page.reload()
+        await self.wait_ready()
+        expected = [{key: value for key, value in item.items() if key != 'audio'}
+                    for item in observations['billie']]
+        saved = await self.page.evaluate('state.observations.billie')
+        self.assertEqual(saved[0]['text'], 'A new note after loading legacy recordings')
+        self.assertEqual(saved[1:], [{**item, 'time': '', 'date': ''} for item in expected])
         self.assertFalse(any('example.com' in url or 'untrusted' in url for url in requests))
         self.assertFalse(await self.page.evaluate('Boolean(window.injected)'))
         self.assertEqual(self.console_errors, [])

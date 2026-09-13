@@ -14,6 +14,48 @@ from tests.test_tenant_isolation import (
 
 
 class ApiServerRegressionTest(ApiServerTestCase):
+    def test_legacy_recording_references_do_not_block_later_observation_saves(self):
+        cookie = self.account()
+        before = self.state(cookie)
+        valid = "/api/blobs/" + "a" * 32 + ".webm"
+        urls = ('" onerror="alert(1)', 'javascript:alert(1)',
+                'https://example.com/voice.webm', '//example.com/voice.webm',
+                'data:audio/webm;base64,YQ==', '/api/auth/logout',
+                valid + '?extra=1', valid + '\n', valid + '/../../auth/logout', '', None)
+        legacy = [{"id": index, "text": f"Care note {index}: Billie drank water.",
+                   "title": "Water break", "time": "09:00", "date": "Today",
+                   "tags": ["Nutrition"], "audio": {"url": url, "duration": 1}}
+                  for index, url in enumerate(urls, 100)]
+        supported = [{**legacy[0], "id": index,
+                      "audio": {"url": "/api/blobs/" + "a" * 32 + "." + ext,
+                                "type": mime, "duration": 2}}
+                     for index, (ext, mime) in enumerate((
+                         ("webm", "audio/webm;codecs=opus"), ("ogg", "audio/ogg"),
+                         ("m4a", "audio/mp4"), ("wav", "audio/wav"), ("mp3", "audio/mpeg")), 200)]
+        with self.server_mod.connection() as c:
+            user = c.execute("SELECT id, business_id FROM user WHERE business_id=?",
+                             (before["business_id"],)).fetchone()
+            self.server_mod.replace_observations(c, user["business_id"], user["id"],
+                                                 {"billie": legacy + supported})
+        expected = {"billie": [{key: value for key, value in item.items() if key != "audio"}
+                               for item in legacy] + supported, "charlie": []}
+        loaded = self.state(cookie)
+        new_note = {"id": 300, "text": "New care note", "title": "Follow-up",
+                    "time": "10:00", "date": "Today", "tags": []}
+        loaded["observations"]["billie"].insert(0, new_note)
+        status, body, _ = _http(self.port, "PUT", "/api/observations",
+                                {"observations": loaded["observations"]}, cookie,
+                                self.mutation_headers(loaded))
+        self.assertEqual(status, 200, body)
+        expected["billie"].insert(0, new_note)
+        self.assertEqual(body["observations"], expected)
+        self.assertEqual(body["revision"], before["revision"] + 1)
+        self.assertTrue(body["imported"])
+        self.assertEqual(self.state(cookie)["observations"], expected)
+        status, body, _ = _http(self.port, "GET", "/api/observations", cookie=cookie)
+        self.assertEqual(status, 200, body)
+        self.assertEqual(body["observations"], expected)
+
     def test_observation_writes_and_import_reject_non_account_recording_urls(self):
         cookie = self.account()
         before = self.state(cookie)
@@ -306,6 +348,22 @@ class ApiServerRegressionTest(ApiServerTestCase):
         self.assertEqual(status, 200, body)
         self.assertFalse(body["skipped"])
         self.assertEqual(body["language"], "fr")
+
+    def test_init_keeps_legacy_attachments_from_reopening_import_eligibility(self):
+        cookie = self.account()
+        before = self.state(cookie)
+        with self.server_mod.connection() as c:
+            c.execute("UPDATE observation SET audio_json=? WHERE business_id=? AND client_id=1",
+                      ('{"url":"https://example.com/legacy.webm"}', before["business_id"]))
+        for _ in range(2):
+            self.server_mod.init()
+            self.assertEqual(self.state(cookie), {**before, "imported": True})
+        status, body, _ = _http(self.port, "POST", "/api/import", {
+            "observations": {"billie": [{"text": "Stale browser note"}]},
+        }, cookie)
+        self.assertEqual(status, 200, body)
+        self.assertTrue(body["skipped"])
+        self.assertEqual(body["observations"], before["observations"])
 
     def test_import_accepts_legacy_snapshot_larger_than_two_megabytes(self):
         cookie = self.account()
