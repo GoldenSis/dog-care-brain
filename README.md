@@ -18,8 +18,16 @@ Slice 1 (accounts, SQLite, still zero pip deps) — local only, no email keys:
 
 ```bash
 python3 api/server.py          # http://127.0.0.1:8787  (sets window.DOGCARE_API)
-# POST /api/auth/request {"email":"you@example.com"} then open the link in .dev-outbox/
+curl -X POST http://127.0.0.1:8787/api/auth/request \
+  -H 'Content-Type: application/json' -d '{"email":"you@example.com"}'
+# Open the link in ~/.local/share/dogcare-brain/.dev-outbox/*.json
 ```
+
+The default launcher binds to loopback HTTP; magic links use HTTP and the session cookie is HttpOnly and SameSite=Lax. `DC_INSECURE_COOKIE=0` switches links and cookies to HTTPS for an HTTPS reverse proxy; the stdlib listener itself still serves HTTP.
+
+Private runtime files live under `~/.local/share/dogcare-brain/`: `dogcare.db`, `.dev-outbox/`, and `blobs/`. Set `DC_DATA_DIR` to choose another private directory; `DC_DB`, `DC_OUTBOX`, and `DC_BLOBS` can override individual paths. Every private path must be outside the static document root (`DC_ROOT`, the repository by default); startup rejects paths or symlinks that resolve inside it. If you ran an earlier version, stop it and move `api/dogcare.db` together with any `-wal`/`-shm` files, `.dev-outbox/`, and `api/blobs/` into that private directory before using either launcher. Startup refuses legacy private locations still present in the document root.
+
+Account mode imports populated browser observations, invitation previews, and language once into an unused business account. A one-line notice appears before existing recordings transfer. Cancel leaves browser data intact; reload to continue. Failed imports remain retryable and keep capture disabled until account loading succeeds. Any saved care data closes import eligibility, including existing data from an earlier API version. Audio is uploaded separately before the snapshot; JSON requests allow up to 32 MiB to accommodate existing localStorage snapshots, including UTF-8 text. Local browser copies are retained.
 
 ## Try the core flow
 
@@ -42,7 +50,7 @@ Health-watch content is deliberately phrased as factual observation rather than 
 ## Try voice notes and social previews
 
 1. Open **Capture update**, add written care context, then choose **Dictate**. Microphone permission is requested only at that point.
-2. Watch the duration, stop, play back, and either discard the recording or save it with the care update. Recordings are limited to two minutes and retained in local browser storage when capacity allows.
+2. Watch the duration, stop, play back, and either discard the recording or save it with the care update. Recordings are limited to two minutes. Static mode retains them in browser storage when capacity allows; account mode saves them in the business’s own server account store.
 3. Find retained voice notes on the dog's timeline and in **Gallery**.
 4. In **Gallery**, preview the clearly labelled Instagram, Facebook, and YouTube access states. These controls do not ask for credentials, connect accounts, make network requests, or post content.
 
@@ -50,7 +58,12 @@ Browsers without `getUserMedia`/`MediaRecorder`, insecure non-localhost contexts
 
 ## Product boundaries
 
-This is a local interactive prototype using fictional demo care moments around the named pilot profiles. Muse and AI structuring are represented by deterministic, on-device keyword parsing; Muse is not connected to a remote AI service, and assistant questions and care records stay in the browser. Voice audio is captured and retained only in the browser; it is never uploaded. Invite creation, WhatsApp, Instagram, Facebook, YouTube, owner delivery, payments, and cloud sync are clearly labelled previews or drafts and do not connect to external services. Social previews never collect credentials or post to a network.
+This is a local interactive prototype using fictional demo care moments around the named pilot profiles. Muse and AI structuring use deterministic, on-device keyword parsing; neither connects to a remote AI service. Assistant questions stay in the browser.
+
+- **Static mode** (`python3 -m http.server`, no `DOGCARE_API`): care records and retained recordings stay in this browser; saved recordings are never uploaded.
+- **Account mode** (`python3 api/server.py`, flag on): care records and recordings are stored in the business’s own account store on the server the business runs, accessible only to signed-in members of that business, never to a third party. The one-time recording import shows a notice before moving existing audio.
+
+Invitation creation remains a pending preview with no delivery. The magic-link mailer writes local `.dev-outbox` files only. Social connections, owner delivery, payments, and cloud sync remain previews or drafts; social previews never collect credentials or post to a network. Slice 2 remains closed: no deployment, keys, prices, or third-party email provider.
 
 Voice transcription uses the browser's built-in speech-recognition feature. Depending on the browser, microphone audio may be processed by the browser provider's speech service; users should check their browser's privacy terms before recording.
 
@@ -68,10 +81,17 @@ python3.12 -m venv /tmp/dogcare-crawler
 
 ## Acceptance checks
 
-The optional crawler environment also supplies Playwright for the committed browser acceptance checks:
+Run the API regressions with the standard library and the adapter regressions with Node:
 
 ```bash
-/tmp/dogcare-crawler/bin/python -m unittest discover -s tests -v
+python3 -m unittest tests.test_api_server tests.test_tenant_isolation tests.test_crawl_site -v
+node --test tests/test_api_adapter.js
 ```
 
-The suite covers robots/origin/output boundaries, the premium Muse briefing-to-handoff journey, live voice transcription through editable text into the timeline, and mobile handoff overflow. Browser tests skip with an installation hint when the optional environment is not present; pure crawler-boundary tests always run with the standard library.
+The browser acceptance checks need only the optional Playwright test dependency:
+
+```bash
+uv run --python 3.12 --with playwright python -m unittest discover -s tests -v
+```
+
+The suite covers authentication, tenant isolation, safe migration and replacement writes, robots/origin/output boundaries, the premium Muse briefing-to-handoff journey, live voice transcription through editable text into the timeline, and mobile handoff overflow. Browser tests skip with an installation hint when the optional environment is not present; pure crawler-boundary tests always run with the standard library.

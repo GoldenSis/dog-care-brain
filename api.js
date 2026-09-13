@@ -18,19 +18,23 @@
     if (typeof w.showToast === "function") w.showToast("Not saved — check your connection and try again");
   }
 
+  let hydrated = false;
+  let loadError = "Could not load your account. Check your connection and reload.";
+  let writes = Promise.resolve();
+  const uploaded = new Map();
+
   async function req(path, opts) {
-    let r;
+    const writing = opts && opts.method && opts.method !== "GET";
     try {
-      r = await fetch(url(path), Object.assign({ credentials: "include" }, opts));
+      const r = await fetch(url(path), Object.assign({ credentials: "include" }, opts));
+      const text = await r.text();
+      const data = text ? JSON.parse(text) : {};
+      if (!r.ok && writing) failed();
+      return { ok: r.ok, status: r.status, data };
     } catch {
-      if (opts && opts.method && opts.method !== "GET") failed();
+      if (writing) failed();
       return { ok: false, status: 0, data: {} };
     }
-    const text = await r.text();
-    let data = {};
-    try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
-    if (!r.ok && opts && opts.method && opts.method !== "GET") failed();
-    return { ok: r.ok, status: r.status, data };
   }
 
   async function putJson(path, body) {
@@ -50,60 +54,92 @@
   }
 
   async function uploadDataUrl(dataUrl) {
-    const m = /^data:([^;]+);base64,(.+)$/.exec(dataUrl || "");
-    if (!m) return null;
+    if (uploaded.has(dataUrl)) return uploaded.get(dataUrl);
+    const m = /^data:([^,]+);base64,([a-z0-9+/=\s]+)$/i.exec(dataUrl || "");
+    if (!m) { failed(); return null; }
     const res = await postJson("/blobs", { type: m[1], data: m[2] });
     if (!res.ok || !res.data.ref) return null;
-    return url("/blobs/" + res.data.ref);
+    const refUrl = url("/blobs/" + res.data.ref);
+    uploaded.set(dataUrl, refUrl);
+    return refUrl;
   }
 
-  async function persistObservations(obs) {
-    const copy = JSON.parse(JSON.stringify(obs || {}));
-    for (const slug of Object.keys(copy)) {
-      for (const item of copy[slug] || []) {
+  function reconcileAudio(observations) {
+    for (const items of Object.values(observations || {})) {
+      for (const item of items) {
+        const src = item.audio && item.audio.url;
+        if (uploaded.has(src)) item.audio.url = uploaded.get(src);
+      }
+    }
+  }
+
+  async function extractAudio(observations, original) {
+    for (const items of Object.values(observations || {})) {
+      for (const item of items) {
         const src = item.audio && item.audio.url;
         if (src && src.startsWith("data:")) {
           const refUrl = await uploadDataUrl(src);
-          if (refUrl) item.audio.url = refUrl;
+          if (!refUrl) return false;
+          item.audio.url = refUrl;
+          if (original) reconcileAudio(original);
         }
       }
     }
-    await putJson("/observations", { observations: copy });
-    cache.observations = copy;
+    return true;
+  }
+
+  function acceptState(data) {
+    if (!data.ok || !data.observations || typeof data.observations !== "object" ||
+        Array.isArray(data.observations) || !Array.isArray(data.invites)) return false;
+    cache.observations = data.observations;
+    cache.invites = data.invites;
+    cache.language = data.language || "en";
+    return true;
   }
 
   const ready = (async function hydrate() {
-    const localObs = w.localStorage.getItem("dogcare-observations");
-    const localInv = w.localStorage.getItem("dogcare-invites");
-    const localLang = w.localStorage.getItem("dogcare-language");
     const state = await req("/state");
-    if (state.status === 401) return false;
-    if (!state.ok) return false;
-    const imported = w.localStorage.getItem("dogcare-imported");
-    if (localObs && !imported) {
-      let observations = {}, invites = [];
-      try { observations = JSON.parse(localObs) || {}; } catch { observations = {}; }
-      try { invites = JSON.parse(localInv) || []; } catch { invites = []; }
-      // The server imports once per business and ignores later calls, so a second
-      // device's stale localStorage can never overwrite real notes.
-      await postJson("/import", { observations, invites, language: localLang || "en" });
-      w.localStorage.setItem("dogcare-imported", "1");
-      const again = await req("/state");
-      if (again.ok) Object.assign(cache, {
-        observations: again.data.observations,
-        invites: again.data.invites || [],
-        language: again.data.language || localLang || "en",
-      });
-      return true;
+    if (state.status === 401) {
+      loadError = "Sign in using your magic link, then reload to open your account.";
+      return false;
     }
-    cache.observations = state.data.observations;
-    cache.invites = state.data.invites || [];
-    cache.language = state.data.language || localLang || "en";
+    if (!state.ok || !acceptState(state.data)) return false;
+    const marker = "dogcare-imported:" + state.data.business_id;
+    if (!state.data.imported && !w.localStorage.getItem(marker)) {
+      const payload = {};
+      for (const key of ["observations", "invites", "language"]) {
+        const raw = w.localStorage.getItem("dogcare-" + key);
+        if (raw !== null) payload[key] = key === "language" ? raw : JSON.parse(raw);
+      }
+      if (Object.keys(payload).length) {
+        loadError = "Your browser records could not be imported. They are still here; reload to retry.";
+        const recordings = Object.values(payload.observations || {}).flat().some(item => item.audio?.url?.startsWith("data:"));
+        if (recordings && !w.confirm("Existing recordings will move to your business’s own account store on the server it runs, accessible only to signed-in members of your business, never to a third party.")) {
+          loadError = "Recording import paused. Your browser records are still here; reload to continue.";
+          return false;
+        }
+        if (!await extractAudio(payload.observations)) return false;
+        const result = await postJson("/import", payload);
+        if (!result.ok || !acceptState(result.data)) return false;
+        if (!result.data.skipped) {
+          try { w.localStorage.setItem(marker, "1"); } catch {}
+        }
+      }
+    }
+    hydrated = true;
     return true;
-  })();
+  })().catch(() => false);
+
+  function enqueue(save) {
+    if (!hydrated) { failed(); return Promise.resolve(false); }
+    writes = writes.then(save).catch(() => { failed(); return false; });
+    return writes;
+  }
 
   w.DogCareAPI = {
     ready,
+    getLoadError() { return loadError; },
+    whenSaved() { return writes; },
     getObservations() {
       return cache.observations || {};
     },
@@ -114,16 +150,24 @@
       return cache.language || "en";
     },
     saveObservations(obs) {
+      if (!hydrated) return enqueue(() => false);
       cache.observations = obs;
-      persistObservations(obs);
+      const snapshot = JSON.parse(JSON.stringify(obs));
+      return enqueue(async () => {
+        if (!await extractAudio(snapshot, obs)) return false;
+        return (await putJson("/observations", { observations: snapshot })).ok;
+      });
     },
     saveInvites(invites) {
+      if (!hydrated) return enqueue(() => false);
       cache.invites = invites;
-      putJson("/invites", { invites });
+      const snapshot = JSON.parse(JSON.stringify(invites));
+      return enqueue(async () => (await putJson("/invites", { invites: snapshot })).ok);
     },
     saveLanguage(language) {
+      if (!hydrated) return enqueue(() => false);
       cache.language = language;
-      putJson("/prefs", { language });
+      return enqueue(async () => (await putJson("/prefs", { language })).ok);
     },
   };
 })(window);

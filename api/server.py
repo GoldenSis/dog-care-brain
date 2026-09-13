@@ -5,11 +5,12 @@ Same shape as BrainShared/web/rally-atlas/api/server.py: one process, one SQLite
 file, magic-link auth. Slice 1 mailer writes `.dev-outbox/` (no SMTP, no keys).
 
 Run:  python3 api/server.py
-Env:  DC_HOST, DC_PORT, DC_DB, DC_ROOT, DC_OUTBOX, DC_BLOBS, DC_INSECURE_COOKIE=1
+Env:  DC_HOST, DC_PORT, DC_DATA_DIR, DC_DB, DC_ROOT, DC_OUTBOX, DC_BLOBS, DC_INSECURE_COOKIE
 """
 from __future__ import annotations
 
-import hashlib, json, os, re, secrets, sqlite3, threading, time
+import base64, hashlib, json, math, os, re, secrets, sqlite3, tempfile, threading, time
+from contextlib import contextmanager
 from email.utils import formatdate
 from http import cookies as httpcookies
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -20,7 +21,7 @@ ROOT_DEFAULT = os.path.dirname(HERE)
 COOKIE = "dc_s"
 MAGIC_TTL = 15 * 60
 SESSION_TTL = 90 * 24 * 3600
-MAX_BODY = 2 * 1024 * 1024
+MAX_BODY = 32 * 1024 * 1024
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,80}$")
 BLOB_RE = re.compile(r"^[a-f0-9]{32}\.(webm|ogg|m4a|wav|mp3)$")
@@ -71,16 +72,20 @@ def cfg(name, default):
     return os.environ.get(name, default)
 
 
+def data_dir():
+    return os.path.realpath(os.path.expanduser(cfg("DC_DATA_DIR", "~/.local/share/dogcare-brain")))
+
+
 def db_path():
-    return cfg("DC_DB", os.path.join(HERE, "dogcare.db"))
+    return cfg("DC_DB", os.path.join(data_dir(), "dogcare.db"))
 
 
 def outbox_dir():
-    return cfg("DC_OUTBOX", os.path.join(os.path.dirname(HERE), ".dev-outbox"))
+    return cfg("DC_OUTBOX", os.path.join(data_dir(), ".dev-outbox"))
 
 
 def blobs_dir():
-    return cfg("DC_BLOBS", os.path.join(HERE, "blobs"))
+    return cfg("DC_BLOBS", os.path.join(data_dir(), "blobs"))
 
 
 def static_root():
@@ -99,18 +104,40 @@ def db():
     return c
 
 
+@contextmanager
+def connection():
+    c = db()
+    try:
+        with c:
+            yield c
+    finally:
+        c.close()
+
+
 def init():
+    root = static_root()
+    for path in (db_path(), outbox_dir(), blobs_dir()):
+        if os.path.commonpath((root, os.path.realpath(path))) == root:
+            raise ValueError("Private runtime storage must be outside DC_ROOT")
+    for rel in ("api/dogcare.db", ".dev-outbox", "api/blobs"):
+        if os.path.exists(os.path.join(root, rel)):
+            raise ValueError("Move legacy private runtime storage outside DC_ROOT before starting")
+    for path in (os.path.dirname(os.path.abspath(db_path())), outbox_dir(), blobs_dir()):
+        os.makedirs(path, mode=0o700, exist_ok=True)
     with open(os.path.join(HERE, "schema.sql"), encoding="utf-8") as f:
         schema = f.read()
-    c = db()
-    c.executescript(schema)
-    cols = [r[1] for r in c.execute("PRAGMA table_info(business)")]
-    if "imported" not in cols:
-        c.execute("ALTER TABLE business ADD COLUMN imported INTEGER NOT NULL DEFAULT 0")
-    c.commit()
-    c.close()
-    os.makedirs(outbox_dir(), exist_ok=True)
-    os.makedirs(blobs_dir(), exist_ok=True)
+    with connection() as c:
+        c.executescript(schema)
+        cols = [r[1] for r in c.execute("PRAGMA table_info(business)")]
+        if "imported" not in cols:
+            c.execute("ALTER TABLE business ADD COLUMN imported INTEGER NOT NULL DEFAULT 0")
+        for row in c.execute("SELECT id FROM business WHERE imported=0").fetchall():
+            bid = row["id"]
+            invites = c.execute("SELECT 1 FROM invite WHERE business_id=? LIMIT 1", (bid,)).fetchone()
+            prefs = c.execute("SELECT 1 FROM pref p JOIN user u ON p.user_id=u.id "
+                              "WHERE u.business_id=? AND p.language != 'en' LIMIT 1", (bid,)).fetchone()
+            if observations_map(c, bid) != SEED_OBS or invites or prefs:
+                c.execute("UPDATE business SET imported=1 WHERE id=?", (bid,))
 
 
 def write_outbox(email, link):
@@ -133,7 +160,7 @@ def write_outbox(email, link):
 def cookie_header(sid, clear=False):
     bits = [f"{COOKIE}={'' if clear else sid}", "Path=/", "HttpOnly", "SameSite=Lax",
             f"Max-Age={0 if clear else SESSION_TTL}"]
-    if os.environ.get("DC_INSECURE_COOKIE") != "1":
+    if cfg("DC_INSECURE_COOKIE", "1") != "1":
         bits.append("Secure")
     return "; ".join(bits)
 
@@ -161,17 +188,13 @@ def user_of(handler):
             "business_id": row["business_id"]}
 
 
-def ensure_account(email):
+def ensure_account(c, email):
     """First verify creates the tenant + demo dogs so the pilot's UI still has Billie & Charlie."""
     now = int(time.time())
-    c = db()
     row = c.execute("SELECT id, business_id FROM user WHERE email=?", (email,)).fetchone()
     if row:
         c.execute("UPDATE user SET last_seen=? WHERE id=?", (now, row["id"]))
-        c.commit()
-        uid, bid = row["id"], row["business_id"]
-        c.close()
-        return uid, bid
+        return row["id"], row["business_id"]
     slug = re.sub(r"[^a-z0-9]+", "-", email.split("@")[0].lower()).strip("-") or "biz"
     slug = f"{slug}-{secrets.token_hex(3)}"
     name = email.split("@")[0]
@@ -184,8 +207,6 @@ def ensure_account(email):
     uid = c.execute("SELECT last_insert_rowid()").fetchone()[0]
     c.execute("INSERT INTO pref(user_id, language) VALUES(?, 'en')", (uid,))
     seed_business(c, bid, uid)
-    c.commit()
-    c.close()
     return uid, bid
 
 
@@ -202,6 +223,71 @@ def seed_business(c, bid, uid):
         )
         ids[slug] = c.execute("SELECT last_insert_rowid()").fetchone()[0]
     replace_observations(c, bid, uid, SEED_OBS, ids)
+
+
+def validate_text_fields(item, fields):
+    for key in fields:
+        if item.get(key) is not None and not isinstance(item[key], str):
+            raise ValueError("bad " + key)
+
+
+def validate_string_list(value, key):
+    if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
+        raise ValueError("bad " + key)
+
+
+def validate_care(payload):
+    if not any(key in payload for key in ("observations", "invites", "language")):
+        raise ValueError("missing care data")
+    if "observations" in payload:
+        observations = payload["observations"]
+        if not isinstance(observations, dict):
+            raise ValueError("bad observations")
+        for slug, items in observations.items():
+            if not SLUG_RE.fullmatch(slug) or not isinstance(items, list):
+                raise ValueError("bad observations")
+            for item in items:
+                if not isinstance(item, dict):
+                    raise ValueError("bad observation")
+                validate_text_fields(item, ("text", "title", "time", "date"))
+                if item.get("id") is not None and (type(item["id"]) is not int or
+                                                     not -(2**63) <= item["id"] < 2**63):
+                    raise ValueError("bad observation id")
+                if "tags" in item:
+                    validate_string_list(item["tags"], "tags")
+                audio = item.get("audio")
+                if audio is not None:
+                    if not isinstance(audio, dict) or not isinstance(audio.get("url"), str):
+                        raise ValueError("bad audio")
+                    validate_text_fields(audio, ("type",))
+                    duration = audio.get("duration")
+                    if duration is not None and (type(duration) not in (int, float) or
+                                                  not 0 <= duration <= 86400 or not math.isfinite(duration)):
+                        raise ValueError("bad audio duration")
+    if "invites" in payload:
+        if not isinstance(payload["invites"], list):
+            raise ValueError("bad invites")
+        for item in payload["invites"]:
+            if not isinstance(item, dict):
+                raise ValueError("bad invite")
+            validate_text_fields(item, ("token", "email", "name", "role", "status"))
+            for key in ("permissions", "areas"):
+                if key in item:
+                    validate_string_list(item[key], key)
+    if "language" in payload:
+        if not isinstance(payload["language"], str) or not 1 <= len(payload["language"]) <= 8:
+            raise ValueError("bad language")
+
+
+def apply_care(c, user, payload):
+    if "observations" in payload:
+        replace_observations(c, user["business_id"], user["id"], payload["observations"])
+    if "invites" in payload:
+        replace_invites(c, user["business_id"], payload["invites"])
+    if "language" in payload:
+        c.execute("INSERT INTO pref(user_id, language) VALUES(?,?) "
+                  "ON CONFLICT(user_id) DO UPDATE SET language=excluded.language",
+                  (user["id"], payload["language"]))
 
 
 def replace_observations(c, bid, uid, observations, dog_ids=None):
@@ -307,13 +393,10 @@ def do_auth_request(payload, host):
         return {"ok": False, "error": "invalid email"}, 400
     tok = secrets.token_urlsafe(32)
     now = int(time.time())
-    with _lock:
-        c = db()
+    with _lock, connection() as c:
         c.execute("INSERT INTO magic(th, email, created, expires) VALUES(?,?,?,?)",
                   (_h(tok), email, now, now + MAGIC_TTL))
-        c.commit()
-        c.close()
-    proto = "http" if os.environ.get("DC_INSECURE_COOKIE") == "1" else "https"
+    proto = "http" if cfg("DC_INSECURE_COOKIE", "1") == "1" else "https"
     link = f"{proto}://{host}/api/auth/verify?t={tok}"
     write_outbox(email, link)
     return {"ok": True, "mailed": False}, 200
@@ -324,26 +407,18 @@ def do_auth_verify(query):
     now = int(time.time())
     if not tok or len(tok) > 128:
         return None, "bad"
-    with _lock:
-        c = db()
+    with _lock, connection() as c:
+        c.execute("BEGIN IMMEDIATE")
         row = c.execute("SELECT email, expires, used FROM magic WHERE th=?", (_h(tok),)).fetchone()
         if not row or row["used"] or row["expires"] < now:
-            c.close()
             return None, "expired"
-        email = row["email"]
+        uid, _bid = ensure_account(c, row["email"])
         c.execute("UPDATE magic SET used=1 WHERE th=?", (_h(tok),))
-        c.commit()
-        c.close()
-    uid, _bid = ensure_account(email)
-    sid = secrets.token_urlsafe(32)
-    with _lock:
-        c = db()
+        sid = secrets.token_urlsafe(32)
         c.execute("INSERT INTO session(sh, user_id, created, expires) VALUES(?,?,?,?)",
                   (_h(sid), uid, now, now + SESSION_TTL))
         c.execute("DELETE FROM magic WHERE expires < ?", (now - 86400,))
         c.execute("DELETE FROM session WHERE expires < ?", (now,))
-        c.commit()
-        c.close()
     return sid, None
 
 
@@ -356,10 +431,12 @@ def state_of(user):
     dogs = [{"id": r["id"], "slug": r["slug"], "name": r["name"]}
             for r in c.execute("SELECT id, slug, name FROM dog WHERE business_id=? ORDER BY id",
                                (user["business_id"],))]
+    imported = c.execute("SELECT imported FROM business WHERE id=?", (user["business_id"],)).fetchone()[0]
     obs = observations_map(c, user["business_id"])
     inv = invites_list(c, user["business_id"])
     c.close()
-    return {"ok": True, "email": user["email"], "role": user["role"],
+    return {"ok": True, "business_id": user["business_id"], "imported": bool(imported),
+            "email": user["email"], "role": user["role"],
             "language": lang, "dogs": dogs, "observations": obs, "invites": inv}
 
 
@@ -385,7 +462,13 @@ class Handler(BaseHTTPRequestHandler):
         return u
 
     def _read_json(self):
-        n = int(self.headers.get("Content-Length") or 0)
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+            if n < 0:
+                raise ValueError
+        except ValueError:
+            self._send({"ok": False, "error": "bad content length"}, 400)
+            return None
         if n > MAX_BODY:
             self._send({"ok": False, "error": "too big"}, 413)
             return None
@@ -398,6 +481,28 @@ class Handler(BaseHTTPRequestHandler):
             self._send({"ok": False, "error": "bad json"}, 400)
             return None
         return payload
+
+    def _write_care(self, user, payload, importing=False):
+        try:
+            validate_care(payload)
+            with _lock, connection() as c:
+                c.execute("BEGIN IMMEDIATE")
+                done = c.execute("SELECT imported FROM business WHERE id=?",
+                                 (user["business_id"],)).fetchone()[0]
+                skipped = importing and bool(done)
+                if not skipped:
+                    apply_care(c, user, payload)
+                    c.execute("UPDATE business SET imported=1 WHERE id=?", (user["business_id"],))
+        except ValueError as error:
+            return self._send({"ok": False, "error": str(error)}, 400)
+        except sqlite3.IntegrityError:
+            return self._send({"ok": False, "error": "conflicting care data"}, 409)
+        except sqlite3.Error:
+            return self._send({"ok": False, "error": "care data could not be saved"}, 500)
+        out = state_of(user)
+        if importing:
+            out["skipped"] = skipped
+        return self._send(out)
 
     def do_GET(self):
         parsed = urlparse(self.path)
@@ -513,50 +618,28 @@ class Handler(BaseHTTPRequestHandler):
         if not u:
             return
         if path == "/api/import":
-            with _lock:
-                c = db()
-                done = c.execute("SELECT imported FROM business WHERE id=?",
-                                 (u["business_id"],)).fetchone()[0]
-                if done:
-                    c.close()
-                    out = state_of(u)
-                    out["skipped"] = True
-                    return self._send(out)
-                c.execute("UPDATE business SET imported=1 WHERE id=?", (u["business_id"],))
-                replace_observations(c, u["business_id"], u["id"], payload.get("observations") or {})
-                replace_invites(c, u["business_id"], payload.get("invites") or [])
-                lang = str(payload.get("language") or "en")[:8]
-                c.execute("INSERT INTO pref(user_id, language) VALUES(?,?) "
-                          "ON CONFLICT(user_id) DO UPDATE SET language=excluded.language",
-                          (u["id"], lang))
-                c.commit()
-                c.close()
-            return self._send(state_of(u))
+            return self._write_care(u, payload, importing=True)
         if path == "/api/dogs":
             slug = str(payload.get("slug") or "").strip().lower()
             name = str(payload.get("name") or slug).strip()[:80]
             if not SLUG_RE.match(slug):
                 return self._send({"ok": False, "error": "bad slug"}, 400)
-            with _lock:
-                c = db()
-                try:
+            try:
+                with _lock, connection() as c:
                     c.execute(
                         "INSERT INTO dog(business_id, slug, name, created) VALUES(?,?,?,?)",
                         (u["business_id"], slug, name or slug, int(time.time())),
                     )
                     did = c.execute("SELECT last_insert_rowid()").fetchone()[0]
-                    c.commit()
-                except sqlite3.IntegrityError:
-                    c.close()
-                    return self._send({"ok": False, "error": "exists"}, 409)
-                c.close()
+                    c.execute("UPDATE business SET imported=1 WHERE id=?", (u["business_id"],))
+            except sqlite3.IntegrityError:
+                return self._send({"ok": False, "error": "exists"}, 409)
             return self._send({"ok": True, "dog": {"id": did, "slug": slug, "name": name}})
         if path == "/api/blobs":
             raw = payload.get("data") or ""
             typ = str(payload.get("type") or "audio/webm")
             try:
-                import base64
-                blob = base64.b64decode(raw)
+                blob = base64.b64decode(raw, validate=True)
             except (ValueError, TypeError):
                 return self._send({"ok": False, "error": "bad data"}, 400)
             if len(blob) > MAX_BODY:
@@ -570,11 +653,20 @@ class Handler(BaseHTTPRequestHandler):
                 ext = "wav"
             elif "mpeg" in typ or "mp3" in typ:
                 ext = "mp3"
-            name = secrets.token_hex(16) + "." + ext
+            name = hashlib.sha256(blob).hexdigest()[:32] + "." + ext
             dest_dir = os.path.join(blobs_dir(), str(u["business_id"]))
             os.makedirs(dest_dir, exist_ok=True)
-            with open(os.path.join(dest_dir, name), "wb") as f:
-                f.write(blob)
+            dest = os.path.join(dest_dir, name)
+            if not os.path.isfile(dest):
+                staged = None
+                try:
+                    with tempfile.NamedTemporaryFile(dir=dest_dir, delete=False) as f:
+                        staged = f.name
+                        f.write(blob)
+                    os.replace(staged, dest)
+                finally:
+                    if staged and os.path.exists(staged):
+                        os.unlink(staged)
             return self._send({"ok": True, "ref": name})
         return self._send({"ok": False, "error": "not found"}, 404)
 
@@ -586,23 +678,13 @@ class Handler(BaseHTTPRequestHandler):
         u = self._need_user()
         if not u:
             return
-        with _lock:
-            c = db()
-            if path == "/api/observations":
-                replace_observations(c, u["business_id"], u["id"], payload.get("observations") or {})
-            elif path == "/api/invites":
-                replace_invites(c, u["business_id"], payload.get("invites") or [])
-            elif path == "/api/prefs":
-                lang = str(payload.get("language") or "en")[:8]
-                c.execute("INSERT INTO pref(user_id, language) VALUES(?,?) "
-                          "ON CONFLICT(user_id) DO UPDATE SET language=excluded.language",
-                          (u["id"], lang))
-            else:
-                c.close()
-                return self._send({"ok": False, "error": "not found"}, 404)
-            c.commit()
-            c.close()
-        return self._send(state_of(u))
+        key = {"/api/observations": "observations", "/api/invites": "invites",
+               "/api/prefs": "language"}.get(path)
+        if not key:
+            return self._send({"ok": False, "error": "not found"}, 404)
+        if key not in payload:
+            return self._send({"ok": False, "error": "missing " + key}, 400)
+        return self._write_care(u, {key: payload[key]})
 
     def _serve_static(self, path):
         root = static_root()

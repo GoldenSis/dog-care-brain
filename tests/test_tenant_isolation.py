@@ -12,6 +12,7 @@ import unittest
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -26,11 +27,13 @@ def _http(port, method, path, body=None, cookie=None):
         headers["Content-Length"] = str(len(data))
     if cookie:
         headers["Cookie"] = f"dc_s={cookie}"
-    conn.request(method, path, body=data, headers=headers)
-    resp = conn.getresponse()
-    raw = resp.read()
-    headers_out = {k.lower(): v for k, v in resp.getheaders()}
-    conn.close()
+    try:
+        conn.request(method, path, body=data, headers=headers)
+        resp = conn.getresponse()
+        raw = resp.read()
+        headers_out = {k.lower(): v for k, v in resp.getheaders()}
+    finally:
+        conn.close()
     try:
         parsed = json.loads(raw.decode() or "null")
     except json.JSONDecodeError:
@@ -56,16 +59,24 @@ def _latest_link(outbox, email):
     raise AssertionError(f"no outbox letter for {email}")
 
 
-class TenantIsolationTest(unittest.TestCase):
+class ApiServerTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tmp = Path(tempfile.mkdtemp(prefix="dogcare-iso-"))
-        os.environ["DC_DB"] = str(cls.tmp / "t.db")
-        os.environ["DC_OUTBOX"] = str(cls.tmp / "outbox")
-        os.environ["DC_BLOBS"] = str(cls.tmp / "blobs")
-        os.environ["DC_ROOT"] = str(ROOT)
-        os.environ["DC_INSECURE_COOKIE"] = "1"
-        sys.path.insert(0, str(ROOT / "api"))
+        temporary = tempfile.TemporaryDirectory(prefix="dogcare-iso-")
+        cls.addClassCleanup(temporary.cleanup)
+        cls.tmp = Path(temporary.name)
+        environment = patch.dict(os.environ, {
+            "DC_DB": str(cls.tmp / "t.db"),
+            "DC_OUTBOX": str(cls.tmp / "outbox"),
+            "DC_BLOBS": str(cls.tmp / "blobs"),
+            "DC_ROOT": str(ROOT),
+        })
+        environment.start()
+        cls.addClassCleanup(environment.stop)
+        os.environ.pop("DC_INSECURE_COOKIE", None)
+        import_path = str(ROOT / "api")
+        sys.path.insert(0, import_path)
+        cls.addClassCleanup(sys.path.remove, import_path)
         import server  # noqa: E402
         cls.server_mod = server
         server.init()
@@ -93,6 +104,8 @@ class TenantIsolationTest(unittest.TestCase):
         self.assertTrue(cookie)
         return cookie
 
+
+class TenantIsolationTest(ApiServerTestCase):
     def test_user_of_business_a_cannot_read_business_b_dogs(self):
         cookie_a = self.login("owner-a@example.com")
         cookie_b = self.login("owner-b@example.com")
