@@ -1,5 +1,10 @@
-/* Adapter behind window.DOGCARE_API. Flag off (undefined/falsy) → this file is a no-op.
-   Flag on → the three localStorage keys go through /api and a session cookie. */
+/* Adapter behind window.DOGCARE_API (the API server injects "/api").
+   Flag off (undefined/falsy) → no storage or network access from this file.
+   Flag on → hydrate account state, optionally import the three dogcare-* storage
+   keys once per business, then save through /api with a session cookie.
+   Browser copies remain unchanged; observations/invites are full replacements,
+   language is per user, and care writes bind to the loaded business/revision.
+   See README.md's Slice 1 API section for the request and recovery contracts. */
 (function (w) {
   const base = w.DOGCARE_API;
   if (!base) return;
@@ -174,6 +179,9 @@
     return writes;
   }
 
+  // Await ready's boolean before using cached getters or saving. Valid save calls
+  // resolve to booleans in call order; whenSaved waits for writes already queued.
+  // Observation saves reconcile uploaded data URLs into the supplied objects.
   w.DogCareAPI = {
     ready,
     getLoadError() { return loadError; },

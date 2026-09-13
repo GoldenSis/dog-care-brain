@@ -1243,7 +1243,7 @@ function bindView() {
   const input=document.querySelector('#observation');
   if(input){
     input.oninput=()=>{const tags=infer(input.value);document.querySelector('#detected').innerHTML=input.value.trim()?tagsHtml(tags):`<em>${t('Start typing to see structured care tags')}</em>`;document.querySelector('#health-safety').hidden=!tags.includes('Health watch');};
-    // Record = one action: capture the voice note AND live-transcribe it into the care note.
+    // Dictate transcribes into editable text; the audio-recording helper is not called here.
     document.querySelector('#record-audio').onclick=()=>{startTranscription();};
     document.querySelector('#stop-audio').onclick=()=>{stopTranscription();};
     const Recognition=window.SpeechRecognition || window.webkitSpeechRecognition;

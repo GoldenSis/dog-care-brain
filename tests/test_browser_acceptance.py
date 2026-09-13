@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import sys
 import threading
@@ -78,6 +79,14 @@ class BrowserFixture(unittest.IsolatedAsyncioTestCase, ApiServerTestCase):
         if self.api_mode:
             self.assertTrue(await self.page.evaluate("DogCareAPI.ready"))
         self.assertGreater(await self.page.locator('#app-content > *').count(), 0)
+
+    async def capture_evidence(self, name):
+        directory = os.environ.get('DOGCARE_EVIDENCE_DIR')
+        if directory:
+            path = Path(directory)
+            path.mkdir(parents=True, exist_ok=True)
+            await self.page.screenshot(path=str(path / name), full_page=True,
+                                       animations='disabled')
 
     async def asyncTearDown(self):
         if self.api_mode:
@@ -256,6 +265,130 @@ class StaticBrowserAcceptanceTest(BrowserAcceptanceTest):
         cls.static_httpd.server_close()
         cls.static_thread.join(timeout=2)
         super().tearDownClass()
+
+    async def test_static_records_import_once_and_survive_a_fresh_browser(self):
+        self.assertTrue(await self.page.evaluate('window.DOGCARE_API === undefined'))
+        api_requests = []
+        self.page.on('request', lambda request: api_requests.append(request.url)
+                     if '/api/' in request.url else None)
+        note = 'Billie drank water after her woodland walk.'
+        await self.page.click('.topbar [data-go="capture"]')
+        await self.page.fill('#observation', note)
+        await self.page.click('#save-observation')
+        await self.page.wait_for_selector('.timeline-card')
+        await self.capture_evidence('static-timeline-mobile.png')
+        await self.page.click('#mobile-menu')
+        await self.page.click('[data-page="invite"]')
+        await self.page.fill('#invite-name', 'Demo Carer')
+        await self.page.fill('#invite-email', 'carer@example.com')
+        await self.page.click('#create-invite')
+        await self.page.select_option('#language-picker', 'fr')
+        await self.page.reload()
+        await self.wait_ready()
+        local = await self.page.evaluate('''() => Object.fromEntries(
+            ['observations', 'invites', 'language'].map(key =>
+                [key, localStorage.getItem('dogcare-' + key)]))''')
+        self.assertEqual(json.loads(local['observations'])['billie'][0]['text'], note)
+        self.assertEqual(json.loads(local['invites'])[0]['name'], 'Demo Carer')
+        self.assertEqual(local['language'], 'fr')
+        self.assertEqual(api_requests, [])
+
+        # Switch the actual serving handler at the same origin, as when replacing
+        # the static launcher with api/server.py. No browser storage is seeded.
+        self.static_httpd.RequestHandlerClass = self.server_mod.Handler
+        self.addCleanup(setattr, self.static_httpd, 'RequestHandlerClass',
+                        partial(QuietStaticHandler, directory=str(ROOT)))
+        self.api_mode = True
+        await self.context.clear_cookies()
+        email = 'migration-owner@example.com'
+        response = await self.context.request.post(self.url + '/api/auth/request',
+                                                   data={'email': email})
+        self.assertEqual(response.status, 200)
+        await self.page.goto(_latest_link(self.outbox, email))
+        await self.wait_ready()
+        self.assertEqual(await self.page.evaluate('window.DOGCARE_API'), '/api')
+        self.assertEqual(await self.page.locator('html').get_attribute('lang'), 'fr')
+        imported = await (await self.context.request.get(self.url + '/api/state')).json()
+        self.assertTrue(imported['imported'])
+        self.assertEqual(imported['observations']['billie'][0]['text'], note)
+        self.assertEqual(imported['invites'][0]['name'], 'Demo Carer')
+        self.assertEqual(imported['language'], 'fr')
+
+        account_note = 'Account update: Billie rested calmly after lunch.'
+        await self.page.click('.topbar [data-go="capture"]')
+        await self.page.fill('#observation', account_note)
+        await self.page.click('#save-observation')
+        await self.page.wait_for_selector('.timeline-card')
+        await self.page.click('#mobile-menu')
+        await self.page.click('[data-page="invite"]')
+        await self.page.fill('#invite-name', 'Account Carer')
+        await self.page.fill('#invite-email', 'account-carer@example.com')
+        await self.page.click('#create-invite')
+        await self.page.wait_for_function(
+            'document.querySelector("#pending-invites").textContent.includes("Account Carer")')
+        await self.page.select_option('#language-picker', 'en')
+        await self.page.wait_for_function('document.documentElement.lang === "en"')
+        saved = await (await self.context.request.get(self.url + '/api/state')).json()
+        self.assertEqual(saved['observations']['billie'][0]['text'], account_note)
+        self.assertEqual(saved['invites'][0]['name'], 'Account Carer')
+        self.assertEqual(saved['language'], 'en')
+        for key, value in local.items():
+            self.assertEqual(await self.page.evaluate(
+                'key => localStorage.getItem("dogcare-" + key)', key), value)
+
+        repeated = await self.context.request.post(self.url + '/api/import', data={
+            'observations': json.loads(local['observations']),
+            'invites': json.loads(local['invites']), 'language': local['language'],
+        }, headers={'X-DogCare-Business': str(saved['business_id']),
+                    'If-Match': '"' + str(saved['revision']) + '"'})
+        self.assertEqual(repeated.status, 200)
+        repeated_state = await repeated.json()
+        self.assertTrue(repeated_state.pop('skipped'))
+        self.assertEqual(repeated_state, saved)
+
+        fresh = await self.browser.new_context(viewport={'width': 1440, 'height': 1000})
+        self.addAsyncCleanup(fresh.close)
+        self.page = await fresh.new_page()
+        self.page.on('pageerror', lambda error: self.page_errors.append(str(error)))
+        self.page.on('console', lambda message: self.console_errors.append(message.text)
+                     if message.type == 'error' else None)
+        response = await fresh.request.post(self.url + '/api/auth/request', data={'email': email})
+        self.assertEqual(response.status, 200)
+        await self.page.goto(_latest_link(self.outbox, email))
+        await self.wait_ready()
+        self.assertEqual(await self.page.evaluate('localStorage.length'), 0)
+        self.assertEqual(await (await fresh.request.get(self.url + '/api/state')).json(), saved)
+        await self.page.click('[data-page="dogs"]')
+        self.assertEqual(await self.page.locator('.timeline-card p').first.text_content(), account_note)
+        self.assertIn(note, await self.page.locator('#app-content').text_content())
+        await self.capture_evidence('account-timeline-fresh-browser.png')
+        await self.page.click('.topbar [data-go="invite"]')
+        self.assertIn('Account Carer', await self.page.locator('#pending-invites').text_content())
+        self.assertIn('Demo Carer', await self.page.locator('#pending-invites').text_content())
+        await self.capture_evidence('account-invites-fresh-browser.png')
+        await self.page.set_viewport_size({'width': 390, 'height': 844})
+        await self.page.click('#mobile-menu')
+        await self.page.click('[data-page="handoff"]')
+        self.assertLessEqual(await self.page.evaluate('document.documentElement.scrollWidth'), 390)
+        await self.capture_evidence('account-handoff-mobile.png')
+        evidence = self.page.locator('[data-evidence-id]').first
+        observation_id = await evidence.get_attribute('data-evidence-id')
+        await evidence.click()
+        self.assertEqual(await self.page.locator(f'#observation-{observation_id}').count(), 1)
+        self.assertEqual(self.console_errors, [])
+        with self.server_mod.connection() as connection:
+            business = dict(connection.execute(
+                'SELECT name, imported, revision FROM business WHERE id=?',
+                (saved['business_id'],)).fetchone())
+        self.assertEqual(business['name'], 'migration-owner')
+        directory = os.environ.get('DOGCARE_EVIDENCE_DIR')
+        if directory:
+            (Path(directory) / 'migration-persisted-state.json').write_text(json.dumps({
+                'origin': self.url, 'local_before_import': local,
+                'imported_state': imported, 'account_state_in_fresh_browser': saved,
+                'repeat_import_skipped': True, 'business_in_sqlite': business,
+                'fresh_browser_local_storage_keys': 0,
+            }, indent=2) + '\n', encoding='utf-8')
 
 
 class AccountRecoveryTest(BrowserFixture):
@@ -470,6 +603,7 @@ class AccountRecoveryTest(BrowserFixture):
         self.assertTrue(await self.page.evaluate('Boolean(audioDraft)'))
         self.assertNotIn('Saved to', await self.page.locator('#toast').text_content())
         self.assertEqual(await self.page.evaluate('state.observations.billie.filter(item => item.text === "Retry this note").length'), 0)
+        await self.capture_evidence('failed-save-draft-retained-mobile.png')
         await self.page.unroute('**/api/observations')
         await self.page.click('#save-observation')
         await self.page.wait_for_selector('.timeline-card')

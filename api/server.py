@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Dog-Care-Brain API — stdlib ThreadingHTTPServer + sqlite3, zero deps.
 
-Same shape as BrainShared/web/rally-atlas/api/server.py: one process, one SQLite
-file, magic-link auth. Slice 1 mailer writes `.dev-outbox/` (no SMTP, no keys).
+One process, one SQLite file, magic-link auth. Slice 1 mailer writes local
+outbox JSON (no SMTP, no keys); all runtime storage must be outside DC_ROOT.
+See README.md for configuration defaults, endpoints, and the snapshot contract.
 
 Run:  python3 api/server.py
 Env:  DC_HOST, DC_PORT, DC_DATA_DIR, DC_DB, DC_ROOT, DC_OUTBOX, DC_BLOBS, DC_INSECURE_COOKIE
@@ -115,6 +116,7 @@ def connection():
 
 
 def init():
+    """Validate private paths, migrate the schema, and close import for saved history."""
     root = static_root()
     for path in (db_path(), outbox_dir(), blobs_dir()):
         if os.path.commonpath((root, os.path.realpath(path))) == root:
@@ -193,7 +195,7 @@ def user_of(handler):
 
 
 def ensure_account(c, email):
-    """First verify creates the tenant + demo dogs so the pilot's UI still has Billie & Charlie."""
+    """Reuse an email's account or create its own business, owner, and demo care data."""
     now = int(time.time())
     row = c.execute("SELECT id, business_id FROM user WHERE email=?", (email,)).fetchone()
     if row:
@@ -302,6 +304,7 @@ def apply_care(c, user, payload):
 
 
 def replace_observations(c, bid, uid, observations, dog_ids=None):
+    """Replace all business observations in array order; keep dogs and create new slugs."""
     now = int(time.time())
     if dog_ids is None:
         dog_ids = {r["slug"]: r["id"] for r in
@@ -386,6 +389,7 @@ def invites_list(c, bid):
 
 
 def replace_invites(c, bid, invites):
+    """Replace business invite previews in array order, assigning fresh row IDs."""
     now = int(time.time())
     c.execute("DELETE FROM invite WHERE business_id=?", (bid,))
     for item in invites or []:
@@ -436,6 +440,7 @@ def do_auth_verify(query):
 
 
 def state_of(user, c=None):
+    """Read care data and its revision in one transaction, reusing c when supplied."""
     if c is None:
         with connection() as c:
             c.execute("BEGIN")
@@ -534,6 +539,7 @@ class Handler(BaseHTTPRequestHandler):
         return revision + 1
 
     def _write_care(self, user, payload, importing=False):
+        """Apply supplied collections atomically; repeat imports return current state."""
         try:
             validate_care(payload)
             with _lock, connection() as c:

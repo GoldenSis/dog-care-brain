@@ -1,11 +1,11 @@
--- Dog-Care-Brain slice 1. One SQLite file, one business_id on every care row.
+-- Dog-Care-Brain slice 1. Business-scoped care data; preferences belong to users.
 CREATE TABLE IF NOT EXISTS business (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
   slug TEXT NOT NULL UNIQUE,
   created INTEGER NOT NULL,
-  imported INTEGER NOT NULL DEFAULT 0,
-  revision INTEGER NOT NULL DEFAULT 0
+  imported INTEGER NOT NULL DEFAULT 0, -- Import eligibility closed by import or care write.
+  revision INTEGER NOT NULL DEFAULT 0 -- Optimistic concurrency counter for care snapshots.
 );
 
 CREATE TABLE IF NOT EXISTS user (
