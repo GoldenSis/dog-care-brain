@@ -754,6 +754,180 @@ function storageCopy(browserCopy, accountCopy = ACCOUNT_STORAGE) {
 }
 // Voice (mic + speech-to-text) needs a real http(s)/localhost origin. NOTE: file:// reports
 // isSecureContext=true yet its origin is rejected by the mic/speech service — so guard it explicitly.
+// Copy for the orange care workspace.
+Object.assign(translations.fr, {
+  "Capture a moment": "Noter un moment",
+  "Write or dictate, then review.": "Écrivez ou dictez, puis relisez.",
+  "Prepare the handoff": "Préparer le relais",
+  "The details the next carer needs.": "Les détails utiles à la personne qui prend le relais.",
+  "Make their daily story": "Raconter leur journée",
+  "A personal recap to review.": "Un récit personnalisé à relire.",
+
+  "Your workspace": "Votre espace",
+  "Share & organise": "Partager et organiser",
+  "Today, at a glance.": "Le point sur la journée.",
+  "A little more time for what matters.": "Un peu plus de temps pour l’essentiel.",
+  "Private prototype": "Prototype privé",
+  "THE LITTLE THINGS MATTER": "CHAQUE PETITE ATTENTION COMPTE",
+  "Good care.": "Aux petits soins.",
+  "Lovely days.": "De belles journées.",
+  "The walks, the meals, the moments in between. Keep their story close.": "Les balades, les repas, les petits moments entre les deux. Gardez le fil de leur journée.",
+  "Add a care note": "Ajouter une note",
+  "Review handoff": "Vérifier le relais",
+  "WITH CARE": "AVEC ATTENTION",
+  "IN GOOD HANDS": "ENTRE DE BONNES MAINS",
+  "THE CARE LOG": "LE JOURNAL DE SOIN",
+  "MAKE ROOM FOR CARE": "DU TEMPS POUR PRENDRE SOIN",
+  "One thing at a time.": "Une chose à la fois.",
+  "A simple path from a little observation to a thoughtful handoff.": "D’une petite observation à un relais bien préparé, en toute simplicité.",
+  "A HAND WITH THE DETAILS": "UN COUP DE MAIN AU QUOTIDIEN",
+  "Ask Muse.": "Demandez à Muse.",
+  "Review the day or get ready for the next handoff.": "Faites le point sur la journée ou préparez le prochain relais.",
+  "Open care assistant": "Ouvrir l’assistant",
+  "A workspace to try with sample care records. Scheduling and business figures are previews.": "Un espace à essayer avec des exemples de dossiers. Le planning et les chiffres d’activité sont des aperçus.",
+  "Write naturally. Keep the details that matter.": "Écrivez simplement. Gardez les détails utiles.",
+  "Ate breakfast, enjoyed a walk, settled down for a nap…": "A pris son petit-déjeuner, profité d’une balade, puis fait une sieste…",
+  "SAMPLE BUSINESS · JULY": "EXEMPLE D’ACTIVITÉ · JUILLET",
+  "Sample figures · this is a business preview, not your accounts.": "Chiffres d’exemple · aperçu de l’activité, pas votre comptabilité.",
+  "Sample schedule · bookings are previews.": "Planning d’exemple · les réservations sont des aperçus.",
+  "SAMPLE SCHEDULE · 12–18 JULY": "PLANNING D’EXEMPLE · 12–18 JUILLET",
+  "Skip to content": "Aller au contenu",
+  "YOUR CARE WORKSPACE": "VOTRE ESPACE DE SOIN",
+  "Care notes, stories & handoffs. All together.": "Notes de soin, récits et relais. Tout au même endroit.",
+  "Open care record": "Ouvrir le carnet de soin",
+  "From Billie’s care log": "Dans le carnet de Billie",
+  "View care timeline": "Voir le carnet"
+});
+Object.assign(translations.it, {
+  "Capture a moment": "Annota un momento",
+  "Write or dictate, then review.": "Scrivi o detta, poi rileggi.",
+  "Prepare the handoff": "Prepara il passaggio di consegne",
+  "The details the next carer needs.": "I dettagli utili a chi se ne prenderà cura dopo.",
+  "Make their daily story": "Racconta la loro giornata",
+  "A personal recap to review.": "Un riepilogo personale da rileggere.",
+
+  "Your workspace": "Il tuo spazio",
+  "Share & organise": "Condividi e organizza",
+  "Today, at a glance.": "La giornata, a colpo d’occhio.",
+  "A little more time for what matters.": "Un po’ più di tempo per ciò che conta.",
+  "Private prototype": "Prototipo privato",
+  "THE LITTLE THINGS MATTER": "LE PICCOLE COSE CONTANO",
+  "Good care.": "Cure attente.",
+  "Lovely days.": "Belle giornate.",
+  "The walks, the meals, the moments in between. Keep their story close.": "Le passeggiate, i pasti, i piccoli momenti nel mezzo. Tieni a portata di mano la loro storia.",
+  "Add a care note": "Aggiungi una nota",
+  "Review handoff": "Rivedi il passaggio di consegne",
+  "WITH CARE": "CON CURA",
+  "IN GOOD HANDS": "IN BUONE MANI",
+  "THE CARE LOG": "IL DIARIO DI CURA",
+  "MAKE ROOM FOR CARE": "FAI SPAZIO ALLA CURA",
+  "One thing at a time.": "Una cosa alla volta.",
+  "A simple path from a little observation to a thoughtful handoff.": "Da una piccola osservazione a un passaggio di consegne curato, con semplicità.",
+  "A HAND WITH THE DETAILS": "UN AIUTO CON I DETTAGLI",
+  "Ask Muse.": "Chiedi a Muse.",
+  "Review the day or get ready for the next handoff.": "Ripercorri la giornata o prepara il prossimo passaggio di consegne.",
+  "Open care assistant": "Apri l’assistente",
+  "A workspace to try with sample care records. Scheduling and business figures are previews.": "Uno spazio da provare con schede di esempio. Il calendario e i dati dell’attività sono anteprime.",
+  "Write naturally. Keep the details that matter.": "Scrivi con naturalezza. Conserva i dettagli che contano.",
+  "Ate breakfast, enjoyed a walk, settled down for a nap…": "Ha fatto colazione, si è goduto una passeggiata, poi un pisolino…",
+  "SAMPLE BUSINESS · JULY": "ATTIVITÀ DI ESEMPIO · LUGLIO",
+  "Sample figures · this is a business preview, not your accounts.": "Cifre di esempio · un’anteprima dell’attività, non la tua contabilità.",
+  "Sample schedule · bookings are previews.": "Calendario di esempio · le prenotazioni sono anteprime.",
+  "SAMPLE SCHEDULE · 12–18 JULY": "CALENDARIO DI ESEMPIO · 12–18 LUGLIO",
+  "Skip to content": "Vai al contenuto",
+  "YOUR CARE WORKSPACE": "IL TUO SPAZIO DI CURA",
+  "Care notes, stories & handoffs. All together.": "Note di cura, racconti e consegne. Tutto insieme.",
+  "Open care record": "Apri il diario di cura",
+  "From Billie’s care log": "Dal diario di Billie",
+  "View care timeline": "Vedi la cronologia"
+});
+Object.assign(translations.de, {
+  "Capture a moment": "Einen Moment festhalten",
+  "Write or dictate, then review.": "Schreiben oder diktieren, dann prüfen.",
+  "Prepare the handoff": "Übergabe vorbereiten",
+  "The details the next carer needs.": "Die Details für die nächste Betreuungsperson.",
+  "Make their daily story": "Ihren Tagesbericht erstellen",
+  "A personal recap to review.": "Ein persönlicher Rückblick zum Prüfen.",
+
+  "Your workspace": "Dein Bereich",
+  "Share & organise": "Teilen und organisieren",
+  "Today, at a glance.": "Dein Tag auf einen Blick.",
+  "A little more time for what matters.": "Etwas mehr Zeit für das, was zählt.",
+  "Private prototype": "Privater Prototyp",
+  "THE LITTLE THINGS MATTER": "DIE KLEINEN DINGE ZÄHLEN",
+  "Good care.": "Gut umsorgt.",
+  "Lovely days.": "Schöne Tage.",
+  "The walks, the meals, the moments in between. Keep their story close.": "Spaziergänge, Mahlzeiten und die kleinen Momente dazwischen. Behalte ihre Geschichte im Blick.",
+  "Add a care note": "Betreuungsnotiz hinzufügen",
+  "Review handoff": "Übergabe prüfen",
+  "WITH CARE": "MIT FÜRSORGE",
+  "IN GOOD HANDS": "IN GUTEN HÄNDEN",
+  "THE CARE LOG": "DAS BETREUUNGSTAGEBUCH",
+  "MAKE ROOM FOR CARE": "ZEIT FÜR FÜRSORGE",
+  "One thing at a time.": "Eins nach dem anderen.",
+  "A simple path from a little observation to a thoughtful handoff.": "Von einer kleinen Beobachtung zu einer gut vorbereiteten Übergabe, Schritt für Schritt.",
+  "A HAND WITH THE DETAILS": "EINE HILFE BEI DEN DETAILS",
+  "Ask Muse.": "Frag Muse.",
+  "Review the day or get ready for the next handoff.": "Lass den Tag Revue passieren oder bereite die nächste Übergabe vor.",
+  "Open care assistant": "Betreuungsassistent öffnen",
+  "A workspace to try with sample care records. Scheduling and business figures are previews.": "Ein Bereich zum Ausprobieren mit Beispielakten. Terminplanung und Geschäftszahlen sind Vorschauen.",
+  "Write naturally. Keep the details that matter.": "Schreib ganz natürlich. Halte die wichtigen Details fest.",
+  "Ate breakfast, enjoyed a walk, settled down for a nap…": "Hat gefrühstückt, einen Spaziergang genossen und sich für ein Nickerchen hingelegt…",
+  "SAMPLE BUSINESS · JULY": "BEISPIELGESCHÄFT · JULI",
+  "Sample figures · this is a business preview, not your accounts.": "Beispielzahlen · eine Geschäftsvorschau, nicht deine Buchhaltung.",
+  "Sample schedule · bookings are previews.": "Beispielplan · die Buchungen sind Vorschauen.",
+  "SAMPLE SCHEDULE · 12–18 JULY": "BEISPIELPLAN · 12.–18. JULI",
+  "Skip to content": "Zum Inhalt springen",
+  "YOUR CARE WORKSPACE": "DEIN BETREUUNGSBEREICH",
+  "Care notes, stories & handoffs. All together.": "Pflegenotizen, Tagesberichte und Übergaben. Alles an einem Ort.",
+  "Open care record": "Pflegeakte öffnen",
+  "From Billie’s care log": "Aus Billies Pflegetagebuch",
+  "View care timeline": "Pflegeverlauf ansehen"
+});
+Object.assign(translations.es, {
+  "Capture a moment": "Anotar un momento",
+  "Write or dictate, then review.": "Escribe o dicta y después revisa.",
+  "Prepare the handoff": "Preparar el relevo",
+  "The details the next carer needs.": "Los detalles que necesita quien tome el relevo.",
+  "Make their daily story": "Contar su día",
+  "A personal recap to review.": "Un resumen personal para revisar.",
+
+  "Your workspace": "Tu espacio",
+  "Share & organise": "Compartir y organizar",
+  "Today, at a glance.": "Tu día, de un vistazo.",
+  "A little more time for what matters.": "Un poco más de tiempo para lo que importa.",
+  "Private prototype": "Prototipo privado",
+  "THE LITTLE THINGS MATTER": "LOS PEQUEÑOS DETALLES CUENTAN",
+  "Good care.": "Cuidados con cariño.",
+  "Lovely days.": "Días felices.",
+  "The walks, the meals, the moments in between. Keep their story close.": "Los paseos, las comidas y los momentos entre medias. Ten su historia siempre a mano.",
+  "Add a care note": "Añadir una nota de cuidado",
+  "Review handoff": "Revisar el relevo",
+  "WITH CARE": "CON CARIÑO",
+  "IN GOOD HANDS": "EN BUENAS MANOS",
+  "THE CARE LOG": "EL DIARIO DE CUIDADO",
+  "MAKE ROOM FOR CARE": "HAZ SITIO PARA CUIDAR",
+  "One thing at a time.": "Una cosa a la vez.",
+  "A simple path from a little observation to a thoughtful handoff.": "De una pequeña observación a un relevo bien preparado, paso a paso.",
+  "A HAND WITH THE DETAILS": "UNA MANO CON LOS DETALLES",
+  "Ask Muse.": "Pregunta a Muse.",
+  "Review the day or get ready for the next handoff.": "Repasa el día o prepara el próximo relevo.",
+  "Open care assistant": "Abrir el asistente",
+  "A workspace to try with sample care records. Scheduling and business figures are previews.": "Un espacio para probar con registros de ejemplo. La agenda y las cifras del negocio son vistas previas.",
+  "Write naturally. Keep the details that matter.": "Escribe con naturalidad. Guarda los detalles que importan.",
+  "Ate breakfast, enjoyed a walk, settled down for a nap…": "Ha desayunado, disfrutado de un paseo y se ha echado una siesta…",
+  "SAMPLE BUSINESS · JULY": "NEGOCIO DE EJEMPLO · JULIO",
+  "Sample figures · this is a business preview, not your accounts.": "Cifras de ejemplo · una vista previa del negocio, no tu contabilidad.",
+  "Sample schedule · bookings are previews.": "Agenda de ejemplo · las reservas son vistas previas.",
+  "SAMPLE SCHEDULE · 12–18 JULY": "AGENDA DE EJEMPLO · 12–18 DE JULIO",
+  "Skip to content": "Ir al contenido",
+  "YOUR CARE WORKSPACE": "TU ESPACIO DE CUIDADO",
+  "Care notes, stories & handoffs. All together.": "Notas de cuidado, historias y relevos. Todo junto.",
+  "Open care record": "Abrir el registro de cuidados",
+  "From Billie’s care log": "Del diario de Billie",
+  "View care timeline": "Ver la cronología"
+});
+
 const VOICE_NEEDS_HTTP = 'Voice features need the app opened over http://localhost — a file:// path blocks the microphone. See the README.';
 Object.assign(translations.fr, { [VOICE_NEEDS_HTTP]: 'Les fonctions vocales nécessitent d’ouvrir l’app via http://localhost — un chemin file:// bloque le microphone. Voir le README.' });
 Object.assign(translations.it, { [VOICE_NEEDS_HTTP]: 'Le funzioni vocali richiedono di aprire l’app su http://localhost — un percorso file:// blocca il microfono. Vedi il README.' });
@@ -1037,23 +1211,25 @@ function appendAssistantExchange(prompt,response) {
 
 const views = {
   dashboard() {
-    setHeader('SUNDAY · 12 JULY', 'Good morning, Adine-Sophie');
+    setHeader('YOUR CARE WORKSPACE', 'Today, at a glance.');
     const latest = state.observations.billie[0] || {title:'No observations captured today yet. Add a care moment before handoff.',text:'',time:'',date:'',tags:[]},copy=assistantText();
-    return `<div class="grid dashboard-grid"><div>
-      <section class="card hero muse-hero"><span class="muse-edition">${copy.edition}</span><p class="eyebrow">${copy.heroKicker}</p><h2>${copy.heroHeading}</h2><p>${copy.heroText}</p><button class="primary" data-go="assistant">${copy.talk}</button><button class="hero-link" data-go="capture">${copy.add}</button></section>
-      <div class="section-head"><div><h2>${t('Your dogs today')}</h2><p>${t('Live care context, always close by')}</p></div><button class="link-button" data-go="dogs">${t('View profiles')}</button></div>
-      <div class="dog-row">${Object.entries(dogs).map(([key,d])=>`<article class="card dog-card" data-dog="${key}">${dogAvatar(key)}<div class="dog-meta"><h3>${d.name}</h3><p>${t(d.breed)} · ${d.owner}</p>${tagsHtml(key==='billie'?['Day care','All good']:['Day care','Settled'])}</div><span class="dog-arrow">›</span></article>`).join('')}</div>
-      <div class="section-head"><div><h2>${t('Latest from the care log')}</h2><p>${t('Your newest structured observation')}</p></div></div>
-      <article class="card timeline-card"><div class="timeline-top"><h4>${escapeHtml(t(latest.title))}</h4><time>${escapeHtml(latest.time)} · ${escapeHtml(t(latest.date))}</time></div><p>${escapeHtml(t(latest.text))}</p>${tagsHtml(latest.tags)}</article>
-    </div><aside>
-      <section class="card"><div class="section-head" style="margin-top:0"><div><h2>${t("Today's rhythm")}</h2><p>${t('3 of 5 moments complete')}</p></div></div><div class="today-list"><div class="booking"><time>08:00</time><div><h4>Billie · ${t('arrival')}</h4><p>${t('Day care until')} 17:30</p></div><i class="dot"></i></div><div class="booking"><time>09:00</time><div><h4>Charlie · ${t('arrival')}</h4><p>${t('Day care until')} 18:00</p></div><i class="dot"></i></div><div class="booking"><time>12:30</time><div><h4>${t('Lunch & quiet time')}</h4><p>${t('Both dogs')}</p></div><i class="dot peach"></i></div><div class="booking"><time>16:30</time><div><h4>${t('Owner stories')}</h4><p>${t('Prepare daily recaps')}</p></div><i class="dot peach"></i></div></div></section>
-      <section class="card" style="margin-top:20px"><div class="section-head" style="margin-top:0"><div><h2>${t('July pulse')}</h2><p>${t('Business snapshot')}</p></div></div><div class="kpi"><div><strong>€2,840</strong><small>${t('Revenue booked')}</small></div><div><strong>76%</strong><small>${t('Capacity filled')}</small></div></div><div class="progress"><span style="width:76%"></span></div><div class="notice"><strong>${t('Healthy momentum')}</strong>${t('You’re €340 ahead of this point last month.')}</div></section>
+    return `<div class="dashboard-intro"><p>${t('A little more time for what matters.')}</p><span class="workspace-label">${t('Private prototype')}</span></div>
+    <div class="grid dashboard-grid"><div class="dashboard-main">
+      <section class="care-hero"><div class="care-hero-copy"><p class="eyebrow">${t('THE LITTLE THINGS MATTER')}</p><h2>${t('Good care.')}<br><em>${t('Lovely days.')}</em></h2><p>${t('The walks, the meals, the moments in between. Keep their story close.')}</p><div class="hero-actions"><button class="primary" data-go="capture">＋ ${t('Add a care note')}</button><button class="hero-link" data-go="handoff">${t('Review handoff')} <span aria-hidden="true">↗</span></button></div></div><div class="hero-stamp" aria-hidden="true"><svg viewBox="0 0 160 175" fill="none"><path d="M41 76c-22-6-27-39-11-43 13-4 25 16 25 28 0 10-5 17-14 15Zm32-20c-17-1-27-42-10-48 19-7 31 34 20 45-3 3-6 4-10 3Zm35 7c-17-6-7-46 9-46 19 0 14 34 2 43-4 3-8 4-11 3Zm26 32c-14-5-10-33 6-37 20-5 19 23 5 33-4 3-8 5-11 4ZM29 120c3-13 20-15 30-29 9-15 25-15 38-5 13 11 20 26 32 36 25 20 7 46-14 39-22-8-23-21-45-14-35 13-50-5-41-27Z" fill="currentColor"/></svg><span>MUSE / ${t('WITH CARE')}</span></div></section>
+      <p class="care-together">${t('Care notes, stories & handoffs. All together.')}</p>
+      <div class="section-head"><div><p class="eyebrow">${t('IN GOOD HANDS')}</p><h2>${t('Your dogs today')}</h2></div><button class="link-button" data-go="dogs">${t('View profiles')} <span aria-hidden="true">↗</span></button></div>
+      <div class="dog-row">${Object.entries(dogs).map(([key,d])=>`<button class="card dog-card" data-dog="${key}">${dogAvatar(key)}<span class="dog-meta"><strong class="dog-name">${d.name}</strong><span class="dog-owner">${d.owner}</span><span class="dog-record-count">${t('Open care record')}</span></span><span class="dog-arrow" aria-hidden="true">↗</span></button>`).join('')}</div>
+      <div class="section-head"><div><p class="eyebrow">${t('THE CARE LOG')}</p><h2>${t('From Billie’s care log')}</h2></div><button class="link-button" data-dog="billie">${t('View care timeline')} <span aria-hidden="true">↗</span></button></div>
+      <section class="activity-list" aria-label="${t('From Billie’s care log')}"><button class="activity-row" data-evidence-id="${latest.id}" data-evidence-dog="billie"><span class="activity-time">${escapeHtml(latest.time)}<small>${escapeHtml(t(latest.date))}</small></span><span class="activity-copy"><span class="activity-dog">Billie Blue</span><strong>${escapeHtml(t(latest.title))}</strong><span class="activity-preview">${escapeHtml(t(latest.text))}</span></span><span class="activity-arrow" aria-hidden="true">↗</span></button></section>
+    </div><aside class="dashboard-aside">
+      <section class="next-steps"><p class="eyebrow">${t('MAKE ROOM FOR CARE')}</p><h2>${t('One thing at a time.')}</h2><p class="section-description">${t('A simple path from a little observation to a thoughtful handoff.')}</p>${[['capture','01','Capture a moment','Write or dictate, then review.'],['handoff','02','Prepare the handoff','The details the next carer needs.'],['story','03','Make their daily story','A personal recap to review.']].map(([route,num,heading,detail])=>`<button class="next-step" data-go="${route}"><span class="step-number">${num}</span><span><strong>${t(heading)}</strong><small>${t(detail)}</small></span><span aria-hidden="true">↗</span></button>`).join('')}</section>
+      <section class="assistant-invite"><span class="assistant-monogram" aria-hidden="true">m.</span><p class="eyebrow">${t('A HAND WITH THE DETAILS')}</p><h2>${t('Ask Muse.')}</h2><p>${t('Review the day or get ready for the next handoff.')}</p><button class="ghost" data-go="assistant">${t('Open care assistant')} <span aria-hidden="true">↗</span></button></section>
+      <p class="prototype-note">${t('A workspace to try with sample care records. Scheduling and business figures are previews.')}</p>
     </aside></div>`;
-  },
-  assistant() {
+  },  assistant() {
     const copy=assistantText();setHeader(copy.eyebrow,copy.heading);
     const messages=[{role:'muse',text:assistantBriefing()},...state.assistantMessages];
-    return `<div class="assistant-layout"><section class="assistant-panel"><div class="assistant-intro"><div class="muse-orb" aria-hidden="true">✦</div><div><span class="muse-kicker">${copy.introKicker}</span><h2>${copy.introHeading}</h2><p>${copy.introText}</p></div></div><div class="assistant-prompts" aria-label="Suggested questions"><button data-assistant-prompt="brief">${copy.prompts[0]}</button><button data-assistant-prompt="attention">${copy.prompts[1]}</button><button data-assistant-prompt="handoff">${copy.prompts[2]}</button></div><div class="assistant-thread" id="assistant-thread" aria-live="polite">${messages.map(message=>`<div class="assistant-message ${message.role}"><span>${message.role==='muse'?copy.muse:copy.you}</span><p>${escapeHtml(message.text)}</p></div>`).join('')}</div><form class="assistant-compose" id="assistant-form"><label class="sr-only" for="assistant-question">${copy.ask}</label><input id="assistant-question" autocomplete="off" placeholder="${copy.placeholder}"><button class="primary" type="submit" aria-label="${copy.ask}">↑</button></form><p class="assistant-privacy">${window.DogCareAPI ? t(ACCOUNT_STORAGE) : copy.privacy}</p></section><aside class="assistant-actions"><span class="handoff-label">${copy.quick}</span><h2>${copy.keep}</h2><button data-assistant-action="capture"><span>＋</span><strong>${copy.actions[0][0]}</strong><small>${copy.actions[0][1]}</small></button><button data-assistant-action="handoff"><span>⇄</span><strong>${copy.actions[1][0]}</strong><small>${copy.actions[1][1]}</small></button><button data-assistant-action="story"><span>✦</span><strong>${copy.actions[2][0]}</strong><small>${copy.actions[2][1]}</small></button></aside></div>`;
+    return `<div class="assistant-layout"><section class="assistant-panel"><div class="assistant-intro"><div class="muse-orb" aria-hidden="true">m.</div><div><span class="muse-kicker">${copy.introKicker}</span><h2>${copy.introHeading}</h2><p>${copy.introText}</p></div></div><div class="assistant-prompts" aria-label="Suggested questions"><button data-assistant-prompt="brief">${copy.prompts[0]}</button><button data-assistant-prompt="attention">${copy.prompts[1]}</button><button data-assistant-prompt="handoff">${copy.prompts[2]}</button></div><div class="assistant-thread" id="assistant-thread" aria-live="polite">${messages.map(message=>`<div class="assistant-message ${message.role}"><span>${message.role==='muse'?copy.muse:copy.you}</span><p>${escapeHtml(message.text)}</p></div>`).join('')}</div><form class="assistant-compose" id="assistant-form"><label class="sr-only" for="assistant-question">${copy.ask}</label><input id="assistant-question" autocomplete="off" placeholder="${copy.placeholder}"><button class="primary" type="submit" aria-label="${copy.ask}">↑</button></form><p class="assistant-privacy">${window.DogCareAPI ? t(ACCOUNT_STORAGE) : copy.privacy}</p></section><aside class="assistant-actions"><span class="handoff-label">${copy.quick}</span><h2>${copy.keep}</h2><button data-assistant-action="capture"><span>＋</span><strong>${copy.actions[0][0]}</strong><small>${copy.actions[0][1]}</small></button><button data-assistant-action="handoff"><span>⇄</span><strong>${copy.actions[1][0]}</strong><small>${copy.actions[1][1]}</small></button><button data-assistant-action="story"><span>✦</span><strong>${copy.actions[2][0]}</strong><small>${copy.actions[2][1]}</small></button></aside></div>`;
   },
   dogs() {
     const key=state.dog,d=dogs[key], obs=state.observations[key];
@@ -1066,7 +1242,7 @@ const views = {
   },
   capture() {
     const d=dogs[state.dog]; setHeader('RAPID CAPTURE', 'Capture the moment');
-    return `<div class="page-title-row"><div><h2>${t('What just happened?')}</h2><p>${t('Write naturally. DogCare Brain will organise the useful details.')}</p></div></div><section class="card composer"><label class="label">${t('Who is this about?')}</label><div class="dog-picker">${Object.entries(dogs).map(([k,x])=>`<button class="dog-pick ${k===state.dog?'active':''}" data-capture-dog="${k}"><span>${x.emoji}</span><div><strong>${x.name}</strong><small>${t(x.last)}</small></div></button>`).join('')}</div><label class="label" for="observation">${t('Care update')}</label><p class="dictate-hint">${t('Dictate or type your note')}</p><div class="note-field" id="note-field"><textarea id="observation" placeholder="${t('Dictate or type: Ate all breakfast, playful with Mabel, loose stool at 10:30…')}"></textarea><button class="mic-button" type="button" id="record-audio" aria-label="${t('Dictate your note')}"><span class="mic-glyph" aria-hidden="true">🎤</span><span class="mic-text">${t('Dictate')}</span></button><button class="mic-button recording" type="button" id="stop-audio" hidden aria-label="${t('Stop dictation')}"><span class="mic-glyph" aria-hidden="true">■</span><span class="mic-text">${t('Stop')}</span></button><div class="listening-badge" id="listening-badge" hidden><span class="pulse-dot" aria-hidden="true"></span><span class="listening-text">${t('Listening…')}</span><span id="recording-duration" class="listening-timer" aria-label="${t('Recording duration')}">00:00</span></div></div><div class="voice-meta"><p id="recording-status" role="status">${t('Tap the mic to dictate — your words fill the note as you speak. The mic is only used after you tap it.')}</p><p id="transcription-status" role="status" class="voice-meta-status"></p><div id="audio-preview">${audioDraft ? `${audioHtml(audioDraft, t('Care update voice note'))}<button class="link-button discard-audio" type="button" id="discard-audio">${t('Discard recording')}</button>` : ''}</div><p class="transcription-privacy">${t('Speech-to-text uses your browser’s speech service. Depending on your browser, audio may be sent to its provider for transcription.')}</p></div><label class="label">${t('Detected details')} <small style="font-weight:400;text-transform:none;letter-spacing:0"> ${t('· updates as you type')}</small></label><div class="detected" id="detected"><em>${t('Start typing to see structured care tags')}</em></div><p id="health-safety" class="preview-note" hidden>${t('Health observations are factual notes, not diagnoses. Contact a veterinarian if concerned.')}</p><div class="composer-actions"><small>${storageCopy('AI structuring and recorded audio stay in this browser. Speech transcription may use your browser provider’s service.')}</small><button class="primary" id="save-observation">${tf("Save to {name}'s timeline →", {name:d.name.split(' ')[0]})}</button></div></section>`;
+    return `<div class="page-title-row"><div><h2>${t('What just happened?')}</h2><p>${t('Write naturally. Keep the details that matter.')}</p></div></div><section class="card composer"><label class="label">${t('Who is this about?')}</label><div class="dog-picker">${Object.entries(dogs).map(([k,x])=>`<button class="dog-pick ${k===state.dog?'active':''}" data-capture-dog="${k}"><span>${x.emoji}</span><div><strong>${x.name}</strong><small>${t(x.last)}</small></div></button>`).join('')}</div><label class="label" for="observation">${t('Care update')}</label><p class="dictate-hint">${t('Dictate or type your note')}</p><div class="note-field" id="note-field"><textarea id="observation" placeholder="${t('Ate breakfast, enjoyed a walk, settled down for a nap…')}"></textarea><button class="mic-button" type="button" id="record-audio" aria-label="${t('Dictate your note')}"><span class="mic-glyph" aria-hidden="true">🎤</span><span class="mic-text">${t('Dictate')}</span></button><button class="mic-button recording" type="button" id="stop-audio" hidden aria-label="${t('Stop dictation')}"><span class="mic-glyph" aria-hidden="true">■</span><span class="mic-text">${t('Stop')}</span></button><div class="listening-badge" id="listening-badge" hidden><span class="pulse-dot" aria-hidden="true"></span><span class="listening-text">${t('Listening…')}</span><span id="recording-duration" class="listening-timer" aria-label="${t('Recording duration')}">00:00</span></div></div><div class="voice-meta"><p id="recording-status" role="status">${t('Tap the mic to dictate — your words fill the note as you speak. The mic is only used after you tap it.')}</p><p id="transcription-status" role="status" class="voice-meta-status"></p><div id="audio-preview">${audioDraft ? `${audioHtml(audioDraft, t('Care update voice note'))}<button class="link-button discard-audio" type="button" id="discard-audio">${t('Discard recording')}</button>` : ''}</div><p class="transcription-privacy">${t('Speech-to-text uses your browser’s speech service. Depending on your browser, audio may be sent to its provider for transcription.')}</p></div><label class="label">${t('Detected details')} <small style="font-weight:400;text-transform:none;letter-spacing:0"> ${t('· updates as you type')}</small></label><div class="detected" id="detected"><em>${t('Start typing to see structured care tags')}</em></div><p id="health-safety" class="preview-note" hidden>${t('Health observations are factual notes, not diagnoses. Contact a veterinarian if concerned.')}</p><div class="composer-actions"><small>${storageCopy('AI structuring and recorded audio stay in this browser. Speech transcription may use your browser provider’s service.')}</small><button class="primary" id="save-observation">${tf("Save to {name}'s timeline →", {name:d.name.split(' ')[0]})}</button></div></section>`;
   },
   gallery() { setHeader('MEDIA LIBRARY','Little moments, safely kept'); const items=[['🐕‍🦺','Billie’s woodland walk','Today · 10:12'],['🐶','Charlie in the garden','Today · 11:34'],['🐾','Muddy-paw evidence','Yesterday · 16:45'],['🌿','The favourite sniff spot','10 July · 09:50'],['🦴','Enrichment time','9 July · 14:20'],['☁️','Post-walk snooze','8 July · 12:15']]; const audioItems=Object.values(state.observations).flat().filter(o=>o.audio?.url); return `<div class="page-title-row"><div><h2>${t('Care gallery')}</h2><p>${storageCopy('Demo media and voice notes kept in this browser.')}</p></div></div>${audioItems.length?`<section class="card audio-library"><div class="section-head"><div><h2>${t('Voice notes')}</h2><p>${storageCopy('Attached locally to care updates for this browser session')}</p></div></div>${audioItems.map(o=>audioHtml(o.audio,t(o.title))).join('')}</section>`:''}<div class="grid media-grid">${items.map((x,i)=>`<article class="media-item"><div class="media-art" aria-hidden="true">${x[0]}</div>${i<2?`<span class="draft-badge">${t('Story ready')}</span>`:''}<div class="media-copy"><strong>${t(x[1])}</strong><small>${t(x[2])}</small></div></article>`).join('')}</div><section class="card social-preview" aria-labelledby="social-heading"><div class="section-head"><div><h2 id="social-heading">${t('Social access previews')}</h2><p>${t('Explore what a future connection could share. No account is connected and nothing can be posted.')}</p></div></div><div class="social-platforms">${[['Instagram','Photo and story draft'],['Facebook','Page update draft'],['YouTube','Short video draft']].map(([name,detail])=>`<article><span class="platform-mark" aria-hidden="true">${name[0]}</span><div><strong>${name}</strong><small>${t(detail)} · ${t('local preview only')}</small></div><button class="ghost social-access" type="button" data-platform="${name}" aria-label="${escapeHtml(tf('Preview local {name} access', {name}))}">${t('Preview access')}</button></article>`).join('')}</div><div class="local-boundary"><strong>${t('No social connection')}</strong><span>${t('No credentials are collected, no network request is made, and no content is posted.')}</span></div></section>`; },
   handoff() {
@@ -1082,8 +1258,8 @@ const views = {
   },
   story() { const d=dogs[state.dog], latest=state.observations[state.dog][0]; if(!latest){setHeader('OWNER UPDATE · DRAFT','Daily story');return `<section class="card"><p>${t('No observations captured today yet. Add a care moment before handoff.')}</p><button class="primary" data-go="capture">${t('Capture update')}</button></section>`;} setHeader('OWNER UPDATE · DRAFT','A lovely day, ready to share'); return `<div class="grid page-grid"><div class="story-phone"><div class="story-image">${d.emoji}</div><div class="story-body"><p class="story-date">${t('Sunday, 12 July · Daily story')}</p><h3>${tf('{name}’s day', {name:d.name})}</h3><p class="story-copy">${escapeHtml(t(latest.text))} ${tf('{name} enjoyed plenty of calm attention and is heading home happy and settled.', {name:d.name.split(' ')[0]})}</p><div class="story-stats"><div><strong>${state.dog==='billie'?'42 min':'25 min'}</strong><small>${t('outside')}</small></div><div><strong>${t('All eaten')}</strong><small>${t('meals')}</small></div><div><strong>${t('Calm')}</strong><small>${t('mood')}</small></div></div></div></div><aside><section class="card"><h2 style="font:400 24px Georgia,serif">${t('Owner-ready, not auto-sent')}</h2><p style="font-size:12px;color:var(--muted);line-height:1.6">${t('Review this draft, then share it with the app you choose.')}</p><label class="label">${t('Preview for')}</label><div class="dog-picker">${Object.entries(dogs).map(([k,x])=>`<button class="dog-pick ${k===state.dog?'active':''}" data-story-dog="${k}"><span>${x.emoji}</span><div><strong>${x.name}</strong><small>${x.owner}</small></div></button>`).join('')}</div><button class="ghost" data-go="handoff" style="width:100%;margin:20px 0 10px">${t('Review daily handoff')}</button>${shareControls(latest,'story-share')}</section></aside></div>`; },
   invite() { setHeader('INVITE PREVIEW','Share care context safely'); return `<div class="page-title-row"><div><h2>${t('Prepare an invite')}</h2><p>${t('Build a local pending invite preview for an owner or trusted carer. Nothing is sent.')}</p></div></div><div class="grid page-grid invite-grid"><section class="card invite-card"><div class="form-row"><label class="label">${t('Invite role')}</label><div class="role-choice" role="radiogroup" aria-label="${t('Invite role')}"><label><input type="radio" name="invite-role" value="owner" checked><span><strong>${t('Owner')}</strong><small>${t('Family member who receives updates')}</small></span></label><label><input type="radio" name="invite-role" value="trusted-carer"><span><strong>${t('Trusted carer')}</strong><small>${t('Backup helper with limited context')}</small></span></label></div></div><div class="form-split"><label class="field-label" for="invite-name">${t('Name')}<input id="invite-name" autocomplete="name" placeholder="${t('e.g. Camille Martin')}"></label><label class="field-label" for="invite-email">${t('Email')}<input id="invite-email" type="email" autocomplete="email" placeholder="camille@example.com"></label></div><label class="label">${t('Can preview')}</label><div class="permission-list"><label><input type="checkbox" name="invite-permission" value="stories" checked><span><strong>${t('Daily stories')}</strong><small>${t('Owner-ready recaps and media placeholders')}</small></span></label><label><input type="checkbox" name="invite-permission" value="timeline" checked><span><strong>${t('Care timeline')}</strong><small>${t('Structured observations and handover notes')}</small></span></label><label><input type="checkbox" name="invite-permission" value="health"><span><strong>${t('Health notes')}</strong><small>${t('Factual medication and watch items, never diagnoses')}</small></span></label></div><div class="local-boundary"><strong>${t('Local preview only')}</strong><span>${t('This prototype will not send email, WhatsApp, SMS, or notifications.')}</span></div><div class="composer-actions"><small>${storageCopy('Demo data only · the invite is stored in this browser as pending.', ACCOUNT_INVITE)}</small><button class="primary" id="create-invite">${t('Create pending invite preview →')}</button></div></section><aside><section class="card summary-card"><div class="section-head" style="margin-top:0"><div><h2>${t('Invite-ready summary')}</h2><p>${t('Updates as you choose role and permissions')}</p></div></div><div id="invite-summary" class="invite-summary"></div></section><section class="card" style="margin-top:20px"><div class="section-head" style="margin-top:0"><div><h2>${t('Pending invites')}</h2><p>${t('Local preview queue')}</p></div></div><div id="pending-invites" class="pending-list">${pendingInvitesHtml()}</div></section></aside></div>`; },
-  schedule() { setHeader('SCHEDULE · 12–18 JULY','A week with room to breathe'); const days=[['Sun','12','Billie · 08:00','Charlie · 09:00'],['Mon','13',`Milo · ${t('walk')}`,''],['Tue','14',`Billie · ${t('day care')}`,`Poppy · ${t('walk')}`],['Wed','15',`Charlie · ${t('day care')}`,''],['Thu','16',`Billie · ${t('day care')}`,`Milo · ${t('walk')}`],['Fri','17',`Poppy · ${t('half day')}`,''],['Sat','18',t('Admin morning'),'']]; return `<div class="page-title-row"><div><h2>${t('Bookings overview')}</h2><p>${t('11 bookings · 76% of this week’s care capacity')}</p></div><button class="primary" id="new-booking">${t('＋ New booking')}</button></div><div class="grid week">${days.map((d,i)=>`<div class="day ${i===0?'today':''}"><div class="day-head">${t(d[0])}<strong>${d[1]}</strong></div>${d[2]?`<div class="event">${d[2]}</div>`:''}${d[3]?`<div class="event peach">${d[3]}</div>`:''}</div>`).join('')}</div><section class="card" style="margin-top:25px"><div class="section-head" style="margin:0"><div><h2>${t('Upcoming handovers')}</h2><p>${t('Everything owners need before the doorbell rings')}</p></div></div><div class="today-list" style="margin-top:15px"><div class="booking"><time>17:30</time><div><h4>Billie Blue · ${t('pickup')}</h4><p>${t('Story draft ready · lead and food tub packed')}</p></div><i class="dot"></i></div><div class="booking"><time>18:00</time><div><h4>Charlie Rose · ${t('pickup')}</h4><p>${t('Add final rest update before handover')}</p></div><i class="dot peach"></i></div></div></section>`; },
-  business() { setHeader('BUSINESS · JULY','A small business, clearly seen'); const bars=[46,58,51,72,63,79,86]; return `<div class="grid metrics"><div class="card metric"><small>${t('REVENUE BOOKED')}</small><strong>€2,840</strong><span class="tag">${t('↑ 13% vs June')}</span></div><div class="card metric"><small>${t('NET AFTER EXPENSES')}</small><strong>€2,196</strong><span class="tag">${t('77% margin')}</span></div><div class="card metric"><small>${t('CARE HOURS')}</small><strong>94h</strong><span class="tag">${t('€30.21 / hour')}</span></div><div class="card metric"><small>${t('REPEAT OWNERS')}</small><strong>82%</strong><span class="tag">${t('Healthy')}</span></div></div><div class="grid page-grid" style="margin-top:22px"><section class="card"><div class="section-head" style="margin-top:0"><div><h2>${t('Revenue rhythm')}</h2><p>${t('Last 7 months · demo data')}</p></div></div><div class="bar-chart">${bars.map((h,i)=>`<div class="bar ${i===6?'current':''}" style="height:${h}%"><span>${t(['Jan','Feb','Mar','Apr','May','Jun','Jul'][i])}</span></div>`).join('')}</div></section><aside class="card"><div class="section-head" style="margin-top:0"><div><h2>${t('Recent expenses')}</h2><p>${t('€644 this month')}</p></div><button class="link-button" id="add-expense">${t('＋ Add')}</button></div><div class="expense-row"><div class="expense-icon">🦴</div><div><strong>${t('Enrichment supplies')}</strong><small>${t('Pet shop · 10 July')}</small></div><strong>€48</strong></div><div class="expense-row"><div class="expense-icon">🚙</div><div><strong>${t('Fuel')}</strong><small>${t('Travel · 8 July')}</small></div><strong>€72</strong></div><div class="expense-row"><div class="expense-icon">🛡</div><div><strong>${t('Business insurance')}</strong><small>${t('Monthly · 1 July')}</small></div><strong>€119</strong></div></aside></div>`; },
+  schedule() { setHeader('SAMPLE SCHEDULE · 12–18 JULY','A week with room to breathe'); const days=[['Sun','12','Billie · 08:00','Charlie · 09:00'],['Mon','13',`Milo · ${t('walk')}`,''],['Tue','14',`Billie · ${t('day care')}`,`Poppy · ${t('walk')}`],['Wed','15',`Charlie · ${t('day care')}`,''],['Thu','16',`Billie · ${t('day care')}`,`Milo · ${t('walk')}`],['Fri','17',`Poppy · ${t('half day')}`,''],['Sat','18',t('Admin morning'),'']]; return `<p class="preview-banner">${t('Sample schedule · bookings are previews.')}</p><div class="page-title-row"><div><h2>${t('Bookings overview')}</h2><p>${t('11 bookings · 76% of this week’s care capacity')}</p></div><button class="primary" id="new-booking">${t('＋ New booking')}</button></div><div class="grid week">${days.map((d,i)=>`<div class="day ${i===0?'today':''}"><div class="day-head">${t(d[0])}<strong>${d[1]}</strong></div>${d[2]?`<div class="event">${d[2]}</div>`:''}${d[3]?`<div class="event peach">${d[3]}</div>`:''}</div>`).join('')}</div><section class="card" style="margin-top:25px"><div class="section-head" style="margin:0"><div><h2>${t('Upcoming handovers')}</h2><p>${t('Everything owners need before the doorbell rings')}</p></div></div><div class="today-list" style="margin-top:15px"><div class="booking"><time>17:30</time><div><h4>Billie Blue · ${t('pickup')}</h4><p>${t('Story draft ready · lead and food tub packed')}</p></div><i class="dot"></i></div><div class="booking"><time>18:00</time><div><h4>Charlie Rose · ${t('pickup')}</h4><p>${t('Add final rest update before handover')}</p></div><i class="dot peach"></i></div></div></section>`; },
+  business() { setHeader('SAMPLE BUSINESS · JULY','A small business, clearly seen'); const bars=[46,58,51,72,63,79,86]; return `<p class="preview-banner">${t('Sample figures · this is a business preview, not your accounts.')}</p><div class="grid metrics"><div class="card metric"><small>${t('REVENUE BOOKED')}</small><strong>€2,840</strong><span class="tag">${t('↑ 13% vs June')}</span></div><div class="card metric"><small>${t('NET AFTER EXPENSES')}</small><strong>€2,196</strong><span class="tag">${t('77% margin')}</span></div><div class="card metric"><small>${t('CARE HOURS')}</small><strong>94h</strong><span class="tag">${t('€30.21 / hour')}</span></div><div class="card metric"><small>${t('REPEAT OWNERS')}</small><strong>82%</strong><span class="tag">${t('Healthy')}</span></div></div><div class="grid page-grid" style="margin-top:22px"><section class="card"><div class="section-head" style="margin-top:0"><div><h2>${t('Revenue rhythm')}</h2><p>${t('Last 7 months · demo data')}</p></div></div><div class="bar-chart">${bars.map((h,i)=>`<div class="bar ${i===6?'current':''}" style="height:${h}%"><span>${t(['Jan','Feb','Mar','Apr','May','Jun','Jul'][i])}</span></div>`).join('')}</div></section><aside class="card"><div class="section-head" style="margin-top:0"><div><h2>${t('Recent expenses')}</h2><p>${t('€644 this month')}</p></div><button class="link-button" id="add-expense">${t('＋ Add')}</button></div><div class="expense-row"><div class="expense-icon">🦴</div><div><strong>${t('Enrichment supplies')}</strong><small>${t('Pet shop · 10 July')}</small></div><strong>€48</strong></div><div class="expense-row"><div class="expense-icon">🚙</div><div><strong>${t('Fuel')}</strong><small>${t('Travel · 8 July')}</small></div><strong>€72</strong></div><div class="expense-row"><div class="expense-icon">🛡</div><div><strong>${t('Business insurance')}</strong><small>${t('Monthly · 1 July')}</small></div><strong>€119</strong></div></aside></div>`; },
   settings() { setHeader('SETTINGS','Your calm corner'); return `<section class="card empty"><div class="big">⚙️</div><h2>${t('Demo settings')}</h2><p>${t('External integrations are intentionally unavailable in this local prototype.')}</p><button class="ghost" id="reset-demo">${t('Reset demo observations')}</button></section>`; }
 };
 
