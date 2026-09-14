@@ -1404,6 +1404,30 @@ Object.assign(translations.es, {
   "The fresh air.": "El aire libre.",
   "The good life.": "La buena vida."
 });
+Object.assign(translations.fr, {
+  "All sections": "Tout l’espace",
+  "A little care.": "Aux petits soins.",
+  "A lovely day.": "Toute la journée.",
+  "Adine-Sophie walking with the dogs in the woods.": "Adine-Sophie se promène avec les chiens en forêt."
+});
+Object.assign(translations.it, {
+  "All sections": "Tutte le sezioni",
+  "A little care.": "Con attenzione.",
+  "A lovely day.": "Una bella giornata.",
+  "Adine-Sophie walking with the dogs in the woods.": "Adine-Sophie passeggia con i cani nel bosco."
+});
+Object.assign(translations.de, {
+  "All sections": "Alle Bereiche",
+  "A little care.": "Gut versorgt.",
+  "A lovely day.": "Ein schöner Tag.",
+  "Adine-Sophie walking with the dogs in the woods.": "Adine-Sophie geht mit den Hunden durch den Wald."
+});
+Object.assign(translations.es, {
+  "All sections": "Todas las secciones",
+  "A little care.": "Con mucho cariño.",
+  "A lovely day.": "Un día estupendo.",
+  "Adine-Sophie walking with the dogs in the woods.": "Adine-Sophie pasea con los perros por el bosque."
+});
 function assistantText() { return assistantCopy[state.language] || assistantCopy.en; }
 let appReady = !window.DogCareAPI;
 let savePending = false;
@@ -1547,19 +1571,17 @@ const views = {
   dashboard() {
     setHeader('LE BUS DES TOUTOUS', 'Hello, Adine-Sophie.');
     const latest = state.observations.billie[0] || {title:'No observations captured today yet. Add a care moment before handoff.',text:'',time:'',date:'',tags:[]},copy=assistantText();
-    return `<section class="outdoor-hero adine-hero">
-      <div class="outdoor-hero-copy"><p class="eyebrow">${t('Life with Le Bus des Toutous')}</p><h2>${t('The dogs.')}<br>${t('The fresh air.')}<br><span>${t('The good life.')}</span></h2><p class="hero-description">${t('From the doorstep to the forest, with Adine-Sophie.')}</p><div class="hero-actions"><button class="primary" data-go="capture">${t('Add a care note')} <span aria-hidden="true">↗</span></button><button class="hero-link" data-go="handoff">${t('Review handoff')} <span aria-hidden="true">→</span></button></div></div>
-      <div class="hero-photos"><figure class="hero-person hero-company"><img src="assets/photos/good-company.jpg" alt="${t('Two dogs enjoying some company.')}" width="720" height="1280" fetchpriority="high"><figcaption>${t('Good company')} <span>@bus_destoutous</span></figcaption></figure><figure class="hero-pack"><img src="assets/photos/pack-on-the-trail.jpg" alt="${t('Dogs following a sunlit trail through the woods.')}" width="720" height="1280" fetchpriority="high"><figcaption>${t('A walk with the pack')} <span>↗ @bus_destoutous</span></figcaption></figure></div>
-    </section>
-    <div class="day-strip"><span>${t('A walk, a little company, a lot of care.')}</span><span class="workspace-label">${t('Sample workspace · care records to explore')}</span></div>
-    <div class="grid dashboard-grid"><div class="dashboard-main">
-      <div class="section-head"><div><h2>${t('Every dog has a story.')}</h2></div><button class="link-button" data-go="dogs">${t('View profiles')} <span aria-hidden="true">↗</span></button></div>
-      <div class="dog-row">${Object.entries(dogs).map(([key,d])=>`<button class="card dog-card" data-dog="${key}">${dogAvatar(key)}<span class="dog-meta"><strong class="dog-name">${d.name}</strong><span class="dog-owner">${d.owner}</span><span class="dog-record-count">${t('Open care record')}</span></span><span class="dog-arrow" aria-hidden="true">↗</span></button>`).join('')}</div>
-      <div class="section-head"><div><h2>${t('From Billie’s care log')}</h2></div><button class="link-button" data-dog="billie">${t('View care timeline')} <span aria-hidden="true">↗</span></button></div>
-      <section class="activity-list" aria-label="${t('From Billie’s care log')}"><button class="activity-row" data-evidence-id="${latest.id}" data-evidence-dog="billie"><span class="activity-time">${escapeHtml(latest.time)}<small>${escapeHtml(t(latest.date))}</small></span><span class="activity-copy"><span class="activity-dog">Billie Blue</span><strong>${escapeHtml(t(latest.title))}</strong><span class="activity-preview">${escapeHtml(t(latest.text))}</span></span><span class="activity-arrow" aria-hidden="true">↗</span></button></section>
-      <section class="assistant-invite"><div><p class="eyebrow">${t('A HAND WITH THE DETAILS')}</p><h2>${t('Ask Muse.')}</h2><p>${t('Review the day or get ready for the next handoff.')}</p></div><button class="ghost" data-go="assistant">${t('Open care assistant')} <span aria-hidden="true">↗</span></button></section>
-    </div><aside class="dashboard-aside"><section class="next-steps"><h2>${t('Care, ready when you need it.')}</h2>${[['capture','01','Capture a moment','Write or dictate, then review.'],['handoff','02','Prepare the handoff','The details the next carer needs.'],['story','03','Make their daily story','A personal recap to review.']].map(([route,num,heading,detail])=>`<button class="next-step" data-go="${route}"><span class="step-number">${num}</span><span><strong>${t(heading)}</strong><small>${t(detail)}</small></span><span aria-hidden="true">↗</span></button>`).join('')}</section></aside></div>
-    <section class="outdoor-journal"><div class="section-head"><div><h2>${t('A glimpse of their world.')}</h2><p>${t('Photos and films from @bus_destoutous.')}</p></div><button class="link-button" data-go="gallery">${t('See the photo journal')} <span aria-hidden="true">↗</span></button></div><div class="journal-grid">${[['adine-woodland.jpg','Out in the woods','DJ2A0xrsF-a'],['pack-in-the-sun.jpg','The days behind the care.','DJ2A0xrsF-a']].map(([file,title,post])=>`<figure class="journal-photo"><img src="assets/photos/${file}" alt="${t(title)}" loading="lazy" width="720" height="1280"><figcaption><strong>${t(title)}</strong><a href="https://www.instagram.com/reel/${post}/" target="_blank" rel="noreferrer">@bus_destoutous <span aria-hidden="true">↗</span></a></figcaption></figure>`).join('')}</div></section>
+    return `<div class="care-club">
+      <section class="day-opening" aria-label="${t('Your day with the dogs')}">
+        <div class="day-scene"><div class="scene-copy"><span class="eyebrow">${t('Life with Le Bus des Toutous')}</span><h2>${t('The dogs.')}<br>${t('The fresh air.')}<br><em>${t('The good life.')}</em></h2><p>${t('From the doorstep to the forest, with Adine-Sophie.')}</p></div><figure class="scene-photo"><img src="assets/photos/good-company.jpg" alt="${t('Two dogs enjoying some company.')}" width="720" height="1280" fetchpriority="high"></figure><a class="scene-source" href="https://www.instagram.com/p/DYknTgAFPMo/" target="_blank" rel="noreferrer">@bus_destoutous <span aria-hidden="true">↗</span></a></div>
+        <div class="care-launchpad"><span class="eyebrow">${t('A HAND WITH THE DETAILS')}</span><h2>${t('A little care.')}<br>${t('A lovely day.')}</h2><div class="launch-actions">${[['capture','01','Add a care note','Write or dictate, then review.'],['handoff','02','Prepare the handoff','The details the next carer needs.'],['story','03','Daily story','A personal recap to review.']].map(([route,num,heading,detail])=>`<button data-go="${route}"><span class="action-index">${num}</span><span><strong>${t(heading)}</strong><small>${t(detail)}</small></span><span class="action-arrow" aria-hidden="true">↗</span></button>`).join('')}</div><p class="launch-foot">${t('A walk, a little company, a lot of care.')}</p></div>
+      </section>
+      <div class="club-care-grid">
+        <section class="club-dogs"><div class="section-head"><h2>${t('The dogs')}</h2><button class="link-button" data-go="dogs">${t('View profiles')} <span aria-hidden="true">↗</span></button></div><div class="dog-row">${Object.entries(dogs).map(([key,d])=>`<button class="card dog-card" data-dog="${key}">${dogAvatar(key)}<span class="dog-meta"><strong class="dog-name">${d.name}</strong><span class="dog-owner">${d.owner}</span><span class="dog-record-count">${t('Open care record')}</span></span><span class="dog-arrow" aria-hidden="true">↗</span></button>`).join('')}</div><p class="sample-note">${t('Sample workspace · care records to explore')}</p></section>
+        <section class="club-latest"><div class="section-head"><h2>${t('From Billie’s care log')}</h2><button class="link-button" data-dog="billie">${t('View care timeline')} <span aria-hidden="true">↗</span></button></div><button class="activity-row" data-evidence-id="${latest.id}" data-evidence-dog="billie"><span class="activity-time">${escapeHtml(latest.time)}<small>${escapeHtml(t(latest.date))}</small></span><span class="activity-copy"><strong>${escapeHtml(t(latest.title))}</strong><span class="activity-preview">${escapeHtml(t(latest.text))}</span></span><span class="activity-arrow" aria-hidden="true">↗</span></button><button class="club-assistant" data-go="assistant"><span><strong>${t('Ask Muse.')}</strong><small>${t('Review the day or get ready for the next handoff.')}</small></span><span aria-hidden="true">↗</span></button></section>
+      </div>
+      <section class="club-journal"><div class="journal-landscape"><img src="assets/photos/pack-on-the-trail.jpg" alt="${t('Dogs following a sunlit trail through the woods.')}" width="720" height="1280" loading="lazy"></div><div class="journal-intro"><span class="eyebrow">@BUS_DESTOUTOUS</span><h2>${t('A glimpse of their world.')}</h2><p>${t('Photos and films from @bus_destoutous.')}</p><button class="secondary" data-go="gallery">${t('See the photo journal')} <span aria-hidden="true">↗</span></button></div><div class="journal-portrait"><img src="assets/photos/adine-woodland.jpg" alt="${t('Adine-Sophie walking with the dogs in the woods.')}" width="720" height="1280" loading="lazy"></div></section>
+    </div>
     <footer class="workspace-footer"><strong>Le Bus des Toutous<span>.</span></strong><p>${t('A workspace to try with sample care records. Scheduling and business figures are previews.')}</p><details class="photo-credits"><summary>${t('Photo and video sources')}</summary><p><a href="https://www.instagram.com/reel/DJ2A0xrsF-a/" target="_blank" rel="noreferrer">@bus_destoutous / 19.05.2025</a><br><a href="https://www.instagram.com/p/DYknTgAFPMo/" target="_blank" rel="noreferrer">@bus_destoutous / ${t('Good company')}</a></p></details></footer>`;
   },  assistant() {
     const copy=assistantText();setHeader(copy.eyebrow,copy.heading);

@@ -73,6 +73,9 @@ class BrowserFixture(unittest.IsolatedAsyncioTestCase, ApiServerTestCase):
         _http(self.port, "PUT", "/api/invites", {"invites": []}, cookie=self.sid)
         await self.page.goto(self.url)
         await self.wait_ready()
+        if not self.api_mode:
+            self.assertEqual(await self.page.locator("html").get_attribute("lang"), "fr")
+            await self.page.select_option("#language-picker", "en")
 
     async def wait_ready(self):
         await self.page.wait_for_function("document.querySelector('#app-content')?.dataset.ready === 'true'")
@@ -362,7 +365,8 @@ class StaticBrowserAcceptanceTest(BrowserAcceptanceTest):
         self.assertEqual(await self.page.locator('.timeline-card p').first.text_content(), account_note)
         self.assertIn(note, await self.page.locator('#app-content').text_content())
         await self.capture_evidence('account-timeline-fresh-browser.png')
-        await self.page.click('.topbar [data-go="invite"]')
+        await self.page.click('.more-toggle')
+        await self.page.click('#more-nav [data-page="invite"]')
         self.assertIn('Account Carer', await self.page.locator('#pending-invites').text_content())
         self.assertIn('Demo Carer', await self.page.locator('#pending-invites').text_content())
         await self.capture_evidence('account-invites-fresh-browser.png')

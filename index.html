@@ -4,45 +4,25 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#F2851E">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22><text y=%2252%22 x=%2250%22 text-anchor=%22middle%22 dominant-baseline=%22middle%22 font-size=%2248%22>M.</text></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22><rect width=%2264%22 height=%2264%22 rx=%2212%22 fill=%22%23F2851E%22/><text x=%2232%22 y=%2248%22 text-anchor=%22middle%22 font-family=%22sans-serif%22 font-weight=%22700%22 font-size=%2245%22>B</text></svg>">
   <title>Le Bus des Toutous — Muse</title>
+  <link rel="preload" href="assets/fonts/barlow-800-89eec21b.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/dm-sans-468d56b6.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="media.css">
   <link rel="stylesheet" href="muse.css">
 </head>
 <body>
-  <a class="skip-link" href="#app-content" data-i18n="Skip to content">Skip to content</a>
+  <a class="skip-link" href="#app-content" data-i18n="Skip to content">Aller au contenu</a>
+  <header class="utility-bar"><a href="#dashboard" data-route="dashboard" class="utility-brand">LE BUS <span>DES TOUTOUS</span></a><span class="utility-owner">ADINE-SOPHIE</span><span class="utility-workspace" data-i18n="Your workspace">Votre espace</span><button class="mobile-menu" id="mobile-menu" aria-label="Ouvrir le menu" aria-controls="main-nav">☰</button></header>
   <div class="app-shell">
     <aside class="sidebar" aria-label="Navigation principale">
-      <a class="brand" href="#dashboard" data-route="dashboard" aria-label="Le Bus des Toutous — Accueil">
-        <span class="brand-word">Le Bus<br>des Toutous<span>.</span></span><small data-i18n="Your workspace">Votre espace</small>
-      </a>
-      <nav id="main-nav" aria-label="Votre espace">
-        <p class="nav-label" data-i18n="Your workspace">Your workspace</p>
-        <button class="nav-item active" data-page="dashboard"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7v10H3Z"/><path d="M9 20v-7h6v7"/></svg></span><b data-i18n="Home">Accueil</b></button>
-        <button class="nav-item muse-nav" data-page="assistant"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11a8 8 0 0 1-8 8H5l-3 3V11a9 9 0 0 1 19 0Z"/><path d="M7 10h10M7 14h6"/></svg></span><b data-i18n="Muse assistant">Muse assistant</b></button>
-        <button class="nav-item" data-page="dogs"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c-2-2-5-5-8-5s-6 3-8 5-1 7 3 6c3-1 7-1 10 0 4 1 5-4 3-6Z"/><ellipse cx="5" cy="6" rx="2" ry="3"/><ellipse cx="12" cy="4" rx="2" ry="3"/><ellipse cx="19" cy="6" rx="2" ry="3"/></svg></span><b data-i18n="Dogs">Dogs</b></button>
-        <button class="nav-item" data-page="capture"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span><b data-i18n="Capture">Capture</b></button>
-        <p class="nav-label" data-i18n="Share & organise">Share & organise</p>
-        <button class="nav-item" data-page="gallery"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1.5"/><path d="m3 17 6-6 4 4 3-3 5 5"/></svg></span><b data-i18n="Gallery">Gallery</b></button>
-        <button class="nav-item" data-page="story"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3h12l4 4v14H4Z"/><path d="M15 3v5h5M8 12h8M8 16h6"/></svg></span><b data-i18n="Daily story">Daily story</b></button>
-        <button class="nav-item" data-page="invite"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="4"/><path d="M2 21v-3a7 7 0 0 1 13-3M19 12v8M15 16h8"/></svg></span><b data-i18n="Invite">Invite</b></button>
-        <button class="nav-item" data-page="handoff"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h17m-4-4 4 4-4 4M21 17H4m4-4-4 4 4 4"/></svg></span><b data-i18n="Handoff">Handoff</b></button>
-        <button class="nav-item" data-page="schedule"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 2v6M17 2v6M3 11h18"/></svg></span><b data-i18n="Schedule">Schedule</b></button>
-        <button class="nav-item" data-page="business"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M7 16v-5M12 16V7M17 16V4"/></svg></span><b data-i18n="Business">Business</b></button>
-      </nav>
-      <div class="sidebar-foot">
-        <button class="nav-item" data-page="settings"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2" fill="currentColor"/><circle cx="16" cy="12" r="2" fill="currentColor"/><circle cx="8" cy="18" r="2" fill="currentColor"/></svg></span><b data-i18n="Settings">Settings</b></button>
-        <div class="user-chip"><div class="avatar human">AS</div><div><strong>Adine-Sophie</strong><small>Le Bus des Toutous</small></div></div>
-      </div>
+      <a class="brand" href="#dashboard" data-route="dashboard" aria-label="Le Bus des Toutous — Accueil"><span class="brand-word">LE BUS DES TOUTOUS<span>.</span></span><small>AVEC ADINE-SOPHIE</small></a>
+      <nav id="main-nav" aria-label="Votre espace"><button class="nav-item active" data-page="dashboard"><b data-i18n="Home">Accueil</b><span class="nav-arrow" aria-hidden="true">↗</span></button><button class="nav-item" data-page="dogs"><b data-i18n="Dogs">Dogs</b><span class="nav-arrow" aria-hidden="true">↗</span></button><button class="nav-item" data-page="capture"><b data-i18n="Capture">Capture</b><span class="nav-arrow" aria-hidden="true">↗</span></button><button class="nav-item" data-page="handoff"><b data-i18n="Handoff">Handoff</b><span class="nav-arrow" aria-hidden="true">↗</span></button><button class="nav-item" data-page="gallery"><b data-i18n="Gallery">Gallery</b><span class="nav-arrow" aria-hidden="true">↗</span></button><button class="more-toggle" popovertarget="more-nav"><b data-i18n="All sections">Tout l’espace</b><span aria-hidden="true">＋</span></button></nav>
+      <div id="more-nav" class="more-nav" popover><header><p class="menu-title" data-i18n="Your workspace">Votre espace</p><button popovertarget="more-nav" popovertargetaction="hide" aria-label="Fermer le menu">×</button></header><nav aria-label="Autres rubriques"><button class="nav-item muse-nav" data-page="assistant" popovertarget="more-nav" popovertargetaction="hide"><b data-i18n="Muse assistant">Muse assistant</b><span class="nav-arrow" aria-hidden="true">↗</span></button><button class="nav-item" data-page="story" popovertarget="more-nav" popovertargetaction="hide"><b data-i18n="Daily story">Daily story</b><span class="nav-arrow" aria-hidden="true">↗</span></button><button class="nav-item" data-page="invite" popovertarget="more-nav" popovertargetaction="hide"><b data-i18n="Invite">Invite</b><span class="nav-arrow" aria-hidden="true">↗</span></button><button class="nav-item" data-page="schedule" popovertarget="more-nav" popovertargetaction="hide"><b data-i18n="Schedule">Schedule</b><span class="nav-arrow" aria-hidden="true">↗</span></button><button class="nav-item" data-page="business" popovertarget="more-nav" popovertargetaction="hide"><b data-i18n="Business">Business</b><span class="nav-arrow" aria-hidden="true">↗</span></button><button class="nav-item" data-page="settings" popovertarget="more-nav" popovertargetaction="hide"><b data-i18n="Settings">Settings</b><span class="nav-arrow" aria-hidden="true">↗</span></button></nav></div>
     </aside>
-
     <main>
-      <header class="topbar">
-        <button class="mobile-menu" id="mobile-menu" aria-label="Ouvrir le menu" aria-controls="main-nav">☰</button>
-        <div><p class="eyebrow" id="page-eyebrow">LE BUS DES TOUTOUS</p><h1 id="page-title" tabindex="-1">Bonjour, Adine-Sophie.</h1></div>
-        <div class="top-actions"><select id="language-picker" aria-label="Langue"><option value="fr" selected>FR</option><option value="en">EN</option><option value="it">IT</option><option value="de">DE</option><option value="es">ES</option></select><button class="primary compact" data-go="capture">＋ <span data-i18n="Capture update">Capture update</span></button></div>
-      </header>
+      <header class="topbar"><div><p class="eyebrow" id="page-eyebrow">LE BUS DES TOUTOUS</p><h1 id="page-title" tabindex="-1">Bonjour, Adine-Sophie.</h1></div><div class="top-actions"><select id="language-picker" aria-label="Langue"><option value="fr" selected>FR</option><option value="en">EN</option><option value="it">IT</option><option value="de">DE</option><option value="es">ES</option></select><button class="primary compact" data-go="capture">＋ <span data-i18n="Capture update">Ajouter une note</span></button></div></header>
       <section id="app-content" class="content" tabindex="-1" aria-live="polite"></section>
     </main>
   </div>
