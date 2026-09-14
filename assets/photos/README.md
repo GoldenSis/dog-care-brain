@@ -1,13 +1,10 @@
-# Photography provenance
+# Photo and film sources
 
-These are real photographs. Originals are stored without raster edits; the interface crops them with CSS. Stock photographs illustrate the outdoor mood and do not identify actual clients, carers or today's activities. Archive photographs are labeled as archive imagery.
+The page uses Adine-Sophie’s own material from [@bus_destoutous](https://www.instagram.com/bus_destoutous/), as explicitly requested by the user. Twelve public post previews were inspected. Two featured reels were retrieved at 720×1280; six still frames were extracted without generative changes. Exact frame timestamps, original post links and asset hashes are in [sources.json](sources.json).
 
-| Asset | Source | Attribution / context |
-| --- | --- | --- |
-| `leash-walk.jpg` | [Original on Pexels](https://www.pexels.com/photo/a-person-standing-on-ground-holding-dogs-leashes-10369105/) | EvenDelen be. [Pexels license](https://www.pexels.com/license/). Illustrative photograph. |
-| `woodland-companions.jpg` | [Original on Unsplash](https://unsplash.com/photos/two-dogs-walking-down-a-path-in-the-woods-jtZpHjA2Vck) | Oskar Kadaksoo. [Unsplash license](https://unsplash.com/license). Illustrative photograph. |
-| `billie-pines.jpg` | Existing Polarsteps archive, `billieblueontheroad`, Lake Louise, 2023-08-19, photo `a675df5b-adb2-41c4-8f4c-f7901a942d45` | Billie Blue is identified by the original step description. Used for Billie's profile and the archive journal. |
-| `blossom-walk.jpg` | Existing Polarsteps archive, `golden-sisontheroad-japan`, Tokyo, 2025-03-27, photo `77c602ad-b609-4ce8-aed8-f901bb7e1c8d` | Two golden retrievers on leashes. Individual identities are not assigned. |
-| `coastal-dogs.jpg` | Existing Polarsteps archive, `golden-sisontheroad-japan`, Nakijin / Kouri Island, 2025-04-29, photo `a8066714-3d90-4ef6-b6c4-c19a5cda5dd9` | Two dogs outdoors. Individual identities are not assigned. |
+- [19 May 2025 reel](https://www.instagram.com/reel/DJ2A0xrsF-a/): preparing the bus, collecting dogs, and the woodland walk. The full 85.33-second film is also available through native video controls, with its timeline and audio retained and encoded at 540×960. It loads on request. Its original captions remain part of the recording.
+- [May 2025 care reel](https://www.instagram.com/reel/DJqVS9MouXT/): preparing leashes and collecting dogs at home. Public profile shows 14 May; downloaded UTC metadata gives 15 May. The page does not assign these scenes to today.
 
-The local archive originals and descriptions are in `photo-hub/polarsteps/`. No independently identified portrait was found for Charlie Rose, so the profile uses initials and “Photo to add”. The Facebook story supplied during review required login and was not used as an image source.
+The stock walker, stock forest photograph and unrelated decorative travel pictures were removed. Named care records retain their existing data. `billie-pines.jpg` remains Billie's verified profile photograph: existing Polarsteps archive `billieblueontheroad`, Lake Louise, 2023-08-19, photo `a675df5b-adb2-41c4-8f4c-f7901a942d45`. Charlie still has an honest photo-needed placeholder because the supplied account names both dogs together but does not identify which is which in the frame.
+
+No current-day claims are made from these recordings. No external publication or account connection is implied.

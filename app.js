@@ -1055,6 +1055,128 @@ Object.assign(translations.it, {"A walker and two dogs on leashes in sunlit wood
 Object.assign(translations.de, {"A walker and two dogs on leashes in sunlit woodland.": "Eine Person mit zwei angeleinten Hunden im sonnigen Wald.", "View photo journal": "Fototagebuch ansehen", "Profile photograph from the archive": "Profilfoto aus dem Archiv", "Daily story · Sample layout": "Tagesgeschichte · Beispiellayout"});
 Object.assign(translations.es, {"A walker and two dogs on leashes in sunlit woodland.": "Una persona con dos perros con correa en un bosque soleado.", "View photo journal": "Ver el diario de fotos", "Profile photograph from the archive": "Foto de perfil del archivo", "Daily story · Sample layout": "Relato del día · Ejemplo de presentación"});
 
+// Adine-Sophie’s own media and presentation copy.
+Object.assign(translations.fr, {
+  "The bus.": "Le bus.",
+  "The woods.": "La forêt.",
+  "The whole pack.": "Toute la meute.",
+  "From the doorstep to the forest, with Adine-Sophie.": "De la porte de chez vous à la forêt, avec Adine-Sophie.",
+  "A day with Adine-Sophie": "Une journée avec Adine-Sophie",
+  "From her own camera": "À travers son objectif",
+  "The days behind the care.": "Le quotidien, aux petits soins.",
+  "Leashes ready. Everyone aboard.": "Laisses prêtes. Tout le monde à bord.",
+  "A walk with the pack": "Une balade avec la meute",
+  "A home full of company": "Une maison pleine de vie",
+  "Life at Le Bus des Toutous": "Le Bus des Toutous au quotidien",
+  "Watch the original reel": "Voir le reel original",
+  "See her Instagram": "Voir son Instagram",
+  "A glimpse of their world.": "Un aperçu de leur monde.",
+  "Photos and films from @bus_destoutous.": "Photos et vidéos de @bus_destoutous.",
+  "From Adine-Sophie’s Instagram": "Sur l’Instagram d’Adine-Sophie",
+  "Every dog has a story.": "Chaque chien a son histoire.",
+  "Open their care records": "Ouvrir leurs dossiers de soin",
+  "All aboard": "Tout le monde à bord",
+  "Out in the woods": "En pleine forêt",
+  "Back at home": "De retour à la maison",
+  "Photo and video sources": "Sources des photos et vidéos",
+  "A walk, a little company, a lot of care.": "Une balade, de la compagnie, beaucoup d’attention.",
+  "FROM HER OWN CAMERA": "SON QUOTIDIEN EN IMAGES",
+  "Adine-Sophie preparing a dog’s leash before a walk.": "Adine-Sophie prépare la laisse d’un chien avant la balade.",
+  "Dogs following a sunlit trail through the woods.": "Les chiens suivent un sentier ensoleillé dans la forêt.",
+  "Adine-Sophie preparing the bus for the dogs.": "Adine-Sophie prépare le bus pour les chiens.",
+  "Adine-Sophie and the dogs in a sunny clearing.": "Adine-Sophie et les chiens dans une clairière ensoleillée."
+});
+Object.assign(translations.it, {
+  "The bus.": "Il bus.",
+  "The woods.": "Il bosco.",
+  "The whole pack.": "Tutto il branco.",
+  "From the doorstep to the forest, with Adine-Sophie.": "Da casa al bosco, con Adine-Sophie.",
+  "A day with Adine-Sophie": "Una giornata con Adine-Sophie",
+  "From her own camera": "Attraverso il suo obiettivo",
+  "The days behind the care.": "La cura, giorno dopo giorno.",
+  "Leashes ready. Everyone aboard.": "Guinzagli pronti. Tutti a bordo.",
+  "A walk with the pack": "Una passeggiata con il branco",
+  "A home full of company": "Una casa piena di compagnia",
+  "Life at Le Bus des Toutous": "La vita a Le Bus des Toutous",
+  "Watch the original reel": "Guarda il reel originale",
+  "See her Instagram": "Visita il suo Instagram",
+  "A glimpse of their world.": "Uno sguardo al loro mondo.",
+  "Photos and films from @bus_destoutous.": "Foto e video di @bus_destoutous.",
+  "From Adine-Sophie’s Instagram": "Dall’Instagram di Adine-Sophie",
+  "Every dog has a story.": "Ogni cane ha una storia.",
+  "Open their care records": "Apri le loro schede di cura",
+  "All aboard": "Tutti a bordo",
+  "Out in the woods": "Nel bosco",
+  "Back at home": "Di nuovo a casa",
+  "Photo and video sources": "Fonti di foto e video",
+  "A walk, a little company, a lot of care.": "Una passeggiata, un po’ di compagnia, tanta cura.",
+  "FROM HER OWN CAMERA": "DAL SUO OBIETTIVO",
+  "Adine-Sophie preparing a dog’s leash before a walk.": "Adine-Sophie prepara il guinzaglio di un cane prima della passeggiata.",
+  "Dogs following a sunlit trail through the woods.": "I cani seguono un sentiero soleggiato nel bosco.",
+  "Adine-Sophie preparing the bus for the dogs.": "Adine-Sophie prepara il bus per i cani.",
+  "Adine-Sophie and the dogs in a sunny clearing.": "Adine-Sophie e i cani in una radura soleggiata."
+});
+Object.assign(translations.de, {
+  "The bus.": "Der Bus.",
+  "The woods.": "Der Wald.",
+  "The whole pack.": "Das ganze Rudel.",
+  "From the doorstep to the forest, with Adine-Sophie.": "Von der Haustür in den Wald, mit Adine-Sophie.",
+  "A day with Adine-Sophie": "Ein Tag mit Adine-Sophie",
+  "From her own camera": "Durch ihre Kamera",
+  "The days behind the care.": "Fürsorge, Tag für Tag.",
+  "Leashes ready. Everyone aboard.": "Leinen bereit. Alle einsteigen.",
+  "A walk with the pack": "Ein Spaziergang mit dem Rudel",
+  "A home full of company": "Zu Hause in bester Gesellschaft",
+  "Life at Le Bus des Toutous": "Der Alltag bei Le Bus des Toutous",
+  "Watch the original reel": "Original-Reel ansehen",
+  "See her Instagram": "Ihr Instagram ansehen",
+  "A glimpse of their world.": "Ein Einblick in ihre Welt.",
+  "Photos and films from @bus_destoutous.": "Fotos und Videos von @bus_destoutous.",
+  "From Adine-Sophie’s Instagram": "Vom Instagram-Konto von Adine-Sophie",
+  "Every dog has a story.": "Jeder Hund hat eine Geschichte.",
+  "Open their care records": "Ihre Betreuungsakten öffnen",
+  "All aboard": "Alle einsteigen",
+  "Out in the woods": "Draußen im Wald",
+  "Back at home": "Wieder zu Hause",
+  "Photo and video sources": "Foto- und Videoquellen",
+  "A walk, a little company, a lot of care.": "Ein Spaziergang, etwas Gesellschaft, viel Fürsorge.",
+  "FROM HER OWN CAMERA": "AUS IHRER KAMERA",
+  "Adine-Sophie preparing a dog’s leash before a walk.": "Adine-Sophie bereitet die Leine eines Hundes für den Spaziergang vor.",
+  "Dogs following a sunlit trail through the woods.": "Hunde folgen einem sonnigen Waldweg.",
+  "Adine-Sophie preparing the bus for the dogs.": "Adine-Sophie bereitet den Bus für die Hunde vor.",
+  "Adine-Sophie and the dogs in a sunny clearing.": "Adine-Sophie und die Hunde auf einer sonnigen Lichtung."
+});
+Object.assign(translations.es, {
+  "The bus.": "El bus.",
+  "The woods.": "El bosque.",
+  "The whole pack.": "Toda la manada.",
+  "From the doorstep to the forest, with Adine-Sophie.": "De casa al bosque, con Adine-Sophie.",
+  "A day with Adine-Sophie": "Un día con Adine-Sophie",
+  "From her own camera": "A través de su cámara",
+  "The days behind the care.": "El cuidado, día a día.",
+  "Leashes ready. Everyone aboard.": "Correas listas. Todos a bordo.",
+  "A walk with the pack": "Un paseo con la manada",
+  "A home full of company": "Una casa llena de compañía",
+  "Life at Le Bus des Toutous": "La vida en Le Bus des Toutous",
+  "Watch the original reel": "Ver el reel original",
+  "See her Instagram": "Ver su Instagram",
+  "A glimpse of their world.": "Un vistazo a su mundo.",
+  "Photos and films from @bus_destoutous.": "Fotos y vídeos de @bus_destoutous.",
+  "From Adine-Sophie’s Instagram": "Del Instagram de Adine-Sophie",
+  "Every dog has a story.": "Cada perro tiene su historia.",
+  "Open their care records": "Abrir sus registros de cuidado",
+  "All aboard": "Todos a bordo",
+  "Out in the woods": "En el bosque",
+  "Back at home": "De vuelta en casa",
+  "Photo and video sources": "Fuentes de fotos y vídeos",
+  "A walk, a little company, a lot of care.": "Un paseo, un poco de compañía, mucho cariño.",
+  "FROM HER OWN CAMERA": "DESDE SU CÁMARA",
+  "Adine-Sophie preparing a dog’s leash before a walk.": "Adine-Sophie prepara la correa de un perro antes del paseo.",
+  "Dogs following a sunlit trail through the woods.": "Los perros siguen un sendero soleado por el bosque.",
+  "Adine-Sophie preparing the bus for the dogs.": "Adine-Sophie prepara el bus para los perros.",
+  "Adine-Sophie and the dogs in a sunny clearing.": "Adine-Sophie y los perros en un claro soleado."
+});
+
 const VOICE_NEEDS_HTTP = 'Voice features need the app opened over http://localhost — a file:// path blocks the microphone. See the README.';
 Object.assign(translations.fr, { [VOICE_NEEDS_HTTP]: 'Les fonctions vocales nécessitent d’ouvrir l’app via http://localhost — un chemin file:// bloque le microphone. Voir le README.' });
 Object.assign(translations.it, { [VOICE_NEEDS_HTTP]: 'Le funzioni vocali richiedono di aprire l’app su http://localhost — un percorso file:// blocca il microfono. Vedi il README.' });
@@ -1340,21 +1462,21 @@ const views = {
   dashboard() {
     setHeader('OUTSIDE, TOGETHER', 'Your day with the dogs');
     const latest = state.observations.billie[0] || {title:'No observations captured today yet. Add a care moment before handoff.',text:'',time:'',date:'',tags:[]},copy=assistantText();
-    return `<section class="outdoor-hero">
-      <img class="outdoor-hero-image" src="assets/photos/leash-walk.jpg" alt="${t('A walker and two dogs on leashes in sunlit woodland.')}" width="1800" height="1350" fetchpriority="high">
-      <div class="outdoor-hero-copy"><p class="eyebrow">LE BUS DES TOUTOUS / ${t('OUTSIDE, TOGETHER')}</p><h2>${t('Life is better')}<br><span>${t('out there.')}</span></h2><p class="hero-description">${t('Fresh air. Good company. A day worth remembering.')}</p><div class="hero-actions"><button class="primary" data-go="capture">${t('Add a care note')} <span aria-hidden="true">↗</span></button><button class="hero-link" data-go="handoff">${t('Review handoff')} <span aria-hidden="true">→</span></button></div></div>
-      <span class="hero-photo-note">${t('Illustrative photography')} / EvenDelen be</span>
+    return `<section class="outdoor-hero adine-hero">
+      <div class="outdoor-hero-copy"><p class="eyebrow">LE BUS DES TOUTOUS / ${t('FROM HER OWN CAMERA')}</p><h2>${t('The bus.')}<br>${t('The woods.')}<br><span>${t('The whole pack.')}</span></h2><p class="hero-description">${t('From the doorstep to the forest, with Adine-Sophie.')}</p><div class="hero-actions"><button class="primary" data-go="capture">${t('Add a care note')} <span aria-hidden="true">↗</span></button><button class="hero-link" data-go="handoff">${t('Review handoff')} <span aria-hidden="true">→</span></button></div><a class="hero-account" href="https://www.instagram.com/bus_destoutous/" target="_blank" rel="noreferrer">@bus_destoutous <span aria-hidden="true">↗</span></a></div>
+      <div class="hero-photos"><figure class="hero-person"><img src="assets/photos/adine-and-dog.jpg" alt="${t('Adine-Sophie preparing a dog’s leash before a walk.')}" width="720" height="1280" fetchpriority="high"><figcaption>Adine-Sophie <span>Le Bus des Toutous</span></figcaption></figure><figure class="hero-pack"><img src="assets/photos/pack-on-the-trail.jpg" alt="${t('Dogs following a sunlit trail through the woods.')}" width="720" height="1280" fetchpriority="high"><figcaption>${t('A walk with the pack')} <span>↗ @bus_destoutous</span></figcaption></figure></div>
     </section>
-    <div class="day-strip"><span>${t('A walk. A pause. A good day.')}</span><span>${t('Care notes, stories & handoffs. All together.')}</span><span class="workspace-label">${t('Private prototype')}</span></div>
+    <div class="day-strip"><span>${t('A walk, a little company, a lot of care.')}</span><span>${t('From Adine-Sophie’s Instagram')}</span><span class="workspace-label">${t('Private prototype')}</span></div>
     <div class="grid dashboard-grid"><div class="dashboard-main">
-      <div class="section-head"><div><p class="eyebrow">${t('THE PACK')}</p><h2>${t('Their stories, close by.')}</h2></div><button class="link-button" data-go="dogs">${t('View profiles')} <span aria-hidden="true">↗</span></button></div>
+      <div class="section-head"><div><p class="eyebrow">${t('THE PACK')}</p><h2>${t('Every dog has a story.')}</h2></div><button class="link-button" data-go="dogs">${t('View profiles')} <span aria-hidden="true">↗</span></button></div>
       <div class="dog-row">${Object.entries(dogs).map(([key,d])=>`<button class="card dog-card" data-dog="${key}">${dogAvatar(key)}<span class="dog-meta"><strong class="dog-name">${d.name}</strong><span class="dog-owner">${d.owner}</span><span class="dog-record-count">${t('Open care record')}</span></span><span class="dog-arrow" aria-hidden="true">↗</span></button>`).join('')}</div>
       <div class="section-head"><div><p class="eyebrow">${t('THE CARE LOG')}</p><h2>${t('From Billie’s care log')}</h2></div><button class="link-button" data-dog="billie">${t('View care timeline')} <span aria-hidden="true">↗</span></button></div>
       <section class="activity-list" aria-label="${t('From Billie’s care log')}"><button class="activity-row" data-evidence-id="${latest.id}" data-evidence-dog="billie"><span class="activity-time">${escapeHtml(latest.time)}<small>${escapeHtml(t(latest.date))}</small></span><span class="activity-copy"><span class="activity-dog">Billie Blue</span><strong>${escapeHtml(t(latest.title))}</strong><span class="activity-preview">${escapeHtml(t(latest.text))}</span></span><span class="activity-arrow" aria-hidden="true">↗</span></button></section>
       <section class="assistant-invite"><div><p class="eyebrow">${t('A HAND WITH THE DETAILS')}</p><h2>${t('Ask Muse.')}</h2><p>${t('Review the day or get ready for the next handoff.')}</p></div><button class="ghost" data-go="assistant">${t('Open care assistant')} <span aria-hidden="true">↗</span></button></section>
-    </div><aside class="dashboard-aside"><section class="next-steps"><p class="eyebrow">${t('MAKE ROOM FOR CARE')}</p><h2>${t('Care, ready when you need it.')}</h2>${[['capture','01','Capture a moment','Write or dictate, then review.'],['handoff','02','Prepare the handoff','The details the next carer needs.'],['story','03','Make their daily story','A personal recap to review.']].map(([route,num,heading,detail])=>`<button class="next-step" data-go="${route}"><span class="step-number">${num}</span><span><strong>${t(heading)}</strong><small>${t(detail)}</small></span><span aria-hidden="true">↗</span></button>`).join('')}</section><figure class="trail-glimpse"><img src="assets/photos/coastal-dogs.jpg" alt="${t('Room for a little adventure')}" width="1280" height="960" loading="lazy"><figcaption>${t('From the travel archive')}</figcaption></figure></aside></div>
-    <section class="outdoor-journal"><div class="section-head"><div><p class="eyebrow">${t('OUTDOOR JOURNAL')}</p><h2>${t('Room to roam.')}</h2><p>${t('A little fresh air goes a long way.')}</p></div><button class="link-button" data-go="gallery">${t('See the photo journal')} <span aria-hidden="true">↗</span></button></div><div class="journal-grid">${[['woodland-companions.jpg','Woodland companions','Illustrative photography'],['blossom-walk.jpg','A walk under the blossoms','From the travel archive'],['billie-pines.jpg','A quiet moment in the pines','From the travel archive']].map(([file,title,source])=>`<figure class="journal-photo"><img src="assets/photos/${file}" alt="${t(title)}" loading="lazy" width="960" height="1280"><figcaption><strong>${t(title)}</strong><span>${t(source)}</span></figcaption></figure>`).join('')}</div></section>
-    <footer class="workspace-footer"><strong>MUSE<span>.</span></strong><p>${t('A workspace to try with sample care records. Scheduling and business figures are previews.')}</p><details class="photo-credits"><summary>${t('Photo credits')}</summary><p><a href="https://www.pexels.com/photo/a-person-standing-on-ground-holding-dogs-leashes-10369105/" target="_blank" rel="noreferrer">EvenDelen be / Pexels</a><br><a href="https://unsplash.com/photos/two-dogs-walking-down-a-path-in-the-woods-jtZpHjA2Vck" target="_blank" rel="noreferrer">Oskar Kadaksoo / Unsplash</a><br>${t('From the travel archive')} / Polarsteps</p></details></footer>`;
+    </div><aside class="dashboard-aside"><section class="next-steps"><p class="eyebrow">${t('MAKE ROOM FOR CARE')}</p><h2>${t('Care, ready when you need it.')}</h2>${[['capture','01','Capture a moment','Write or dictate, then review.'],['handoff','02','Prepare the handoff','The details the next carer needs.'],['story','03','Make their daily story','A personal recap to review.']].map(([route,num,heading,detail])=>`<button class="next-step" data-go="${route}"><span class="step-number">${num}</span><span><strong>${t(heading)}</strong><small>${t(detail)}</small></span><span aria-hidden="true">↗</span></button>`).join('')}</section><figure class="trail-glimpse"><img src="assets/photos/the-bus.jpg" alt="${t('Adine-Sophie preparing the bus for the dogs.')}" width="720" height="1280" loading="lazy"><figcaption>${t('All aboard')} / @bus_destoutous</figcaption></figure></aside></div>
+    <section class="film-feature"><div class="film-copy"><p class="eyebrow">LE BUS DES TOUTOUS / ${t('From her own camera')}</p><h2>${t('A day with Adine-Sophie')}</h2><p>${t('Leashes ready. Everyone aboard.')}</p><p>${t('From the doorstep to the forest, with Adine-Sophie.')}</p><a class="film-source" href="https://www.instagram.com/reel/DJ2A0xrsF-a/" target="_blank" rel="noreferrer">${t('Watch the original reel')} ↗</a></div><video class="day-film" controls muted playsinline preload="none" poster="assets/photos/adine-woodland.jpg" aria-label="${t('A day with Adine-Sophie')}"><source src="assets/films/a-day-with-adine.mp4" type="video/mp4"><a href="https://www.instagram.com/reel/DJ2A0xrsF-a/">${t('Watch the original reel')}</a></video><figure class="film-still"><img src="assets/photos/pack-in-the-sun.jpg" alt="${t('Adine-Sophie and the dogs in a sunny clearing.')}" width="720" height="1280" loading="lazy"><figcaption>${t('The days behind the care.')}</figcaption></figure></section>
+    <section class="outdoor-journal"><div class="section-head"><div><p class="eyebrow">@BUS_DESTOUTOUS</p><h2>${t('A glimpse of their world.')}</h2><p>${t('Photos and films from @bus_destoutous.')}</p></div><button class="link-button" data-go="gallery">${t('See the photo journal')} <span aria-hidden="true">↗</span></button></div><div class="journal-grid">${[['the-bus.jpg','All aboard','DJ2A0xrsF-a'],['adine-woodland.jpg','Out in the woods','DJ2A0xrsF-a'],['care-at-home.jpg','A home full of company','DJqVS9MouXT']].map(([file,title,post])=>`<figure class="journal-photo"><img src="assets/photos/${file}" alt="${t(title)}" loading="lazy" width="720" height="1280"><figcaption><strong>${t(title)}</strong><a href="https://www.instagram.com/reel/${post}/" target="_blank" rel="noreferrer">@bus_destoutous <span aria-hidden="true">↗</span></a></figcaption></figure>`).join('')}</div></section>
+    <footer class="workspace-footer"><strong>Le Bus des Toutous<span>.</span></strong><p>${t('A workspace to try with sample care records. Scheduling and business figures are previews.')}</p><details class="photo-credits"><summary>${t('Photo and video sources')}</summary><p><a href="https://www.instagram.com/reel/DJ2A0xrsF-a/" target="_blank" rel="noreferrer">@bus_destoutous / 19.05.2025</a><br><a href="https://www.instagram.com/reel/DJqVS9MouXT/" target="_blank" rel="noreferrer">@bus_destoutous / 05.2025</a></p></details></footer>`;
   },  assistant() {
     const copy=assistantText();setHeader(copy.eyebrow,copy.heading);
     const messages=[{role:'muse',text:assistantBriefing()},...state.assistantMessages];
@@ -1373,7 +1495,7 @@ const views = {
     const d=dogs[state.dog]; setHeader('RAPID CAPTURE', 'Capture the moment');
     return `<div class="page-title-row"><div><h2>${t('What just happened?')}</h2><p>${t('Write naturally. Keep the details that matter.')}</p></div></div><section class="card composer"><label class="label">${t('Who is this about?')}</label><div class="dog-picker">${Object.entries(dogs).map(([k,x])=>`<button class="dog-pick ${k===state.dog?'active':''}" data-capture-dog="${k}">${dogAvatar(k)}<div><strong>${x.name}</strong><small>${t(x.last)}</small></div></button>`).join('')}</div><label class="label" for="observation">${t('Care update')}</label><p class="dictate-hint">${t('Dictate or type your note')}</p><div class="note-field" id="note-field"><textarea id="observation" placeholder="${t('Ate breakfast, enjoyed a walk, settled down for a nap…')}"></textarea><button class="mic-button" type="button" id="record-audio" aria-label="${t('Dictate your note')}"><span class="mic-glyph" aria-hidden="true">🎤</span><span class="mic-text">${t('Dictate')}</span></button><button class="mic-button recording" type="button" id="stop-audio" hidden aria-label="${t('Stop dictation')}"><span class="mic-glyph" aria-hidden="true">■</span><span class="mic-text">${t('Stop')}</span></button><div class="listening-badge" id="listening-badge" hidden><span class="pulse-dot" aria-hidden="true"></span><span class="listening-text">${t('Listening…')}</span><span id="recording-duration" class="listening-timer" aria-label="${t('Recording duration')}">00:00</span></div></div><div class="voice-meta"><p id="recording-status" role="status">${t('Tap the mic to dictate — your words fill the note as you speak. The mic is only used after you tap it.')}</p><p id="transcription-status" role="status" class="voice-meta-status"></p><div id="audio-preview">${audioDraft ? `${audioHtml(audioDraft, t('Care update voice note'))}<button class="link-button discard-audio" type="button" id="discard-audio">${t('Discard recording')}</button>` : ''}</div><p class="transcription-privacy">${t('Speech-to-text uses your browser’s speech service. Depending on your browser, audio may be sent to its provider for transcription.')}</p></div><label class="label">${t('Detected details')} <small style="font-weight:400;text-transform:none;letter-spacing:0"> ${t('· updates as you type')}</small></label><div class="detected" id="detected"><em>${t('Start typing to see structured care tags')}</em></div><p id="health-safety" class="preview-note" hidden>${t('Health observations are factual notes, not diagnoses. Contact a veterinarian if concerned.')}</p><div class="composer-actions"><small>${storageCopy('AI structuring and recorded audio stay in this browser. Speech transcription may use your browser provider’s service.')}</small><button class="primary" id="save-observation">${tf("Save to {name}'s timeline →", {name:d.name.split(' ')[0]})}</button></div></section>`;
   },
-  gallery() { setHeader('OUTDOOR JOURNAL','Real moments. Good company.'); const items=[['woodland-companions.jpg','Woodland companions','Illustrative photography'],['blossom-walk.jpg','A walk under the blossoms','From the travel archive'],['leash-walk.jpg','Leashes on. Let’s go.','Illustrative photography'],['billie-pines.jpg','A quiet moment in the pines','From the travel archive'],['coastal-dogs.jpg','Room for a little adventure','From the travel archive']]; const audioItems=Object.values(state.observations).flat().filter(o=>o.audio?.url); return `<div class="page-title-row"><div><h2>${t('Photo journal')}</h2><p>${t('Outdoor inspiration and photographs from the travel archive.')}</p></div></div>${audioItems.length?`<section class="card audio-library"><div class="section-head"><div><h2>${t('Voice notes')}</h2><p>${storageCopy('Attached locally to care updates for this browser session')}</p></div></div>${audioItems.map(o=>audioHtml(o.audio,t(o.title))).join('')}</section>`:''}<div class="grid media-grid">${items.map((x,i)=>`<article class="media-item"><img class="media-art" src="assets/photos/${x[0]}" alt="${t(x[1])}" loading="lazy"><div class="media-copy"><strong>${t(x[1])}</strong><small>${t(x[2])}</small></div></article>`).join('')}</div><section class="card social-preview" aria-labelledby="social-heading"><div class="section-head"><div><h2 id="social-heading">${t('Social access previews')}</h2><p>${t('Explore what a future connection could share. No account is connected and nothing can be posted.')}</p></div></div><div class="social-platforms">${[['Instagram','Photo and story draft'],['Facebook','Page update draft'],['YouTube','Short video draft']].map(([name,detail])=>`<article><span class="platform-mark" aria-hidden="true">${name[0]}</span><div><strong>${name}</strong><small>${t(detail)} · ${t('local preview only')}</small></div><button class="ghost social-access" type="button" data-platform="${name}" aria-label="${escapeHtml(tf('Preview local {name} access', {name}))}">${t('Preview access')}</button></article>`).join('')}</div><div class="local-boundary"><strong>${t('No social connection')}</strong><span>${t('No credentials are collected, no network request is made, and no content is posted.')}</span></div></section>`; },
+  gallery() { setHeader('OUTDOOR JOURNAL','Life at Le Bus des Toutous'); const items=[['adine-and-dog.jpg','Leashes ready. Everyone aboard.','DJqVS9MouXT'],['pack-on-the-trail.jpg','A walk with the pack','DJ2A0xrsF-a'],['the-bus.jpg','All aboard','DJ2A0xrsF-a'],['adine-woodland.jpg','Out in the woods','DJ2A0xrsF-a'],['pack-in-the-sun.jpg','The days behind the care.','DJ2A0xrsF-a'],['care-at-home.jpg','A home full of company','DJqVS9MouXT']]; const audioItems=Object.values(state.observations).flat().filter(o=>o.audio?.url); return `<div class="page-title-row"><div><h2>${t('Photo journal')}</h2><p>${t('Photos and films from @bus_destoutous.')}</p></div></div>${audioItems.length?`<section class="card audio-library"><div class="section-head"><div><h2>${t('Voice notes')}</h2><p>${storageCopy('Attached locally to care updates for this browser session')}</p></div></div>${audioItems.map(o=>audioHtml(o.audio,t(o.title))).join('')}</section>`:''}<div class="grid media-grid">${items.map((x,i)=>`<article class="media-item"><img class="media-art" src="assets/photos/${x[0]}" alt="${t(x[1])}" loading="lazy"><div class="media-copy"><strong>${t(x[1])}</strong><a href="https://www.instagram.com/reel/${x[2]}/" target="_blank" rel="noreferrer">@bus_destoutous ↗</a></div></article>`).join('')}</div><section class="card social-preview" aria-labelledby="social-heading"><div class="section-head"><div><h2 id="social-heading">${t('Social access previews')}</h2><p>${t('Explore what a future connection could share. No account is connected and nothing can be posted.')}</p></div></div><div class="social-platforms">${[['Instagram','Photo and story draft'],['Facebook','Page update draft'],['YouTube','Short video draft']].map(([name,detail])=>`<article><span class="platform-mark" aria-hidden="true">${name[0]}</span><div><strong>${name}</strong><small>${t(detail)} · ${t('local preview only')}</small></div><button class="ghost social-access" type="button" data-platform="${name}" aria-label="${escapeHtml(tf('Preview local {name} access', {name}))}">${t('Preview access')}</button></article>`).join('')}</div><div class="local-boundary"><strong>${t('No social connection')}</strong><span>${t('No credentials are collected, no network request is made, and no content is posted.')}</span></div></section>`; },
   handoff() {
     const key=state.dog,d=dogs[key],summary=handoffSummary(key),audience=t(state.handoffAudience==='owner'?'Owner':'Next carer');
     setHeader('DAILY CARE HANDOFF', `${d.name} · ${audience}`);
