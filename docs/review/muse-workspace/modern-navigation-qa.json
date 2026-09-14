@@ -1,0 +1,16 @@
+{
+  "landscapeMorePanel": {
+    "x": 208,
+    "y": 135,
+    "width": 600,
+    "height": 235
+  },
+  "stickyMenuAfterScroll": {
+    "x": 332,
+    "y": 9,
+    "width": 38,
+    "height": 38
+  },
+  "captureAccessible": true,
+  "errors": []
+}
