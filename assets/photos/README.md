@@ -9,8 +9,8 @@ The stock walker, stock forest photograph and unrelated decorative travel pictur
 
 No current-day claims are made from these recordings. No external publication or account connection is implied.
 
-## Calmer French workspace revision
+## Selected dog photograph
 
 `good-company.jpg` is an exact frame at 1 second from [this public @bus_destoutous post](https://www.instagram.com/p/DYknTgAFPMo/), retrieved 2026-09-14. The reel holds a still photograph of two golden retrievers. The unmodified source frame includes a caption; CSS crops to the dogs. Neither individual is assigned a profile identity from this shared image.
 
-The dashboard now uses only this image. The gallery retains the original woodland reel. The large doorstep and indoor portraits are no longer displayed.
+The dashboard pairs this clearer two-dog image with a woodland view. The outdoor journal uses two different frames, and the gallery retains the full woodland reel. The large doorstep and indoor portraits are no longer displayed.
