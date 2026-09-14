@@ -3,3 +3,6 @@ __pycache__/
 .dev-outbox/
 api/blobs/
 *.db
+*.db-shm
+*.db-wal
+*.db-journal
