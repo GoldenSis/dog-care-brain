@@ -8,3 +8,9 @@ The page uses Adine-Sophie’s own material from [@bus_destoutous](https://www.i
 The stock walker, stock forest photograph and unrelated decorative travel pictures were removed. Named care records retain their existing data. `billie-pines.jpg` remains Billie's verified profile photograph: existing Polarsteps archive `billieblueontheroad`, Lake Louise, 2023-08-19, photo `a675df5b-adb2-41c4-8f4c-f7901a942d45`. Charlie still has an honest photo-needed placeholder because the supplied account names both dogs together but does not identify which is which in the frame.
 
 No current-day claims are made from these recordings. No external publication or account connection is implied.
+
+## Calmer French workspace revision
+
+`good-company.jpg` is an exact frame at 1 second from [this public @bus_destoutous post](https://www.instagram.com/p/DYknTgAFPMo/), retrieved 2026-09-14. The reel holds a still photograph of two golden retrievers. The unmodified source frame includes a caption; CSS crops to the dogs. Neither individual is assigned a profile identity from this shared image.
+
+The dashboard now uses only this image. The gallery retains the original woodland reel. The large doorstep and indoor portraits are no longer displayed.

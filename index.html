@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="fr">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -13,13 +13,13 @@
 <body>
   <a class="skip-link" href="#app-content" data-i18n="Skip to content">Skip to content</a>
   <div class="app-shell">
-    <aside class="sidebar" aria-label="Main navigation">
-      <a class="brand" href="#dashboard" data-route="dashboard" aria-label="Muse home">
-        <span class="brand-word">Le Bus<br>des Toutous<span>.</span></span><small>Muse<br><span data-i18n="Your workspace">Your workspace</span></small>
+    <aside class="sidebar" aria-label="Navigation principale">
+      <a class="brand" href="#dashboard" data-route="dashboard" aria-label="Le Bus des Toutous — Accueil">
+        <span class="brand-word">Le Bus<br>des Toutous<span>.</span></span><small data-i18n="Your workspace">Votre espace</small>
       </a>
-      <nav id="main-nav" aria-label="Care workspace">
+      <nav id="main-nav" aria-label="Votre espace">
         <p class="nav-label" data-i18n="Your workspace">Your workspace</p>
-        <button class="nav-item active" data-page="dashboard"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7v10H3Z"/><path d="M9 20v-7h6v7"/></svg></span><b data-i18n="Today">Today</b></button>
+        <button class="nav-item active" data-page="dashboard"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7v10H3Z"/><path d="M9 20v-7h6v7"/></svg></span><b data-i18n="Home">Accueil</b></button>
         <button class="nav-item muse-nav" data-page="assistant"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11a8 8 0 0 1-8 8H5l-3 3V11a9 9 0 0 1 19 0Z"/><path d="M7 10h10M7 14h6"/></svg></span><b data-i18n="Muse assistant">Muse assistant</b></button>
         <button class="nav-item" data-page="dogs"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c-2-2-5-5-8-5s-6 3-8 5-1 7 3 6c3-1 7-1 10 0 4 1 5-4 3-6Z"/><ellipse cx="5" cy="6" rx="2" ry="3"/><ellipse cx="12" cy="4" rx="2" ry="3"/><ellipse cx="19" cy="6" rx="2" ry="3"/></svg></span><b data-i18n="Dogs">Dogs</b></button>
         <button class="nav-item" data-page="capture"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span><b data-i18n="Capture">Capture</b></button>
@@ -39,9 +39,9 @@
 
     <main>
       <header class="topbar">
-        <button class="mobile-menu" id="mobile-menu" aria-label="Open navigation" aria-controls="main-nav">☰</button>
-        <div><p class="eyebrow" id="page-eyebrow">OUTSIDE, TOGETHER</p><h1 id="page-title" tabindex="-1">Your day with the dogs</h1></div>
-        <div class="top-actions"><button class="secondary compact" data-go="invite" data-i18n="Invite">Invite</button><select id="language-picker" aria-label="Language"><option value="en">EN</option><option value="fr">FR</option><option value="it">IT</option><option value="de">DE</option><option value="es">ES</option></select><button class="primary compact" data-go="capture">＋ <span data-i18n="Capture update">Capture update</span></button></div>
+        <button class="mobile-menu" id="mobile-menu" aria-label="Ouvrir le menu" aria-controls="main-nav">☰</button>
+        <div><p class="eyebrow" id="page-eyebrow">LE BUS DES TOUTOUS</p><h1 id="page-title" tabindex="-1">Bonjour, Adine-Sophie.</h1></div>
+        <div class="top-actions"><select id="language-picker" aria-label="Langue"><option value="fr" selected>FR</option><option value="en">EN</option><option value="it">IT</option><option value="de">DE</option><option value="es">ES</option></select><button class="primary compact" data-go="capture">＋ <span data-i18n="Capture update">Capture update</span></button></div>
       </header>
       <section id="app-content" class="content" tabindex="-1" aria-live="polite"></section>
     </main>

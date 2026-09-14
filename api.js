@@ -12,7 +12,7 @@
   const cache = {
     observations: null,
     invites: [],
-    language: "en",
+    language: "fr",
   };
 
   function url(path) {
