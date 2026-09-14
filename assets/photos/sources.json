@@ -1,0 +1,56 @@
+{
+  "account": "https://www.instagram.com/bus_destoutous/",
+  "retrieved": "2026-09-14",
+  "selection": "Twelve public previews initially inspected. Three public reels retrieved across the revisions. Main page now uses one still from the third reel; gallery retains the original woodland film.",
+  "frames": [
+    {
+      "asset": "adine-and-dog.jpg",
+      "source": "https://www.instagram.com/reel/DJqVS9MouXT/",
+      "frame_seconds": 9,
+      "sha256": "c7c38255d77edb315a1c7a2c1a5af21677f62b3af755d6d90c499992b4e63d19"
+    },
+    {
+      "asset": "adine-woodland.jpg",
+      "source": "https://www.instagram.com/reel/DJ2A0xrsF-a/",
+      "frame_seconds": 49,
+      "sha256": "12b10e9e5f8a640b2954370fa9051a40d4f5a8f4342227167e6f7a9e54fbadcb"
+    },
+    {
+      "asset": "pack-on-the-trail.jpg",
+      "source": "https://www.instagram.com/reel/DJ2A0xrsF-a/",
+      "frame_seconds": 73,
+      "sha256": "d285b1f8cb73d12966e26e1c9d6f54721f41866f58baaeed7f7690fe13978b74"
+    },
+    {
+      "asset": "pack-in-the-sun.jpg",
+      "source": "https://www.instagram.com/reel/DJ2A0xrsF-a/",
+      "frame_seconds": 79,
+      "sha256": "08181ef0b2f2e02a78b6e720ea4608ca4c313b4624555de58de26f66e6ff1295"
+    },
+    {
+      "asset": "care-at-home.jpg",
+      "source": "https://www.instagram.com/reel/DJqVS9MouXT/",
+      "frame_seconds": 77,
+      "sha256": "b2b0aeb9014a79fa5a6de711015c215b3b344962ea337f4d1d6f7f1ba4bd1da6"
+    },
+    {
+      "asset": "the-bus.jpg",
+      "source": "https://www.instagram.com/reel/DJ2A0xrsF-a/",
+      "frame_seconds": 9,
+      "sha256": "f2146ca70b8f33a74af8d5a463f1eb698ab0e15bd79dc5ed879d6a40ec5b4803"
+    },
+    {
+      "asset": "good-company.jpg",
+      "source": "https://www.instagram.com/p/DYknTgAFPMo/",
+      "frame_seconds": 1,
+      "sha256": "0efc7c700b59a15f0fda25ccbebc2595b2b0e272080d8783e3b866f8b696dffe",
+      "presentation": "Original frame retained. Square CSS crop focuses on the dogs below the embedded caption. Individual identities are not assigned from this shared photo."
+    }
+  ],
+  "film": {
+    "asset": "../films/a-day-with-adine.mp4",
+    "source": "https://www.instagram.com/reel/DJ2A0xrsF-a/",
+    "duration_seconds": 85.333,
+    "processing": "Full original timeline and audio retained, encoded at 540×960 for local playback."
+  }
+}

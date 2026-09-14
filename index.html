@@ -1,47 +1,29 @@
 <!doctype html>
-<html lang="en">
+<html lang="fr">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#fff6e9">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22><text y=%2252%22 x=%2250%22 text-anchor=%22middle%22 dominant-baseline=%22middle%22 font-size=%2248%22>🐾</text></svg>">
-  <title>Muse by Le Bus des Toutous — Private care assistant</title>
+  <meta name="theme-color" content="#F2851E">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22><rect width=%2264%22 height=%2264%22 rx=%2212%22 fill=%22%23F2851E%22/><text x=%2232%22 y=%2248%22 text-anchor=%22middle%22 font-family=%22sans-serif%22 font-weight=%22700%22 font-size=%2245%22>B</text></svg>">
+  <title>Le Bus des Toutous — Muse</title>
+  <link rel="preload" href="assets/fonts/barlow-800-89eec21b.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/dm-sans-468d56b6.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="media.css">
   <link rel="stylesheet" href="muse.css">
 </head>
 <body>
+  <a class="skip-link" href="#app-content" data-i18n="Skip to content">Aller au contenu</a>
+  <header class="utility-bar"><a href="#dashboard" data-route="dashboard" class="utility-brand">LE BUS <span>DES TOUTOUS</span></a><span class="utility-owner">ADINE-SOPHIE</span><span class="utility-workspace" data-i18n="Your workspace">Votre espace</span><button class="mobile-menu" id="mobile-menu" aria-label="Ouvrir le menu" aria-controls="main-nav">☰</button></header>
   <div class="app-shell">
-    <aside class="sidebar" aria-label="Main navigation">
-      <a class="brand" href="#dashboard" data-route="dashboard" aria-label="Muse home">
-        <span class="brand-mark" aria-hidden="true">M<span>✦</span></span>
-        <span>Muse <strong>by Adine-Sophie</strong><small>Le Bus des Toutous</small></span>
-      </a>
-      <nav id="main-nav">
-        <button class="nav-item active" data-page="dashboard"><span>⌂</span><b data-i18n="Today">Today</b></button>
-        <button class="nav-item muse-nav" data-page="assistant"><span>✦</span><b data-i18n="Muse assistant">Muse assistant</b></button>
-        <button class="nav-item" data-page="dogs"><span>♡</span><b data-i18n="Dogs">Dogs</b></button>
-        <button class="nav-item" data-page="capture"><span>＋</span><b data-i18n="Capture">Capture</b></button>
-        <button class="nav-item" data-page="gallery"><span>▦</span><b data-i18n="Gallery">Gallery</b></button>
-        <button class="nav-item" data-page="story"><span>✦</span><b data-i18n="Daily story">Daily story</b></button>
-        <button class="nav-item" data-page="invite"><span>↗</span><b data-i18n="Invite">Invite</b></button>
-        <button class="nav-item" data-page="handoff"><span>⇄</span><b data-i18n="Handoff">Handoff</b></button>
-        <button class="nav-item" data-page="schedule"><span>□</span><b data-i18n="Schedule">Schedule</b></button>
-        <button class="nav-item" data-page="business"><span>↗</span><b data-i18n="Business">Business</b></button>
-      </nav>
-      <div class="sidebar-foot">
-        <button class="nav-item" data-page="settings"><span>⚙</span><b data-i18n="Settings">Settings</b></button>
-        <div class="user-chip"><div class="avatar human">AS</div><div><strong>Adine-Sophie</strong><small>Le Bus des Toutous</small></div></div>
-      </div>
+    <aside class="sidebar" aria-label="Navigation principale">
+      <a class="brand" href="#dashboard" data-route="dashboard" aria-label="Le Bus des Toutous — Accueil"><span class="brand-word">LE BUS DES TOUTOUS<span>.</span></span><small>AVEC ADINE-SOPHIE</small></a>
+      <nav id="main-nav" aria-label="Votre espace"><button class="nav-item active" data-page="dashboard"><b data-i18n="Home">Accueil</b><span class="nav-arrow" aria-hidden="true">↗</span></button><button class="nav-item" data-page="dogs"><b data-i18n="Dogs">Dogs</b><span class="nav-arrow" aria-hidden="true">↗</span></button><button class="nav-item" data-page="capture"><b data-i18n="Capture">Capture</b><span class="nav-arrow" aria-hidden="true">↗</span></button><button class="nav-item" data-page="handoff"><b data-i18n="Handoff">Handoff</b><span class="nav-arrow" aria-hidden="true">↗</span></button><button class="nav-item" data-page="gallery"><b data-i18n="Gallery">Gallery</b><span class="nav-arrow" aria-hidden="true">↗</span></button><button class="more-toggle" popovertarget="more-nav"><b data-i18n="All sections">Tout l’espace</b><span aria-hidden="true">＋</span></button></nav>
+      <div id="more-nav" class="more-nav" popover><header><p class="menu-title" data-i18n="Your workspace">Votre espace</p><button popovertarget="more-nav" popovertargetaction="hide" aria-label="Fermer le menu">×</button></header><nav aria-label="Autres rubriques"><button class="nav-item muse-nav" data-page="assistant" popovertarget="more-nav" popovertargetaction="hide"><b data-i18n="Muse assistant">Muse assistant</b><span class="nav-arrow" aria-hidden="true">↗</span></button><button class="nav-item" data-page="story" popovertarget="more-nav" popovertargetaction="hide"><b data-i18n="Daily story">Daily story</b><span class="nav-arrow" aria-hidden="true">↗</span></button><button class="nav-item" data-page="invite" popovertarget="more-nav" popovertargetaction="hide"><b data-i18n="Invite">Invite</b><span class="nav-arrow" aria-hidden="true">↗</span></button><button class="nav-item" data-page="schedule" popovertarget="more-nav" popovertargetaction="hide"><b data-i18n="Schedule">Schedule</b><span class="nav-arrow" aria-hidden="true">↗</span></button><button class="nav-item" data-page="business" popovertarget="more-nav" popovertargetaction="hide"><b data-i18n="Business">Business</b><span class="nav-arrow" aria-hidden="true">↗</span></button><button class="nav-item" data-page="settings" popovertarget="more-nav" popovertargetaction="hide"><b data-i18n="Settings">Settings</b><span class="nav-arrow" aria-hidden="true">↗</span></button></nav></div>
     </aside>
-
     <main>
-      <header class="topbar">
-        <button class="mobile-menu" id="mobile-menu" aria-label="Open navigation">☰</button>
-        <div><p class="eyebrow" id="page-eyebrow">SUNDAY · 12 JULY</p><h1 id="page-title">Good morning, Adine-Sophie</h1></div>
-        <div class="top-actions"><button class="secondary compact" data-go="invite" data-i18n="Invite">Invite</button><select id="language-picker" aria-label="Language"><option value="en">EN</option><option value="fr">FR</option><option value="it">IT</option><option value="de">DE</option><option value="es">ES</option></select><span class="status-pill"><i></i> <span data-i18n="All systems calm">All systems calm</span></span><button class="icon-button" aria-label="Notifications">♢<b>2</b></button><button class="primary compact" data-go="capture">＋ <span data-i18n="Capture update">Capture update</span></button></div>
-      </header>
-      <section id="app-content" class="content" aria-live="polite"></section>
+      <header class="topbar"><div><p class="eyebrow" id="page-eyebrow">LE BUS DES TOUTOUS</p><h1 id="page-title" tabindex="-1">Bonjour, Adine-Sophie.</h1></div><div class="top-actions"><select id="language-picker" aria-label="Langue"><option value="fr" selected>FR</option><option value="en">EN</option><option value="it">IT</option><option value="de">DE</option><option value="es">ES</option></select><button class="primary compact" data-go="capture">＋ <span data-i18n="Capture update">Ajouter une note</span></button></div></header>
+      <section id="app-content" class="content" tabindex="-1" aria-live="polite"></section>
     </main>
   </div>
   <div id="toast" class="toast" role="status"></div>

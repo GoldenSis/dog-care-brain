@@ -754,6 +754,429 @@ function storageCopy(browserCopy, accountCopy = ACCOUNT_STORAGE) {
 }
 // Voice (mic + speech-to-text) needs a real http(s)/localhost origin. NOTE: file:// reports
 // isSecureContext=true yet its origin is rejected by the mic/speech service — so guard it explicitly.
+// Copy for the orange care workspace.
+Object.assign(translations.fr, {
+  "Capture a moment": "Noter un moment",
+  "Write or dictate, then review.": "Écrivez ou dictez, puis relisez.",
+  "Prepare the handoff": "Préparer le relais",
+  "The details the next carer needs.": "Les détails utiles à la personne qui prend le relais.",
+  "Make their daily story": "Raconter leur journée",
+  "A personal recap to review.": "Un récit personnalisé à relire.",
+
+  "Your workspace": "Votre espace",
+  "Share & organise": "Partager et organiser",
+  "Today, at a glance.": "Le point sur la journée.",
+  "A little more time for what matters.": "Un peu plus de temps pour l’essentiel.",
+  "Private prototype": "Prototype privé",
+  "THE LITTLE THINGS MATTER": "CHAQUE PETITE ATTENTION COMPTE",
+  "Good care.": "Aux petits soins.",
+  "Lovely days.": "De belles journées.",
+  "The walks, the meals, the moments in between. Keep their story close.": "Les balades, les repas, les petits moments entre les deux. Gardez le fil de leur journée.",
+  "Add a care note": "Ajouter une note",
+  "Review handoff": "Vérifier le relais",
+  "WITH CARE": "AVEC ATTENTION",
+  "IN GOOD HANDS": "ENTRE DE BONNES MAINS",
+  "THE CARE LOG": "LE JOURNAL DE SOIN",
+  "MAKE ROOM FOR CARE": "DU TEMPS POUR PRENDRE SOIN",
+  "One thing at a time.": "Une chose à la fois.",
+  "A simple path from a little observation to a thoughtful handoff.": "D’une petite observation à un relais bien préparé, en toute simplicité.",
+  "A HAND WITH THE DETAILS": "UN COUP DE MAIN AU QUOTIDIEN",
+  "Ask Muse.": "Demandez à Muse.",
+  "Review the day or get ready for the next handoff.": "Faites le point sur la journée ou préparez le prochain relais.",
+  "Open care assistant": "Ouvrir l’assistant",
+  "A workspace to try with sample care records. Scheduling and business figures are previews.": "Un espace à essayer avec des exemples de dossiers. Le planning et les chiffres d’activité sont des aperçus.",
+  "Write naturally. Keep the details that matter.": "Écrivez simplement. Gardez les détails utiles.",
+  "Ate breakfast, enjoyed a walk, settled down for a nap…": "A pris son petit-déjeuner, profité d’une balade, puis fait une sieste…",
+  "SAMPLE BUSINESS · JULY": "EXEMPLE D’ACTIVITÉ · JUILLET",
+  "Sample figures · this is a business preview, not your accounts.": "Chiffres d’exemple · aperçu de l’activité, pas votre comptabilité.",
+  "Sample schedule · bookings are previews.": "Planning d’exemple · les réservations sont des aperçus.",
+  "SAMPLE SCHEDULE · 12–18 JULY": "PLANNING D’EXEMPLE · 12–18 JUILLET",
+  "Skip to content": "Aller au contenu",
+  "YOUR CARE WORKSPACE": "VOTRE ESPACE DE SOIN",
+  "Care notes, stories & handoffs. All together.": "Notes de soin, récits et relais. Tout au même endroit.",
+  "Open care record": "Ouvrir le carnet de soin",
+  "From Billie’s care log": "Dans le carnet de Billie",
+  "View care timeline": "Voir le carnet"
+});
+Object.assign(translations.it, {
+  "Capture a moment": "Annota un momento",
+  "Write or dictate, then review.": "Scrivi o detta, poi rileggi.",
+  "Prepare the handoff": "Prepara il passaggio di consegne",
+  "The details the next carer needs.": "I dettagli utili a chi se ne prenderà cura dopo.",
+  "Make their daily story": "Racconta la loro giornata",
+  "A personal recap to review.": "Un riepilogo personale da rileggere.",
+
+  "Your workspace": "Il tuo spazio",
+  "Share & organise": "Condividi e organizza",
+  "Today, at a glance.": "La giornata, a colpo d’occhio.",
+  "A little more time for what matters.": "Un po’ più di tempo per ciò che conta.",
+  "Private prototype": "Prototipo privato",
+  "THE LITTLE THINGS MATTER": "LE PICCOLE COSE CONTANO",
+  "Good care.": "Cure attente.",
+  "Lovely days.": "Belle giornate.",
+  "The walks, the meals, the moments in between. Keep their story close.": "Le passeggiate, i pasti, i piccoli momenti nel mezzo. Tieni a portata di mano la loro storia.",
+  "Add a care note": "Aggiungi una nota",
+  "Review handoff": "Rivedi il passaggio di consegne",
+  "WITH CARE": "CON CURA",
+  "IN GOOD HANDS": "IN BUONE MANI",
+  "THE CARE LOG": "IL DIARIO DI CURA",
+  "MAKE ROOM FOR CARE": "FAI SPAZIO ALLA CURA",
+  "One thing at a time.": "Una cosa alla volta.",
+  "A simple path from a little observation to a thoughtful handoff.": "Da una piccola osservazione a un passaggio di consegne curato, con semplicità.",
+  "A HAND WITH THE DETAILS": "UN AIUTO CON I DETTAGLI",
+  "Ask Muse.": "Chiedi a Muse.",
+  "Review the day or get ready for the next handoff.": "Ripercorri la giornata o prepara il prossimo passaggio di consegne.",
+  "Open care assistant": "Apri l’assistente",
+  "A workspace to try with sample care records. Scheduling and business figures are previews.": "Uno spazio da provare con schede di esempio. Il calendario e i dati dell’attività sono anteprime.",
+  "Write naturally. Keep the details that matter.": "Scrivi con naturalezza. Conserva i dettagli che contano.",
+  "Ate breakfast, enjoyed a walk, settled down for a nap…": "Ha fatto colazione, si è goduto una passeggiata, poi un pisolino…",
+  "SAMPLE BUSINESS · JULY": "ATTIVITÀ DI ESEMPIO · LUGLIO",
+  "Sample figures · this is a business preview, not your accounts.": "Cifre di esempio · un’anteprima dell’attività, non la tua contabilità.",
+  "Sample schedule · bookings are previews.": "Calendario di esempio · le prenotazioni sono anteprime.",
+  "SAMPLE SCHEDULE · 12–18 JULY": "CALENDARIO DI ESEMPIO · 12–18 LUGLIO",
+  "Skip to content": "Vai al contenuto",
+  "YOUR CARE WORKSPACE": "IL TUO SPAZIO DI CURA",
+  "Care notes, stories & handoffs. All together.": "Note di cura, racconti e consegne. Tutto insieme.",
+  "Open care record": "Apri il diario di cura",
+  "From Billie’s care log": "Dal diario di Billie",
+  "View care timeline": "Vedi la cronologia"
+});
+Object.assign(translations.de, {
+  "Capture a moment": "Einen Moment festhalten",
+  "Write or dictate, then review.": "Schreiben oder diktieren, dann prüfen.",
+  "Prepare the handoff": "Übergabe vorbereiten",
+  "The details the next carer needs.": "Die Details für die nächste Betreuungsperson.",
+  "Make their daily story": "Ihren Tagesbericht erstellen",
+  "A personal recap to review.": "Ein persönlicher Rückblick zum Prüfen.",
+
+  "Your workspace": "Dein Bereich",
+  "Share & organise": "Teilen und organisieren",
+  "Today, at a glance.": "Dein Tag auf einen Blick.",
+  "A little more time for what matters.": "Etwas mehr Zeit für das, was zählt.",
+  "Private prototype": "Privater Prototyp",
+  "THE LITTLE THINGS MATTER": "DIE KLEINEN DINGE ZÄHLEN",
+  "Good care.": "Gut umsorgt.",
+  "Lovely days.": "Schöne Tage.",
+  "The walks, the meals, the moments in between. Keep their story close.": "Spaziergänge, Mahlzeiten und die kleinen Momente dazwischen. Behalte ihre Geschichte im Blick.",
+  "Add a care note": "Betreuungsnotiz hinzufügen",
+  "Review handoff": "Übergabe prüfen",
+  "WITH CARE": "MIT FÜRSORGE",
+  "IN GOOD HANDS": "IN GUTEN HÄNDEN",
+  "THE CARE LOG": "DAS BETREUUNGSTAGEBUCH",
+  "MAKE ROOM FOR CARE": "ZEIT FÜR FÜRSORGE",
+  "One thing at a time.": "Eins nach dem anderen.",
+  "A simple path from a little observation to a thoughtful handoff.": "Von einer kleinen Beobachtung zu einer gut vorbereiteten Übergabe, Schritt für Schritt.",
+  "A HAND WITH THE DETAILS": "EINE HILFE BEI DEN DETAILS",
+  "Ask Muse.": "Frag Muse.",
+  "Review the day or get ready for the next handoff.": "Lass den Tag Revue passieren oder bereite die nächste Übergabe vor.",
+  "Open care assistant": "Betreuungsassistent öffnen",
+  "A workspace to try with sample care records. Scheduling and business figures are previews.": "Ein Bereich zum Ausprobieren mit Beispielakten. Terminplanung und Geschäftszahlen sind Vorschauen.",
+  "Write naturally. Keep the details that matter.": "Schreib ganz natürlich. Halte die wichtigen Details fest.",
+  "Ate breakfast, enjoyed a walk, settled down for a nap…": "Hat gefrühstückt, einen Spaziergang genossen und sich für ein Nickerchen hingelegt…",
+  "SAMPLE BUSINESS · JULY": "BEISPIELGESCHÄFT · JULI",
+  "Sample figures · this is a business preview, not your accounts.": "Beispielzahlen · eine Geschäftsvorschau, nicht deine Buchhaltung.",
+  "Sample schedule · bookings are previews.": "Beispielplan · die Buchungen sind Vorschauen.",
+  "SAMPLE SCHEDULE · 12–18 JULY": "BEISPIELPLAN · 12.–18. JULI",
+  "Skip to content": "Zum Inhalt springen",
+  "YOUR CARE WORKSPACE": "DEIN BETREUUNGSBEREICH",
+  "Care notes, stories & handoffs. All together.": "Pflegenotizen, Tagesberichte und Übergaben. Alles an einem Ort.",
+  "Open care record": "Pflegeakte öffnen",
+  "From Billie’s care log": "Aus Billies Pflegetagebuch",
+  "View care timeline": "Pflegeverlauf ansehen"
+});
+Object.assign(translations.es, {
+  "Capture a moment": "Anotar un momento",
+  "Write or dictate, then review.": "Escribe o dicta y después revisa.",
+  "Prepare the handoff": "Preparar el relevo",
+  "The details the next carer needs.": "Los detalles que necesita quien tome el relevo.",
+  "Make their daily story": "Contar su día",
+  "A personal recap to review.": "Un resumen personal para revisar.",
+
+  "Your workspace": "Tu espacio",
+  "Share & organise": "Compartir y organizar",
+  "Today, at a glance.": "Tu día, de un vistazo.",
+  "A little more time for what matters.": "Un poco más de tiempo para lo que importa.",
+  "Private prototype": "Prototipo privado",
+  "THE LITTLE THINGS MATTER": "LOS PEQUEÑOS DETALLES CUENTAN",
+  "Good care.": "Cuidados con cariño.",
+  "Lovely days.": "Días felices.",
+  "The walks, the meals, the moments in between. Keep their story close.": "Los paseos, las comidas y los momentos entre medias. Ten su historia siempre a mano.",
+  "Add a care note": "Añadir una nota de cuidado",
+  "Review handoff": "Revisar el relevo",
+  "WITH CARE": "CON CARIÑO",
+  "IN GOOD HANDS": "EN BUENAS MANOS",
+  "THE CARE LOG": "EL DIARIO DE CUIDADO",
+  "MAKE ROOM FOR CARE": "HAZ SITIO PARA CUIDAR",
+  "One thing at a time.": "Una cosa a la vez.",
+  "A simple path from a little observation to a thoughtful handoff.": "De una pequeña observación a un relevo bien preparado, paso a paso.",
+  "A HAND WITH THE DETAILS": "UNA MANO CON LOS DETALLES",
+  "Ask Muse.": "Pregunta a Muse.",
+  "Review the day or get ready for the next handoff.": "Repasa el día o prepara el próximo relevo.",
+  "Open care assistant": "Abrir el asistente",
+  "A workspace to try with sample care records. Scheduling and business figures are previews.": "Un espacio para probar con registros de ejemplo. La agenda y las cifras del negocio son vistas previas.",
+  "Write naturally. Keep the details that matter.": "Escribe con naturalidad. Guarda los detalles que importan.",
+  "Ate breakfast, enjoyed a walk, settled down for a nap…": "Ha desayunado, disfrutado de un paseo y se ha echado una siesta…",
+  "SAMPLE BUSINESS · JULY": "NEGOCIO DE EJEMPLO · JULIO",
+  "Sample figures · this is a business preview, not your accounts.": "Cifras de ejemplo · una vista previa del negocio, no tu contabilidad.",
+  "Sample schedule · bookings are previews.": "Agenda de ejemplo · las reservas son vistas previas.",
+  "SAMPLE SCHEDULE · 12–18 JULY": "AGENDA DE EJEMPLO · 12–18 DE JULIO",
+  "Skip to content": "Ir al contenido",
+  "YOUR CARE WORKSPACE": "TU ESPACIO DE CUIDADO",
+  "Care notes, stories & handoffs. All together.": "Notas de cuidado, historias y relevos. Todo junto.",
+  "Open care record": "Abrir el registro de cuidados",
+  "From Billie’s care log": "Del diario de Billie",
+  "View care timeline": "Ver la cronología"
+});
+
+// Outdoor photography presentation copy.
+Object.assign(translations.fr, {
+  "Life is better": "La vie est plus belle",
+  "out there.": "dehors.",
+  "Fresh air. Good company. A day worth remembering.": "Du grand air. Bien entourés. Une journée à garder en mémoire.",
+  "OUTSIDE, TOGETHER": "DEHORS, ENSEMBLE",
+  "Your day with the dogs": "Votre journée avec les chiens",
+  "THE PACK": "LA MEUTE",
+  "Their stories, close by.": "Leurs histoires, à portée de main.",
+  "A walk. A pause. A good day.": "Une balade. Une pause. Une belle journée.",
+  "Room to roam.": "De l’espace pour explorer.",
+  "A little fresh air goes a long way.": "Un peu de grand air fait du bien.",
+  "See the photo journal": "Voir le journal en images",
+  "OUTDOOR JOURNAL": "LE JOURNAL AU GRAND AIR",
+  "Real moments. Good company.": "Des moments vrais. Bien entourés.",
+  "Photo journal": "Journal en images",
+  "Outdoor inspiration and photographs from the travel archive.": "Inspirations au grand air et photos tirées des archives de voyage.",
+  "Woodland companions": "Compagnons de forêt",
+  "On the trail": "Sur le sentier",
+  "Leashes on. Let’s go.": "Laisses en main. C’est parti.",
+  "A quiet moment in the pines": "Un moment calme dans les pins",
+  "A walk under the blossoms": "Une balade sous les arbres en fleurs",
+  "Room for a little adventure": "Place à une petite aventure",
+  "Illustrative photography": "Photo d’illustration",
+  "From the travel archive": "Tiré des archives de voyage",
+  "Photo to add": "Photo à ajouter",
+  "Care, ready when you need it.": "Les soins, à portée de main.",
+  "Capture a moment. Keep the day close.": "Notez un moment. Gardez le fil de la journée.",
+  "A note, a story, a smooth handoff.": "Une note, un récit, un relais tout simple.",
+  "Photo credits": "Crédits photo"
+});
+Object.assign(translations.it, {
+  "Life is better": "La vita è più bella",
+  "out there.": "all’aperto.",
+  "Fresh air. Good company. A day worth remembering.": "Aria aperta. Buona compagnia. Una giornata da ricordare.",
+  "OUTSIDE, TOGETHER": "FUORI, INSIEME",
+  "Your day with the dogs": "La tua giornata con i cani",
+  "THE PACK": "IL BRANCO",
+  "Their stories, close by.": "Le loro storie, sempre vicine.",
+  "A walk. A pause. A good day.": "Una passeggiata. Una pausa. Una bella giornata.",
+  "Room to roam.": "Spazio per esplorare.",
+  "A little fresh air goes a long way.": "Un po’ d’aria aperta fa bene.",
+  "See the photo journal": "Guarda il diario fotografico",
+  "OUTDOOR JOURNAL": "DIARIO ALL’APERTO",
+  "Real moments. Good company.": "Momenti veri. Buona compagnia.",
+  "Photo journal": "Diario fotografico",
+  "Outdoor inspiration and photographs from the travel archive.": "Ispirazioni all’aperto e fotografie dall’archivio di viaggio.",
+  "Woodland companions": "Compagni nel bosco",
+  "On the trail": "Sul sentiero",
+  "Leashes on. Let’s go.": "Guinzagli pronti. Si parte.",
+  "A quiet moment in the pines": "Un momento di quiete tra i pini",
+  "A walk under the blossoms": "Una passeggiata sotto i rami in fiore",
+  "Room for a little adventure": "Spazio per una piccola avventura",
+  "Illustrative photography": "Foto illustrativa",
+  "From the travel archive": "Dall’archivio di viaggio",
+  "Photo to add": "Foto da aggiungere",
+  "Care, ready when you need it.": "La cura, a portata di mano.",
+  "Capture a moment. Keep the day close.": "Annota un momento. Conserva il ricordo della giornata.",
+  "A note, a story, a smooth handoff.": "Una nota, un racconto, un passaggio di consegne semplice.",
+  "Photo credits": "Crediti fotografici"
+});
+Object.assign(translations.de, {
+  "Life is better": "Das Leben ist schöner",
+  "out there.": "draußen.",
+  "Fresh air. Good company. A day worth remembering.": "Frische Luft. Gute Gesellschaft. Ein Tag, der in Erinnerung bleibt.",
+  "OUTSIDE, TOGETHER": "GEMEINSAM DRAUSSEN",
+  "Your day with the dogs": "Dein Tag mit den Hunden",
+  "THE PACK": "DAS RUDEL",
+  "Their stories, close by.": "Ihre Geschichten, immer dabei.",
+  "A walk. A pause. A good day.": "Ein Spaziergang. Eine Pause. Ein guter Tag.",
+  "Room to roam.": "Platz zum Entdecken.",
+  "A little fresh air goes a long way.": "Ein wenig frische Luft tut gut.",
+  "See the photo journal": "Fototagebuch ansehen",
+  "OUTDOOR JOURNAL": "DRAUSSEN UNTERWEGS",
+  "Real moments. Good company.": "Echte Momente. Gute Gesellschaft.",
+  "Photo journal": "Fototagebuch",
+  "Outdoor inspiration and photographs from the travel archive.": "Inspiration für draußen und Fotos aus dem Reisearchiv.",
+  "Woodland companions": "Waldgefährten",
+  "On the trail": "Auf dem Wanderweg",
+  "Leashes on. Let’s go.": "Leinen dran. Los geht’s.",
+  "A quiet moment in the pines": "Ein ruhiger Moment unter Kiefern",
+  "A walk under the blossoms": "Ein Spaziergang unter Blüten",
+  "Room for a little adventure": "Raum für ein kleines Abenteuer",
+  "Illustrative photography": "Symbolfoto",
+  "From the travel archive": "Aus dem Reisearchiv",
+  "Photo to add": "Foto fehlt noch",
+  "Care, ready when you need it.": "Betreuung, jederzeit zur Hand.",
+  "Capture a moment. Keep the day close.": "Halte einen Moment fest. Behalte den Tag im Blick.",
+  "A note, a story, a smooth handoff.": "Eine Notiz, eine Geschichte, eine reibungslose Übergabe.",
+  "Photo credits": "Bildnachweise"
+});
+Object.assign(translations.es, {
+  "Life is better": "La vida es mejor",
+  "out there.": "al aire libre.",
+  "Fresh air. Good company. A day worth remembering.": "Aire fresco. Buena compañía. Un día para recordar.",
+  "OUTSIDE, TOGETHER": "FUERA, JUNTOS",
+  "Your day with the dogs": "Tu día con los perros",
+  "THE PACK": "LA MANADA",
+  "Their stories, close by.": "Sus historias, siempre cerca.",
+  "A walk. A pause. A good day.": "Un paseo. Una pausa. Un buen día.",
+  "Room to roam.": "Espacio para explorar.",
+  "A little fresh air goes a long way.": "Un poco de aire fresco sienta bien.",
+  "See the photo journal": "Ver el diario de fotos",
+  "OUTDOOR JOURNAL": "DIARIO AL AIRE LIBRE",
+  "Real moments. Good company.": "Momentos reales. Buena compañía.",
+  "Photo journal": "Diario de fotos",
+  "Outdoor inspiration and photographs from the travel archive.": "Inspiración al aire libre y fotografías del archivo de viajes.",
+  "Woodland companions": "Compañeros del bosque",
+  "On the trail": "Por el sendero",
+  "Leashes on. Let’s go.": "Correas puestas. Vámonos.",
+  "A quiet moment in the pines": "Un momento de calma entre pinos",
+  "A walk under the blossoms": "Un paseo bajo los árboles en flor",
+  "Room for a little adventure": "Sitio para una pequeña aventura",
+  "Illustrative photography": "Foto ilustrativa",
+  "From the travel archive": "Del archivo de viajes",
+  "Photo to add": "Foto por añadir",
+  "Care, ready when you need it.": "El cuidado, siempre a mano.",
+  "Capture a moment. Keep the day close.": "Anota un momento. Ten el día presente.",
+  "A note, a story, a smooth handoff.": "Una nota, un relato, un relevo sencillo.",
+  "Photo credits": "Créditos de fotos"
+});
+
+Object.assign(translations.fr, {"A walker and two dogs on leashes in sunlit woodland.": "Une personne et deux chiens en laisse dans une forêt ensoleillée.", "View photo journal": "Voir le journal en images", "Profile photograph from the archive": "Photo de profil tirée des archives", "Daily story · Sample layout": "Récit du jour · Exemple de présentation"});
+Object.assign(translations.it, {"A walker and two dogs on leashes in sunlit woodland.": "Una persona e due cani al guinzaglio in un bosco soleggiato.", "View photo journal": "Guarda il diario fotografico", "Profile photograph from the archive": "Foto del profilo dall’archivio", "Daily story · Sample layout": "Racconto del giorno · Esempio di impaginazione"});
+Object.assign(translations.de, {"A walker and two dogs on leashes in sunlit woodland.": "Eine Person mit zwei angeleinten Hunden im sonnigen Wald.", "View photo journal": "Fototagebuch ansehen", "Profile photograph from the archive": "Profilfoto aus dem Archiv", "Daily story · Sample layout": "Tagesgeschichte · Beispiellayout"});
+Object.assign(translations.es, {"A walker and two dogs on leashes in sunlit woodland.": "Una persona con dos perros con correa en un bosque soleado.", "View photo journal": "Ver el diario de fotos", "Profile photograph from the archive": "Foto de perfil del archivo", "Daily story · Sample layout": "Relato del día · Ejemplo de presentación"});
+
+// Adine-Sophie’s own media and presentation copy.
+Object.assign(translations.fr, {
+  "The bus.": "Le bus.",
+  "The woods.": "La forêt.",
+  "The whole pack.": "Toute la meute.",
+  "From the doorstep to the forest, with Adine-Sophie.": "De la porte de chez vous à la forêt, avec Adine-Sophie.",
+  "A day with Adine-Sophie": "Une journée avec Adine-Sophie",
+  "From her own camera": "À travers son objectif",
+  "The days behind the care.": "Le quotidien, aux petits soins.",
+  "Leashes ready. Everyone aboard.": "Laisses prêtes. Tout le monde à bord.",
+  "A walk with the pack": "Une balade avec la meute",
+  "A home full of company": "Une maison pleine de vie",
+  "Life at Le Bus des Toutous": "Le Bus des Toutous au quotidien",
+  "Watch the original reel": "Voir le reel original",
+  "See her Instagram": "Voir son Instagram",
+  "A glimpse of their world.": "Un aperçu de leur monde.",
+  "Photos and films from @bus_destoutous.": "Photos et vidéos de @bus_destoutous.",
+  "From Adine-Sophie’s Instagram": "Sur l’Instagram d’Adine-Sophie",
+  "Every dog has a story.": "Chaque chien a son histoire.",
+  "Open their care records": "Ouvrir leurs dossiers de soin",
+  "All aboard": "Tout le monde à bord",
+  "Out in the woods": "En pleine forêt",
+  "Back at home": "De retour à la maison",
+  "Photo and video sources": "Sources des photos et vidéos",
+  "A walk, a little company, a lot of care.": "Une balade, de la compagnie, beaucoup d’attention.",
+  "FROM HER OWN CAMERA": "SON QUOTIDIEN EN IMAGES",
+  "Adine-Sophie preparing a dog’s leash before a walk.": "Adine-Sophie prépare la laisse d’un chien avant la balade.",
+  "Dogs following a sunlit trail through the woods.": "Les chiens suivent un sentier ensoleillé dans la forêt.",
+  "Adine-Sophie preparing the bus for the dogs.": "Adine-Sophie prépare le bus pour les chiens.",
+  "Adine-Sophie and the dogs in a sunny clearing.": "Adine-Sophie et les chiens dans une clairière ensoleillée."
+});
+Object.assign(translations.it, {
+  "The bus.": "Il bus.",
+  "The woods.": "Il bosco.",
+  "The whole pack.": "Tutto il branco.",
+  "From the doorstep to the forest, with Adine-Sophie.": "Da casa al bosco, con Adine-Sophie.",
+  "A day with Adine-Sophie": "Una giornata con Adine-Sophie",
+  "From her own camera": "Attraverso il suo obiettivo",
+  "The days behind the care.": "La cura, giorno dopo giorno.",
+  "Leashes ready. Everyone aboard.": "Guinzagli pronti. Tutti a bordo.",
+  "A walk with the pack": "Una passeggiata con il branco",
+  "A home full of company": "Una casa piena di compagnia",
+  "Life at Le Bus des Toutous": "La vita a Le Bus des Toutous",
+  "Watch the original reel": "Guarda il reel originale",
+  "See her Instagram": "Visita il suo Instagram",
+  "A glimpse of their world.": "Uno sguardo al loro mondo.",
+  "Photos and films from @bus_destoutous.": "Foto e video di @bus_destoutous.",
+  "From Adine-Sophie’s Instagram": "Dall’Instagram di Adine-Sophie",
+  "Every dog has a story.": "Ogni cane ha una storia.",
+  "Open their care records": "Apri le loro schede di cura",
+  "All aboard": "Tutti a bordo",
+  "Out in the woods": "Nel bosco",
+  "Back at home": "Di nuovo a casa",
+  "Photo and video sources": "Fonti di foto e video",
+  "A walk, a little company, a lot of care.": "Una passeggiata, un po’ di compagnia, tanta cura.",
+  "FROM HER OWN CAMERA": "DAL SUO OBIETTIVO",
+  "Adine-Sophie preparing a dog’s leash before a walk.": "Adine-Sophie prepara il guinzaglio di un cane prima della passeggiata.",
+  "Dogs following a sunlit trail through the woods.": "I cani seguono un sentiero soleggiato nel bosco.",
+  "Adine-Sophie preparing the bus for the dogs.": "Adine-Sophie prepara il bus per i cani.",
+  "Adine-Sophie and the dogs in a sunny clearing.": "Adine-Sophie e i cani in una radura soleggiata."
+});
+Object.assign(translations.de, {
+  "The bus.": "Der Bus.",
+  "The woods.": "Der Wald.",
+  "The whole pack.": "Das ganze Rudel.",
+  "From the doorstep to the forest, with Adine-Sophie.": "Von der Haustür in den Wald, mit Adine-Sophie.",
+  "A day with Adine-Sophie": "Ein Tag mit Adine-Sophie",
+  "From her own camera": "Durch ihre Kamera",
+  "The days behind the care.": "Fürsorge, Tag für Tag.",
+  "Leashes ready. Everyone aboard.": "Leinen bereit. Alle einsteigen.",
+  "A walk with the pack": "Ein Spaziergang mit dem Rudel",
+  "A home full of company": "Zu Hause in bester Gesellschaft",
+  "Life at Le Bus des Toutous": "Der Alltag bei Le Bus des Toutous",
+  "Watch the original reel": "Original-Reel ansehen",
+  "See her Instagram": "Ihr Instagram ansehen",
+  "A glimpse of their world.": "Ein Einblick in ihre Welt.",
+  "Photos and films from @bus_destoutous.": "Fotos und Videos von @bus_destoutous.",
+  "From Adine-Sophie’s Instagram": "Vom Instagram-Konto von Adine-Sophie",
+  "Every dog has a story.": "Jeder Hund hat eine Geschichte.",
+  "Open their care records": "Ihre Betreuungsakten öffnen",
+  "All aboard": "Alle einsteigen",
+  "Out in the woods": "Draußen im Wald",
+  "Back at home": "Wieder zu Hause",
+  "Photo and video sources": "Foto- und Videoquellen",
+  "A walk, a little company, a lot of care.": "Ein Spaziergang, etwas Gesellschaft, viel Fürsorge.",
+  "FROM HER OWN CAMERA": "AUS IHRER KAMERA",
+  "Adine-Sophie preparing a dog’s leash before a walk.": "Adine-Sophie bereitet die Leine eines Hundes für den Spaziergang vor.",
+  "Dogs following a sunlit trail through the woods.": "Hunde folgen einem sonnigen Waldweg.",
+  "Adine-Sophie preparing the bus for the dogs.": "Adine-Sophie bereitet den Bus für die Hunde vor.",
+  "Adine-Sophie and the dogs in a sunny clearing.": "Adine-Sophie und die Hunde auf einer sonnigen Lichtung."
+});
+Object.assign(translations.es, {
+  "The bus.": "El bus.",
+  "The woods.": "El bosque.",
+  "The whole pack.": "Toda la manada.",
+  "From the doorstep to the forest, with Adine-Sophie.": "De casa al bosque, con Adine-Sophie.",
+  "A day with Adine-Sophie": "Un día con Adine-Sophie",
+  "From her own camera": "A través de su cámara",
+  "The days behind the care.": "El cuidado, día a día.",
+  "Leashes ready. Everyone aboard.": "Correas listas. Todos a bordo.",
+  "A walk with the pack": "Un paseo con la manada",
+  "A home full of company": "Una casa llena de compañía",
+  "Life at Le Bus des Toutous": "La vida en Le Bus des Toutous",
+  "Watch the original reel": "Ver el reel original",
+  "See her Instagram": "Ver su Instagram",
+  "A glimpse of their world.": "Un vistazo a su mundo.",
+  "Photos and films from @bus_destoutous.": "Fotos y vídeos de @bus_destoutous.",
+  "From Adine-Sophie’s Instagram": "Del Instagram de Adine-Sophie",
+  "Every dog has a story.": "Cada perro tiene su historia.",
+  "Open their care records": "Abrir sus registros de cuidado",
+  "All aboard": "Todos a bordo",
+  "Out in the woods": "En el bosque",
+  "Back at home": "De vuelta en casa",
+  "Photo and video sources": "Fuentes de fotos y vídeos",
+  "A walk, a little company, a lot of care.": "Un paseo, un poco de compañía, mucho cariño.",
+  "FROM HER OWN CAMERA": "DESDE SU CÁMARA",
+  "Adine-Sophie preparing a dog’s leash before a walk.": "Adine-Sophie prepara la correa de un perro antes del paseo.",
+  "Dogs following a sunlit trail through the woods.": "Los perros siguen un sendero soleado por el bosque.",
+  "Adine-Sophie preparing the bus for the dogs.": "Adine-Sophie prepara el bus para los perros.",
+  "Adine-Sophie and the dogs in a sunny clearing.": "Adine-Sophie y los perros en un claro soleado."
+});
+
 const VOICE_NEEDS_HTTP = 'Voice features need the app opened over http://localhost — a file:// path blocks the microphone. See the README.';
 Object.assign(translations.fr, { [VOICE_NEEDS_HTTP]: 'Les fonctions vocales nécessitent d’ouvrir l’app via http://localhost — un chemin file:// bloque le microphone. Voir le README.' });
 Object.assign(translations.it, { [VOICE_NEEDS_HTTP]: 'Le funzioni vocali richiedono di aprire l’app su http://localhost — un percorso file:// blocca il microfono. Vedi il README.' });
@@ -764,7 +1187,7 @@ Object.assign(translations.it, { "Speech-to-text is not available in this browse
 Object.assign(translations.de, { "Speech-to-text is not available in this browser. Recording still saves an audio note; you can also type your update.": "Spracherkennung ist in diesem Browser nicht verfügbar. Die Aufnahme speichert trotzdem eine Audionotiz; du kannst deine Notiz auch tippen." });
 Object.assign(translations.es, { "Speech-to-text is not available in this browser. Recording still saves an audio note; you can also type your update.": "El reconocimiento de voz no está disponible en este navegador. La grabación guarda igualmente una nota de audio; también puedes escribir tu actualización." });
 
-let state = { page: 'dashboard', dog: 'billie', handoffAudience: 'carer', language: 'en', observations: window.DogCareAPI ? {billie:[],charlie:[]} : structuredClone(baseObservations), invites: [], assistantMessages: [] };
+let state = { page: 'dashboard', dog: 'billie', handoffAudience: 'carer', language: 'fr', observations: window.DogCareAPI ? {billie:[],charlie:[]} : structuredClone(baseObservations), invites: [], assistantMessages: [] };
 let audioDraft = null;
 let activeRecorder = null;
 let recordingTimer = null;
@@ -896,6 +1319,115 @@ Object.assign(assistantCopy.es,{noHealth:'Hoy no hay observaciones de salud que 
 assistantCopy.it.edition='ASSISTENTE DI CURA PRIVATO';
 assistantCopy.es.edition='ASISTENTE DE CUIDADOS PRIVADO';
 assistantCopy.de={...assistantCopy.en,edition:'PRIVATER PFLEGEASSISTENT',heroHeading:'Guten Morgen, Adine-Sophie.',heroText:'Billie Blue und Charlie Rose sind beide angemeldet. Ich habe ihren Pflegekontext und die nächsten Momente von heute für Sie zusammengestellt.',talk:'Mit Muse sprechen ✦',add:'Einen Pflegemoment hinzufügen',eyebrow:'PRIVATER ASSISTENT · LE BUS DES TOUTOUS',heading:'Muse · Ihr Pflegeassistent',introKicker:'MUSE FÜR ADINE-SOPHIE',introHeading:'Wie kann ich heute bei der Pflege helfen?',introText:'Fragen Sie ganz natürlich. Muse nutzt die Pflegedaten, die bereits in diesem privaten Prototyp vorliegen.',prompts:['Fass mir den heutigen Tag zusammen','Was braucht Aufmerksamkeit?','Übergabe an den Besitzer vorbereiten'],ask:'Muse fragen',placeholder:'Fragen Sie nach heute, einem Hund oder der nächsten Übergabe…',privacy:'Privater Prototyp · Ihre Frage und der Pflegeverlauf bleiben in diesem Browser. Muse kontaktiert keine Kunden oder externen Dienste.',quick:'SCHNELLAKTIONEN',keep:'Pflege am Laufen halten',you:'Sie',actions:[['Pflegenotiz hinzufügen','Sprechen, bearbeiten und bestätigen'],['Übergabe prüfen','Höhepunkte, Belege und nächste Pflege'],['Besitzer-Story ansehen','Vor dem Teilen prüfen']],briefing:(billie,charlie)=>`Guten Morgen, Adine-Sophie. Billie Blue hat heute ${billie} Pflegemomente erfasst und Charlie Rose ${charlie}. Beide sind angemeldet; Mittagessen und Ruhezeit sind als Nächstes um 12:30.`,noHealth:'Heute sind für Billie Blue oder Charlie Rose keine zu beobachtenden Gesundheitsnotizen erfasst. Das spiegelt nur das heutige Pflegeprotokoll wider und ist keine Diagnose. Beobachten Sie weiter und notieren Sie jede Veränderung sachlich.',health:(count,notes)=>`Ich habe ${count} sachliche Gesundheitsnotiz${count===1?'':'en'} gefunden: ${notes} Das ist Pflegekontext, keine Diagnose; beobachten Sie weiter und kontaktieren Sie bei Sorge den Besitzer oder einen Tierarzt.`,handoff:'Die Pflegeübergabe ist bereit zur Prüfung. Sie verknüpft jeden Höhepunkt mit seiner Quellbeobachtung und hält die Gesundheitsformulierung sachlich und nicht diagnostisch.',capture:'Ich kann Ihnen helfen, das zu erfassen. Öffnen Sie eine Pflegenotiz, sprechen Sie natürlich, stoppen Sie die Aufnahme, bearbeiten Sie den Text und bestätigen Sie ihn in die Chronik des Hundes.',fallback:'Ich kann den heutigen Tag zusammenfassen, erfasste Beobachtungen hervorheben, die Aufmerksamkeit brauchen könnten, eine Übergabe vorbereiten oder eine neue Pflegenotiz öffnen. Dieser Prototyp antwortet nur mit den Pflegeinformationen in diesem Browser.'};
+// Everyday wording for the French owner’s workspace.
+Object.assign(translations.fr, {
+  "Good company": "En bonne compagnie",
+  "Two dogs enjoying some company.": "Deux chiens profitent d’un moment ensemble.",
+  "Hello, Adine-Sophie.": "Bonjour, Adine-Sophie.",
+  "The dogs": "Les chiens",
+  "Sample workspace · care records to explore": "Espace de démonstration · dossiers d’exemple",
+  "Home": "Accueil",
+  "Muse assistant": "Muse",
+  "Capture": "Ajouter une note",
+  "Capture update": "Ajouter une note",
+  "Daily story": "Résumé du jour",
+  "Handoff": "Passer le relais",
+  "Business": "Activité",
+  "Gallery": "En images",
+  "Your workspace": "Votre espace",
+  "Share & organise": "Organisation",
+  "From Billie’s care log": "Les nouvelles de Billie",
+  "View profiles": "Tous les dossiers",
+  "View care timeline": "Voir le suivi",
+  "Prepare the handoff": "Préparer le relais",
+  "See the photo journal": "Voir les balades",
+  "Out in the woods": "Au grand air",
+  "Capture the moment": "Noter un moment",
+  "Start typing to see structured care tags": "Les catégories apparaissent pendant que vous écrivez",
+  "A clear handoff for whoever cares next": "Tout pour bien prendre le relais",
+  "Next carer": "Personne qui prend le relais",
+  "{name}'s care highlights": "L’essentiel pour {name}",
+  "Evidence for this handoff": "Les notes à consulter",
+  "Review owner story": "Relire le résumé pour le propriétaire"
+});
+Object.assign(translations.it, {
+  "Good company": "In buona compagnia",
+  "Two dogs enjoying some company.": "Due cani si godono un momento insieme.",
+  "Hello, Adine-Sophie.": "Ciao, Adine-Sophie.",
+  "Home": "Home",
+  "The dogs": "I cani",
+  "Sample workspace · care records to explore": "Spazio dimostrativo · schede di esempio"
+});
+Object.assign(translations.de, {
+  "Good company": "In guter Gesellschaft",
+  "Two dogs enjoying some company.": "Zwei Hunde genießen die Zeit zusammen.",
+  "Hello, Adine-Sophie.": "Hallo, Adine-Sophie.",
+  "Home": "Start",
+  "The dogs": "Die Hunde",
+  "Sample workspace · care records to explore": "Demo-Bereich · Beispielakten"
+});
+Object.assign(translations.es, {
+  "Good company": "En buena compañía",
+  "Two dogs enjoying some company.": "Dos perros disfrutan de un momento juntos.",
+  "Hello, Adine-Sophie.": "Hola, Adine-Sophie.",
+  "Home": "Inicio",
+  "The dogs": "Los perros",
+  "Sample workspace · care records to explore": "Espacio de demostración · fichas de ejemplo"
+});
+Object.assign(translations.fr, {
+  "Life with Le Bus des Toutous": "Le bonheur d’être ensemble",
+  "The dogs.": "Les chiens.",
+  "The fresh air.": "Le grand air.",
+  "The good life.": "La belle vie.",
+  "Every dog has a story.": "Les chiens",
+  "Care, ready when you need it.": "Pour la suite",
+  "A glimpse of their world.": "Du bus aux sentiers.",
+  "A walk, a little company, a lot of care.": "Des balades, des copains, de l’attention.",
+  "From the doorstep to the forest, with Adine-Sophie.": "De la maison aux chemins de forêt, avec Adine-Sophie.",
+  "Review handoff": "Préparer le relais"
+});
+Object.assign(translations.it, {
+  "Life with Le Bus des Toutous": "La gioia di stare insieme",
+  "The dogs.": "I cani.",
+  "The fresh air.": "L’aria aperta.",
+  "The good life.": "La bella vita."
+});
+Object.assign(translations.de, {
+  "Life with Le Bus des Toutous": "Gemeinsam unterwegs",
+  "The dogs.": "Die Hunde.",
+  "The fresh air.": "Die frische Luft.",
+  "The good life.": "Das gute Leben."
+});
+Object.assign(translations.es, {
+  "Life with Le Bus des Toutous": "La alegría de estar juntos",
+  "The dogs.": "Los perros.",
+  "The fresh air.": "El aire libre.",
+  "The good life.": "La buena vida."
+});
+Object.assign(translations.fr, {
+  "All sections": "Tout l’espace",
+  "A little care.": "Aux petits soins.",
+  "A lovely day.": "Toute la journée.",
+  "Adine-Sophie walking with the dogs in the woods.": "Adine-Sophie se promène avec les chiens en forêt."
+});
+Object.assign(translations.it, {
+  "All sections": "Tutte le sezioni",
+  "A little care.": "Con attenzione.",
+  "A lovely day.": "Una bella giornata.",
+  "Adine-Sophie walking with the dogs in the woods.": "Adine-Sophie passeggia con i cani nel bosco."
+});
+Object.assign(translations.de, {
+  "All sections": "Alle Bereiche",
+  "A little care.": "Gut versorgt.",
+  "A lovely day.": "Ein schöner Tag.",
+  "Adine-Sophie walking with the dogs in the woods.": "Adine-Sophie geht mit den Hunden durch den Wald."
+});
+Object.assign(translations.es, {
+  "All sections": "Todas las secciones",
+  "A little care.": "Con mucho cariño.",
+  "A lovely day.": "Un día estupendo.",
+  "Adine-Sophie walking with the dogs in the woods.": "Adine-Sophie pasea con los perros por el bosque."
+});
 function assistantText() { return assistantCopy[state.language] || assistantCopy.en; }
 let appReady = !window.DogCareAPI;
 let savePending = false;
@@ -945,7 +1477,7 @@ window.addEventListener('beforeunload', event => {
 });
 function escapeHtml(value) { return String(value).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
 function showToast(message) { const toast=document.querySelector('#toast'); toast.textContent=message; toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'),2500); }
-function dogAvatar(key) { const d=dogs[key]; return `<div class="dog-avatar ${d.colour}">${d.emoji}</div>`; }
+function dogAvatar(key) { const d=dogs[key]; return `<div class="dog-avatar ${d.colour}">${key==='billie'?`<img src="assets/photos/billie-pines.jpg" alt="Billie Blue" width="960" height="1280">`:`<span class="dog-initials" aria-hidden="true">CR</span><small>${t('Photo to add')}</small>`}</div>`; }
 function t(text) { return translations[state.language]?.[text] || text; }
 function tf(text, params) { let out = t(text); for (const key in params) out = out.split('{' + key + '}').join(params[key]); return out; }
 function translateTag(tag) {
@@ -1037,23 +1569,24 @@ function appendAssistantExchange(prompt,response) {
 
 const views = {
   dashboard() {
-    setHeader('SUNDAY · 12 JULY', 'Good morning, Adine-Sophie');
+    setHeader('LE BUS DES TOUTOUS', 'Hello, Adine-Sophie.');
     const latest = state.observations.billie[0] || {title:'No observations captured today yet. Add a care moment before handoff.',text:'',time:'',date:'',tags:[]},copy=assistantText();
-    return `<div class="grid dashboard-grid"><div>
-      <section class="card hero muse-hero"><span class="muse-edition">${copy.edition}</span><p class="eyebrow">${copy.heroKicker}</p><h2>${copy.heroHeading}</h2><p>${copy.heroText}</p><button class="primary" data-go="assistant">${copy.talk}</button><button class="hero-link" data-go="capture">${copy.add}</button></section>
-      <div class="section-head"><div><h2>${t('Your dogs today')}</h2><p>${t('Live care context, always close by')}</p></div><button class="link-button" data-go="dogs">${t('View profiles')}</button></div>
-      <div class="dog-row">${Object.entries(dogs).map(([key,d])=>`<article class="card dog-card" data-dog="${key}">${dogAvatar(key)}<div class="dog-meta"><h3>${d.name}</h3><p>${t(d.breed)} · ${d.owner}</p>${tagsHtml(key==='billie'?['Day care','All good']:['Day care','Settled'])}</div><span class="dog-arrow">›</span></article>`).join('')}</div>
-      <div class="section-head"><div><h2>${t('Latest from the care log')}</h2><p>${t('Your newest structured observation')}</p></div></div>
-      <article class="card timeline-card"><div class="timeline-top"><h4>${escapeHtml(t(latest.title))}</h4><time>${escapeHtml(latest.time)} · ${escapeHtml(t(latest.date))}</time></div><p>${escapeHtml(t(latest.text))}</p>${tagsHtml(latest.tags)}</article>
-    </div><aside>
-      <section class="card"><div class="section-head" style="margin-top:0"><div><h2>${t("Today's rhythm")}</h2><p>${t('3 of 5 moments complete')}</p></div></div><div class="today-list"><div class="booking"><time>08:00</time><div><h4>Billie · ${t('arrival')}</h4><p>${t('Day care until')} 17:30</p></div><i class="dot"></i></div><div class="booking"><time>09:00</time><div><h4>Charlie · ${t('arrival')}</h4><p>${t('Day care until')} 18:00</p></div><i class="dot"></i></div><div class="booking"><time>12:30</time><div><h4>${t('Lunch & quiet time')}</h4><p>${t('Both dogs')}</p></div><i class="dot peach"></i></div><div class="booking"><time>16:30</time><div><h4>${t('Owner stories')}</h4><p>${t('Prepare daily recaps')}</p></div><i class="dot peach"></i></div></div></section>
-      <section class="card" style="margin-top:20px"><div class="section-head" style="margin-top:0"><div><h2>${t('July pulse')}</h2><p>${t('Business snapshot')}</p></div></div><div class="kpi"><div><strong>€2,840</strong><small>${t('Revenue booked')}</small></div><div><strong>76%</strong><small>${t('Capacity filled')}</small></div></div><div class="progress"><span style="width:76%"></span></div><div class="notice"><strong>${t('Healthy momentum')}</strong>${t('You’re €340 ahead of this point last month.')}</div></section>
-    </aside></div>`;
-  },
-  assistant() {
+    return `<div class="care-club">
+      <section class="day-opening" aria-label="${t('Your day with the dogs')}">
+        <div class="day-scene"><div class="scene-copy"><span class="eyebrow">${t('Life with Le Bus des Toutous')}</span><h2>${t('The dogs.')}<br>${t('The fresh air.')}<br><em>${t('The good life.')}</em></h2><p>${t('From the doorstep to the forest, with Adine-Sophie.')}</p></div><figure class="scene-photo"><img src="assets/photos/good-company.jpg" alt="${t('Two dogs enjoying some company.')}" width="720" height="1280" fetchpriority="high"></figure><a class="scene-source" href="https://www.instagram.com/p/DYknTgAFPMo/" target="_blank" rel="noreferrer">@bus_destoutous <span aria-hidden="true">↗</span></a></div>
+        <div class="care-launchpad"><span class="eyebrow">${t('A HAND WITH THE DETAILS')}</span><h2>${t('A little care.')}<br>${t('A lovely day.')}</h2><div class="launch-actions">${[['capture','01','Add a care note','Write or dictate, then review.'],['handoff','02','Prepare the handoff','The details the next carer needs.'],['story','03','Daily story','A personal recap to review.']].map(([route,num,heading,detail])=>`<button data-go="${route}"><span class="action-index">${num}</span><span><strong>${t(heading)}</strong><small>${t(detail)}</small></span><span class="action-arrow" aria-hidden="true">↗</span></button>`).join('')}</div><p class="launch-foot">${t('A walk, a little company, a lot of care.')}</p></div>
+      </section>
+      <div class="club-care-grid">
+        <section class="club-dogs"><div class="section-head"><h2>${t('The dogs')}</h2><button class="link-button" data-go="dogs">${t('View profiles')} <span aria-hidden="true">↗</span></button></div><div class="dog-row">${Object.entries(dogs).map(([key,d])=>`<button class="card dog-card" data-dog="${key}">${dogAvatar(key)}<span class="dog-meta"><strong class="dog-name">${d.name}</strong><span class="dog-owner">${d.owner}</span><span class="dog-record-count">${t('Open care record')}</span></span><span class="dog-arrow" aria-hidden="true">↗</span></button>`).join('')}</div><p class="sample-note">${t('Sample workspace · care records to explore')}</p></section>
+        <section class="club-latest"><div class="section-head"><h2>${t('From Billie’s care log')}</h2><button class="link-button" data-dog="billie">${t('View care timeline')} <span aria-hidden="true">↗</span></button></div><div class="activity-list"><button class="activity-row" ${latest.id != null ? `data-evidence-id="${latest.id}" data-evidence-dog="billie"` : 'data-capture-dog="billie"'}><span class="activity-time">${escapeHtml(latest.time)}<small>${escapeHtml(t(latest.date))}</small></span><span class="activity-copy"><strong>${escapeHtml(t(latest.title))}</strong><span class="activity-preview">${escapeHtml(t(latest.text))}</span></span><span class="activity-arrow" aria-hidden="true">↗</span></button></div><button class="club-assistant" data-go="assistant"><span><strong>${t('Ask Muse.')}</strong><small>${t('Review the day or get ready for the next handoff.')}</small></span><span aria-hidden="true">↗</span></button></section>
+      </div>
+      <section class="club-journal"><div class="journal-landscape"><img src="assets/photos/pack-on-the-trail.jpg" alt="${t('Dogs following a sunlit trail through the woods.')}" width="720" height="1280" loading="lazy"></div><div class="journal-intro"><span class="eyebrow">@BUS_DESTOUTOUS</span><h2>${t('A glimpse of their world.')}</h2><p>${t('Photos and films from @bus_destoutous.')}</p><button class="secondary" data-go="gallery">${t('See the photo journal')} <span aria-hidden="true">↗</span></button></div><div class="journal-portrait"><img src="assets/photos/adine-woodland.jpg" alt="${t('Adine-Sophie walking with the dogs in the woods.')}" width="720" height="1280" loading="lazy"></div></section>
+    </div>
+    <footer class="workspace-footer"><strong>Le Bus des Toutous<span>.</span></strong><p>${t('A workspace to try with sample care records. Scheduling and business figures are previews.')}</p><details class="photo-credits"><summary>${t('Photo and video sources')}</summary><p><a href="https://www.instagram.com/reel/DJ2A0xrsF-a/" target="_blank" rel="noreferrer">@bus_destoutous / 19.05.2025</a><br><a href="https://www.instagram.com/p/DYknTgAFPMo/" target="_blank" rel="noreferrer">@bus_destoutous / ${t('Good company')}</a></p></details></footer>`;
+  },  assistant() {
     const copy=assistantText();setHeader(copy.eyebrow,copy.heading);
     const messages=[{role:'muse',text:assistantBriefing()},...state.assistantMessages];
-    return `<div class="assistant-layout"><section class="assistant-panel"><div class="assistant-intro"><div class="muse-orb" aria-hidden="true">✦</div><div><span class="muse-kicker">${copy.introKicker}</span><h2>${copy.introHeading}</h2><p>${copy.introText}</p></div></div><div class="assistant-prompts" aria-label="Suggested questions"><button data-assistant-prompt="brief">${copy.prompts[0]}</button><button data-assistant-prompt="attention">${copy.prompts[1]}</button><button data-assistant-prompt="handoff">${copy.prompts[2]}</button></div><div class="assistant-thread" id="assistant-thread" aria-live="polite">${messages.map(message=>`<div class="assistant-message ${message.role}"><span>${message.role==='muse'?copy.muse:copy.you}</span><p>${escapeHtml(message.text)}</p></div>`).join('')}</div><form class="assistant-compose" id="assistant-form"><label class="sr-only" for="assistant-question">${copy.ask}</label><input id="assistant-question" autocomplete="off" placeholder="${copy.placeholder}"><button class="primary" type="submit" aria-label="${copy.ask}">↑</button></form><p class="assistant-privacy">${window.DogCareAPI ? t(ACCOUNT_STORAGE) : copy.privacy}</p></section><aside class="assistant-actions"><span class="handoff-label">${copy.quick}</span><h2>${copy.keep}</h2><button data-assistant-action="capture"><span>＋</span><strong>${copy.actions[0][0]}</strong><small>${copy.actions[0][1]}</small></button><button data-assistant-action="handoff"><span>⇄</span><strong>${copy.actions[1][0]}</strong><small>${copy.actions[1][1]}</small></button><button data-assistant-action="story"><span>✦</span><strong>${copy.actions[2][0]}</strong><small>${copy.actions[2][1]}</small></button></aside></div>`;
+    return `<div class="assistant-layout"><section class="assistant-panel"><div class="assistant-intro"><div class="muse-orb" aria-hidden="true">M.</div><div><span class="muse-kicker">${copy.introKicker}</span><h2>${copy.introHeading}</h2><p>${copy.introText}</p></div></div><div class="assistant-prompts" aria-label="Suggested questions"><button data-assistant-prompt="brief">${copy.prompts[0]}</button><button data-assistant-prompt="attention">${copy.prompts[1]}</button><button data-assistant-prompt="handoff">${copy.prompts[2]}</button></div><div class="assistant-thread" id="assistant-thread" aria-live="polite">${messages.map(message=>`<div class="assistant-message ${message.role}"><span>${message.role==='muse'?copy.muse:copy.you}</span><p>${escapeHtml(message.text)}</p></div>`).join('')}</div><form class="assistant-compose" id="assistant-form"><label class="sr-only" for="assistant-question">${copy.ask}</label><input id="assistant-question" autocomplete="off" placeholder="${copy.placeholder}"><button class="primary" type="submit" aria-label="${copy.ask}">↑</button></form><p class="assistant-privacy">${window.DogCareAPI ? t(ACCOUNT_STORAGE) : copy.privacy}</p></section><aside class="assistant-actions"><span class="handoff-label">${copy.quick}</span><h2>${copy.keep}</h2><button data-assistant-action="capture"><span>＋</span><strong>${copy.actions[0][0]}</strong><small>${copy.actions[0][1]}</small></button><button data-assistant-action="handoff"><span>⇄</span><strong>${copy.actions[1][0]}</strong><small>${copy.actions[1][1]}</small></button><button data-assistant-action="story"><span>✦</span><strong>${copy.actions[2][0]}</strong><small>${copy.actions[2][1]}</small></button></aside></div>`;
   },
   dogs() {
     const key=state.dog,d=dogs[key], obs=state.observations[key];
@@ -1062,28 +1595,28 @@ const views = {
       <section class="card profile-hero">${dogAvatar(key)}<div><h2>${d.name}</h2><p>${t(d.breed)} · ${t(d.age)} · ${t('Owner:')} ${d.owner}</p>${tagsHtml(['Checked in','Consent on file'])}</div></section>
       <section class="card" style="margin-top:20px"><div class="section-head" style="margin-top:0"><div><h2>${t('Needs & lifestyle')}</h2><p>${t('Personalise these with the owner — not breed stereotypes.')}</p></div></div><div class="facts"><div class="fact"><small>${t('Energy')}</small><strong>${t(d.needs.energy)}</strong></div><div class="fact"><small>${t('Movement')}</small><strong>${t(d.needs.movement)}</strong></div><div class="fact"><small>${t('Enrichment')}</small><strong>${t(d.needs.enrichment)}</strong></div><div class="fact"><small>${t('Sensitivities')}</small><strong>${t(d.needs.sensitivities)}</strong></div></div></section>
       <div class="section-head"><div><h2>${t('Care timeline')}</h2><p>${tf('{count} recorded moments', {count:obs.length})}</p></div><button class="link-button" data-go="handoff">${t('View daily handoff')}</button></div><div class="timeline">${obs.map(o=>`<article class="card timeline-card" id="observation-${o.id}"><div class="timeline-top"><h4>${escapeHtml(t(o.title))}</h4><time>${escapeHtml(o.time)} · ${escapeHtml(t(o.date))}</time></div><p>${escapeHtml(t(o.text))}</p>${audioHtml(o.audio, tf('{title} voice note', {title:t(o.title)}))}${tagsHtml(o.tags)}${shareControls(o,`share-${o.id}`)}</article>`).join('')}</div>
-    </div><aside><section class="card"><div class="section-head" style="margin-top:0"><div><h2>${t('Care insight')}</h2><p>${t('Evidence-based prompt · never a diagnosis')}</p></div></div><div class="context ${careInsight(key).level==='review'?'behaviour':''}"><strong>${careInsight(key).title}</strong><p>${careInsight(key).text}</p></div></section><section class="card" style="margin-top:20px"><div class="section-head" style="margin-top:0"><div><h2>${t('Care context')}</h2><p>${t('Quick reference for every handover')}</p></div></div><div class="context-list"><div class="context"><strong>${t('HEALTH')}</strong><p>${t(d.health)}</p></div><div class="context behaviour"><strong>${t('BEHAVIOUR')}</strong><p>${t(d.behaviour)}</p></div><div class="context vet"><strong>${t('VET & EMERGENCY')}</strong><p>${t(d.vet)}</p></div></div><div class="facts"><div class="fact"><small>${t('Food')}</small><strong>${t('Set with owner')}</strong></div><div class="fact"><small>${t('Walk')}</small><strong>${t('Set with owner')}</strong></div><div class="fact"><small>${t('Pickup')}</small><strong>${t('Set with owner')}</strong></div></div></section><section class="card" style="margin-top:20px"><div class="section-head" style="margin-top:0"><div><h2>${t('Vet access')}</h2><p>${t('Preview only · no clinic is contacted')}</p></div></div><p style="font-size:12px;color:var(--muted);line-height:1.5">${t(d.vet)}</p><div class="composer-actions"><button class="secondary" id="vet-call">${t('Call clinic')}</button><button class="ghost" id="vet-video">${t('Video consult')}</button></div></section><section class="card" style="margin-top:20px"><h3 style="font:400 20px Georgia,serif">${t('Switch dog')}</h3><div class="dog-picker">${Object.entries(dogs).map(([k,x])=>`<button class="dog-pick ${k===key?'active':''}" data-dog="${k}"><span>${x.emoji}</span><div><strong>${x.name.split(' ')[0]}</strong><small>${t(x.age)}</small></div></button>`).join('')}</div></section></aside></div>`;
+    </div><aside><section class="card"><div class="section-head" style="margin-top:0"><div><h2>${t('Care insight')}</h2><p>${t('Evidence-based prompt · never a diagnosis')}</p></div></div><div class="context ${careInsight(key).level==='review'?'behaviour':''}"><strong>${careInsight(key).title}</strong><p>${careInsight(key).text}</p></div></section><section class="card" style="margin-top:20px"><div class="section-head" style="margin-top:0"><div><h2>${t('Care context')}</h2><p>${t('Quick reference for every handover')}</p></div></div><div class="context-list"><div class="context"><strong>${t('HEALTH')}</strong><p>${t(d.health)}</p></div><div class="context behaviour"><strong>${t('BEHAVIOUR')}</strong><p>${t(d.behaviour)}</p></div><div class="context vet"><strong>${t('VET & EMERGENCY')}</strong><p>${t(d.vet)}</p></div></div><div class="facts"><div class="fact"><small>${t('Food')}</small><strong>${t('Set with owner')}</strong></div><div class="fact"><small>${t('Walk')}</small><strong>${t('Set with owner')}</strong></div><div class="fact"><small>${t('Pickup')}</small><strong>${t('Set with owner')}</strong></div></div></section><section class="card" style="margin-top:20px"><div class="section-head" style="margin-top:0"><div><h2>${t('Vet access')}</h2><p>${t('Preview only · no clinic is contacted')}</p></div></div><p style="font-size:12px;color:var(--muted);line-height:1.5">${t(d.vet)}</p><div class="composer-actions"><button class="secondary" id="vet-call">${t('Call clinic')}</button><button class="ghost" id="vet-video">${t('Video consult')}</button></div></section><section class="card" style="margin-top:20px"><h3 style="font:400 20px Georgia,serif">${t('Switch dog')}</h3><div class="dog-picker">${Object.entries(dogs).map(([k,x])=>`<button class="dog-pick ${k===key?'active':''}" data-dog="${k}">${dogAvatar(k)}<div><strong>${x.name.split(' ')[0]}</strong><small>${t(x.age)}</small></div></button>`).join('')}</div></section></aside></div>`;
   },
   capture() {
     const d=dogs[state.dog]; setHeader('RAPID CAPTURE', 'Capture the moment');
-    return `<div class="page-title-row"><div><h2>${t('What just happened?')}</h2><p>${t('Write naturally. DogCare Brain will organise the useful details.')}</p></div></div><section class="card composer"><label class="label">${t('Who is this about?')}</label><div class="dog-picker">${Object.entries(dogs).map(([k,x])=>`<button class="dog-pick ${k===state.dog?'active':''}" data-capture-dog="${k}"><span>${x.emoji}</span><div><strong>${x.name}</strong><small>${t(x.last)}</small></div></button>`).join('')}</div><label class="label" for="observation">${t('Care update')}</label><p class="dictate-hint">${t('Dictate or type your note')}</p><div class="note-field" id="note-field"><textarea id="observation" placeholder="${t('Dictate or type: Ate all breakfast, playful with Mabel, loose stool at 10:30…')}"></textarea><button class="mic-button" type="button" id="record-audio" aria-label="${t('Dictate your note')}"><span class="mic-glyph" aria-hidden="true">🎤</span><span class="mic-text">${t('Dictate')}</span></button><button class="mic-button recording" type="button" id="stop-audio" hidden aria-label="${t('Stop dictation')}"><span class="mic-glyph" aria-hidden="true">■</span><span class="mic-text">${t('Stop')}</span></button><div class="listening-badge" id="listening-badge" hidden><span class="pulse-dot" aria-hidden="true"></span><span class="listening-text">${t('Listening…')}</span><span id="recording-duration" class="listening-timer" aria-label="${t('Recording duration')}">00:00</span></div></div><div class="voice-meta"><p id="recording-status" role="status">${t('Tap the mic to dictate — your words fill the note as you speak. The mic is only used after you tap it.')}</p><p id="transcription-status" role="status" class="voice-meta-status"></p><div id="audio-preview">${audioDraft ? `${audioHtml(audioDraft, t('Care update voice note'))}<button class="link-button discard-audio" type="button" id="discard-audio">${t('Discard recording')}</button>` : ''}</div><p class="transcription-privacy">${t('Speech-to-text uses your browser’s speech service. Depending on your browser, audio may be sent to its provider for transcription.')}</p></div><label class="label">${t('Detected details')} <small style="font-weight:400;text-transform:none;letter-spacing:0"> ${t('· updates as you type')}</small></label><div class="detected" id="detected"><em>${t('Start typing to see structured care tags')}</em></div><p id="health-safety" class="preview-note" hidden>${t('Health observations are factual notes, not diagnoses. Contact a veterinarian if concerned.')}</p><div class="composer-actions"><small>${storageCopy('AI structuring and recorded audio stay in this browser. Speech transcription may use your browser provider’s service.')}</small><button class="primary" id="save-observation">${tf("Save to {name}'s timeline →", {name:d.name.split(' ')[0]})}</button></div></section>`;
+    return `<div class="page-title-row"><div><h2>${t('What just happened?')}</h2><p>${t('Write naturally. Keep the details that matter.')}</p></div></div><section class="card composer"><label class="label">${t('Who is this about?')}</label><div class="dog-picker">${Object.entries(dogs).map(([k,x])=>`<button class="dog-pick ${k===state.dog?'active':''}" data-capture-dog="${k}">${dogAvatar(k)}<div><strong>${x.name}</strong><small>${t(x.last)}</small></div></button>`).join('')}</div><label class="label" for="observation">${t('Care update')}</label><p class="dictate-hint">${t('Dictate or type your note')}</p><div class="note-field" id="note-field"><textarea id="observation" placeholder="${t('Ate breakfast, enjoyed a walk, settled down for a nap…')}"></textarea><button class="mic-button" type="button" id="record-audio" aria-label="${t('Dictate your note')}"><span class="mic-glyph" aria-hidden="true">🎤</span><span class="mic-text">${t('Dictate')}</span></button><button class="mic-button recording" type="button" id="stop-audio" hidden aria-label="${t('Stop dictation')}"><span class="mic-glyph" aria-hidden="true">■</span><span class="mic-text">${t('Stop')}</span></button><div class="listening-badge" id="listening-badge" hidden><span class="pulse-dot" aria-hidden="true"></span><span class="listening-text">${t('Listening…')}</span><span id="recording-duration" class="listening-timer" aria-label="${t('Recording duration')}">00:00</span></div></div><div class="voice-meta"><p id="recording-status" role="status">${t('Tap the mic to dictate — your words fill the note as you speak. The mic is only used after you tap it.')}</p><p id="transcription-status" role="status" class="voice-meta-status"></p><div id="audio-preview">${audioDraft ? `${audioHtml(audioDraft, t('Care update voice note'))}<button class="link-button discard-audio" type="button" id="discard-audio">${t('Discard recording')}</button>` : ''}</div><p class="transcription-privacy">${t('Speech-to-text uses your browser’s speech service. Depending on your browser, audio may be sent to its provider for transcription.')}</p></div><label class="label">${t('Detected details')} <small style="font-weight:400;text-transform:none;letter-spacing:0"> ${t('· updates as you type')}</small></label><div class="detected" id="detected"><em>${t('Start typing to see structured care tags')}</em></div><p id="health-safety" class="preview-note" hidden>${t('Health observations are factual notes, not diagnoses. Contact a veterinarian if concerned.')}</p><div class="composer-actions"><small>${storageCopy('AI structuring and recorded audio stay in this browser. Speech transcription may use your browser provider’s service.')}</small><button class="primary" id="save-observation">${tf("Save to {name}'s timeline →", {name:d.name.split(' ')[0]})}</button></div></section>`;
   },
-  gallery() { setHeader('MEDIA LIBRARY','Little moments, safely kept'); const items=[['🐕‍🦺','Billie’s woodland walk','Today · 10:12'],['🐶','Charlie in the garden','Today · 11:34'],['🐾','Muddy-paw evidence','Yesterday · 16:45'],['🌿','The favourite sniff spot','10 July · 09:50'],['🦴','Enrichment time','9 July · 14:20'],['☁️','Post-walk snooze','8 July · 12:15']]; const audioItems=Object.values(state.observations).flat().filter(o=>o.audio?.url); return `<div class="page-title-row"><div><h2>${t('Care gallery')}</h2><p>${storageCopy('Demo media and voice notes kept in this browser.')}</p></div></div>${audioItems.length?`<section class="card audio-library"><div class="section-head"><div><h2>${t('Voice notes')}</h2><p>${storageCopy('Attached locally to care updates for this browser session')}</p></div></div>${audioItems.map(o=>audioHtml(o.audio,t(o.title))).join('')}</section>`:''}<div class="grid media-grid">${items.map((x,i)=>`<article class="media-item"><div class="media-art" aria-hidden="true">${x[0]}</div>${i<2?`<span class="draft-badge">${t('Story ready')}</span>`:''}<div class="media-copy"><strong>${t(x[1])}</strong><small>${t(x[2])}</small></div></article>`).join('')}</div><section class="card social-preview" aria-labelledby="social-heading"><div class="section-head"><div><h2 id="social-heading">${t('Social access previews')}</h2><p>${t('Explore what a future connection could share. No account is connected and nothing can be posted.')}</p></div></div><div class="social-platforms">${[['Instagram','Photo and story draft'],['Facebook','Page update draft'],['YouTube','Short video draft']].map(([name,detail])=>`<article><span class="platform-mark" aria-hidden="true">${name[0]}</span><div><strong>${name}</strong><small>${t(detail)} · ${t('local preview only')}</small></div><button class="ghost social-access" type="button" data-platform="${name}" aria-label="${escapeHtml(tf('Preview local {name} access', {name}))}">${t('Preview access')}</button></article>`).join('')}</div><div class="local-boundary"><strong>${t('No social connection')}</strong><span>${t('No credentials are collected, no network request is made, and no content is posted.')}</span></div></section>`; },
+  gallery() { setHeader('OUTDOOR JOURNAL','Life at Le Bus des Toutous'); const items=[['good-company.jpg','Good company','DYknTgAFPMo'],['pack-on-the-trail.jpg','A walk with the pack','DJ2A0xrsF-a'],['adine-woodland.jpg','Out in the woods','DJ2A0xrsF-a']]; const audioItems=Object.values(state.observations).flat().filter(o=>o.audio?.url); return `<div class="page-title-row"><div><h2>${t('Photo journal')}</h2><p>${t('Photos and films from @bus_destoutous.')}</p></div></div>${audioItems.length?`<section class="card audio-library"><div class="section-head"><div><h2>${t('Voice notes')}</h2><p>${storageCopy('Attached locally to care updates for this browser session')}</p></div></div>${audioItems.map(o=>audioHtml(o.audio,t(o.title))).join('')}</section>`:''}<section class="journal-film"><video class="day-film" controls muted playsinline preload="none" poster="assets/photos/pack-on-the-trail.jpg" aria-label="${t('A day with Adine-Sophie')}"><source src="assets/films/a-day-with-adine.mp4" type="video/mp4"></video><div><h2>${t('A day with Adine-Sophie')}</h2><p>${t('From the doorstep to the forest, with Adine-Sophie.')}</p><a href="https://www.instagram.com/reel/DJ2A0xrsF-a/" target="_blank" rel="noreferrer">@bus_destoutous ↗</a></div></section><div class="grid media-grid">${items.map((x,i)=>`<article class="media-item"><img class="media-art ${x[0]==='good-company.jpg'?'company-photo':''}" src="assets/photos/${x[0]}" alt="${t(x[1])}" loading="lazy"><div class="media-copy"><strong>${t(x[1])}</strong><a href="https://www.instagram.com/reel/${x[2]}/" target="_blank" rel="noreferrer">@bus_destoutous ↗</a></div></article>`).join('')}</div><section class="card social-preview" aria-labelledby="social-heading"><div class="section-head"><div><h2 id="social-heading">${t('Social access previews')}</h2><p>${t('Explore what a future connection could share. No account is connected and nothing can be posted.')}</p></div></div><div class="social-platforms">${[['Instagram','Photo and story draft'],['Facebook','Page update draft'],['YouTube','Short video draft']].map(([name,detail])=>`<article><span class="platform-mark" aria-hidden="true">${name[0]}</span><div><strong>${name}</strong><small>${t(detail)} · ${t('local preview only')}</small></div><button class="ghost social-access" type="button" data-platform="${name}" aria-label="${escapeHtml(tf('Preview local {name} access', {name}))}">${t('Preview access')}</button></article>`).join('')}</div><div class="local-boundary"><strong>${t('No social connection')}</strong><span>${t('No credentials are collected, no network request is made, and no content is posted.')}</span></div></section>`; },
   handoff() {
     const key=state.dog,d=dogs[key],summary=handoffSummary(key),audience=t(state.handoffAudience==='owner'?'Owner':'Next carer');
     setHeader('DAILY CARE HANDOFF', `${d.name} · ${audience}`);
     return `<div class="handoff-heading"><div><p class="eyebrow">${t('CARE CONTINUITY · TODAY')}</p><h2>${t('A clear handoff for whoever cares next')}</h2><p>${t('Built from today\'s captured observations. Review before sharing or starting care.')}</p></div><div class="audience-toggle" aria-label="${t('Handoff audience')}"><button class="${state.handoffAudience==='owner'?'active':''}" data-audience="owner">${t('Owner')}</button><button class="${state.handoffAudience==='carer'?'active':''}" data-audience="carer">${t('Next carer')}</button></div></div>
-      <div class="dog-picker handoff-dogs">${Object.entries(dogs).map(([k,x])=>`<button class="dog-pick ${k===key?'active':''}" data-handoff-dog="${k}"><span>${x.emoji}</span><div><strong>${x.name}</strong><small>${tf('{count} observations today', {count:todayObservations(k).length})}</small></div></button>`).join('')}</div>
+      <div class="dog-picker handoff-dogs">${Object.entries(dogs).map(([k,x])=>`<button class="dog-pick ${k===key?'active':''}" data-handoff-dog="${k}">${dogAvatar(k)}<div><strong>${x.name}</strong><small>${tf('{count} observations today', {count:todayObservations(k).length})}</small></div></button>`).join('')}</div>
       <div class="grid handoff-grid"><section class="card handoff-main"><div class="handoff-card-head">${dogAvatar(key)}<div><span class="handoff-label">${tf('Prepared for {audience}', {audience})}</span><h2>${tf("{name}'s care highlights", {name:d.name})}</h2><p>${escapeHtml(tf('{count} captured moments · last update {time}', {count:summary.observations.length, time:summary.observations[0]?.time || t('not yet recorded')}))}</p></div></div>
         <ol class="highlight-list">${summary.highlights.length?summary.highlights.map(item=>`<li>${escapeHtml(item)}</li>`).join(''):`<li>${t('No observations captured today yet. Add a care moment before handoff.')}</li>`}</ol>
         <div class="health-note ${summary.health.length?'watch':''}"><strong>${summary.health.length?t('Health observation — factual, not diagnostic'):t('Health context')}</strong><p>${summary.healthText}</p></div>
       </section><aside class="card next-care"><span class="handoff-label">${t('NEXT CARE')}</span><h2>${t('What to do next')}</h2><ul>${summary.guidance.map(item=>`<li>${escapeHtml(item)}</li>`).join('')}</ul><button class="primary" data-go="capture">${t('＋ Add follow-up observation')}</button></aside></div>
-      <section class="card evidence-panel"><div class="section-head"><div><h2>${t('Evidence for this handoff')}</h2><p>${tf("Open any source observation in {name}'s care timeline.", {name:d.name.split(' ')[0]})}</p></div><div><button class="link-button" data-go="story">${t('Review owner story')}</button><button class="ghost" data-go="gallery">${t("View today's gallery")}</button></div></div><div class="evidence-list">${summary.observations.length?summary.observations.map(o=>`<button class="evidence-row" data-evidence-dog="${key}" data-evidence-id="${o.id}"><time>${escapeHtml(o.time)}</time><span><strong>${escapeHtml(t(o.title))}</strong><small>${escapeHtml(t(o.text))}</small></span><b>${t('View source →')}</b></button>`).join(''):`<p class="empty-evidence">${t('No source observations available yet.')}</p>`}</div></section>`;
+      <section class="card evidence-panel"><div class="section-head"><div><h2>${t('Evidence for this handoff')}</h2><p>${tf("Open any source observation in {name}'s care timeline.", {name:d.name.split(' ')[0]})}</p></div><div><button class="link-button" data-go="story">${t('Review owner story')}</button><button class="ghost" data-go="gallery">${t('View photo journal')}</button></div></div><div class="evidence-list">${summary.observations.length?summary.observations.map(o=>`<button class="evidence-row" data-evidence-dog="${key}" data-evidence-id="${o.id}"><time>${escapeHtml(o.time)}</time><span><strong>${escapeHtml(t(o.title))}</strong><small>${escapeHtml(t(o.text))}</small></span><b>${t('View source →')}</b></button>`).join(''):`<p class="empty-evidence">${t('No source observations available yet.')}</p>`}</div></section>`;
   },
-  story() { const d=dogs[state.dog], latest=state.observations[state.dog][0]; if(!latest){setHeader('OWNER UPDATE · DRAFT','Daily story');return `<section class="card"><p>${t('No observations captured today yet. Add a care moment before handoff.')}</p><button class="primary" data-go="capture">${t('Capture update')}</button></section>`;} setHeader('OWNER UPDATE · DRAFT','A lovely day, ready to share'); return `<div class="grid page-grid"><div class="story-phone"><div class="story-image">${d.emoji}</div><div class="story-body"><p class="story-date">${t('Sunday, 12 July · Daily story')}</p><h3>${tf('{name}’s day', {name:d.name})}</h3><p class="story-copy">${escapeHtml(t(latest.text))} ${tf('{name} enjoyed plenty of calm attention and is heading home happy and settled.', {name:d.name.split(' ')[0]})}</p><div class="story-stats"><div><strong>${state.dog==='billie'?'42 min':'25 min'}</strong><small>${t('outside')}</small></div><div><strong>${t('All eaten')}</strong><small>${t('meals')}</small></div><div><strong>${t('Calm')}</strong><small>${t('mood')}</small></div></div></div></div><aside><section class="card"><h2 style="font:400 24px Georgia,serif">${t('Owner-ready, not auto-sent')}</h2><p style="font-size:12px;color:var(--muted);line-height:1.6">${t('Review this draft, then share it with the app you choose.')}</p><label class="label">${t('Preview for')}</label><div class="dog-picker">${Object.entries(dogs).map(([k,x])=>`<button class="dog-pick ${k===state.dog?'active':''}" data-story-dog="${k}"><span>${x.emoji}</span><div><strong>${x.name}</strong><small>${x.owner}</small></div></button>`).join('')}</div><button class="ghost" data-go="handoff" style="width:100%;margin:20px 0 10px">${t('Review daily handoff')}</button>${shareControls(latest,'story-share')}</section></aside></div>`; },
+  story() { const d=dogs[state.dog], latest=state.observations[state.dog][0]; if(!latest){setHeader('OWNER UPDATE · DRAFT','Daily story');return `<section class="card"><p>${t('No observations captured today yet. Add a care moment before handoff.')}</p><button class="primary" data-go="capture">${t('Capture update')}</button></section>`;} setHeader('OWNER UPDATE · DRAFT','A lovely day, ready to share'); return `<div class="grid page-grid"><div class="story-phone"><div class="story-image">${dogAvatar(state.dog)}${state.dog==='billie'?`<span class="story-photo-note">${t('Profile photograph from the archive')}</span>`:''}</div><div class="story-body"><p class="story-date">${t('Daily story · Sample layout')}</p><h3>${tf('{name}’s day', {name:d.name})}</h3><p class="story-copy">${escapeHtml(t(latest.text))} ${tf('{name} enjoyed plenty of calm attention and is heading home happy and settled.', {name:d.name.split(' ')[0]})}</p><div class="story-stats"><div><strong>${state.dog==='billie'?'42 min':'25 min'}</strong><small>${t('outside')}</small></div><div><strong>${t('All eaten')}</strong><small>${t('meals')}</small></div><div><strong>${t('Calm')}</strong><small>${t('mood')}</small></div></div></div></div><aside><section class="card"><h2 style="font:400 24px Georgia,serif">${t('Owner-ready, not auto-sent')}</h2><p style="font-size:12px;color:var(--muted);line-height:1.6">${t('Review this draft, then share it with the app you choose.')}</p><label class="label">${t('Preview for')}</label><div class="dog-picker">${Object.entries(dogs).map(([k,x])=>`<button class="dog-pick ${k===state.dog?'active':''}" data-story-dog="${k}">${dogAvatar(k)}<div><strong>${x.name}</strong><small>${x.owner}</small></div></button>`).join('')}</div><button class="ghost" data-go="handoff" style="width:100%;margin:20px 0 10px">${t('Review daily handoff')}</button>${shareControls(latest,'story-share')}</section></aside></div>`; },
   invite() { setHeader('INVITE PREVIEW','Share care context safely'); return `<div class="page-title-row"><div><h2>${t('Prepare an invite')}</h2><p>${t('Build a local pending invite preview for an owner or trusted carer. Nothing is sent.')}</p></div></div><div class="grid page-grid invite-grid"><section class="card invite-card"><div class="form-row"><label class="label">${t('Invite role')}</label><div class="role-choice" role="radiogroup" aria-label="${t('Invite role')}"><label><input type="radio" name="invite-role" value="owner" checked><span><strong>${t('Owner')}</strong><small>${t('Family member who receives updates')}</small></span></label><label><input type="radio" name="invite-role" value="trusted-carer"><span><strong>${t('Trusted carer')}</strong><small>${t('Backup helper with limited context')}</small></span></label></div></div><div class="form-split"><label class="field-label" for="invite-name">${t('Name')}<input id="invite-name" autocomplete="name" placeholder="${t('e.g. Camille Martin')}"></label><label class="field-label" for="invite-email">${t('Email')}<input id="invite-email" type="email" autocomplete="email" placeholder="camille@example.com"></label></div><label class="label">${t('Can preview')}</label><div class="permission-list"><label><input type="checkbox" name="invite-permission" value="stories" checked><span><strong>${t('Daily stories')}</strong><small>${t('Owner-ready recaps and media placeholders')}</small></span></label><label><input type="checkbox" name="invite-permission" value="timeline" checked><span><strong>${t('Care timeline')}</strong><small>${t('Structured observations and handover notes')}</small></span></label><label><input type="checkbox" name="invite-permission" value="health"><span><strong>${t('Health notes')}</strong><small>${t('Factual medication and watch items, never diagnoses')}</small></span></label></div><div class="local-boundary"><strong>${t('Local preview only')}</strong><span>${t('This prototype will not send email, WhatsApp, SMS, or notifications.')}</span></div><div class="composer-actions"><small>${storageCopy('Demo data only · the invite is stored in this browser as pending.', ACCOUNT_INVITE)}</small><button class="primary" id="create-invite">${t('Create pending invite preview →')}</button></div></section><aside><section class="card summary-card"><div class="section-head" style="margin-top:0"><div><h2>${t('Invite-ready summary')}</h2><p>${t('Updates as you choose role and permissions')}</p></div></div><div id="invite-summary" class="invite-summary"></div></section><section class="card" style="margin-top:20px"><div class="section-head" style="margin-top:0"><div><h2>${t('Pending invites')}</h2><p>${t('Local preview queue')}</p></div></div><div id="pending-invites" class="pending-list">${pendingInvitesHtml()}</div></section></aside></div>`; },
-  schedule() { setHeader('SCHEDULE · 12–18 JULY','A week with room to breathe'); const days=[['Sun','12','Billie · 08:00','Charlie · 09:00'],['Mon','13',`Milo · ${t('walk')}`,''],['Tue','14',`Billie · ${t('day care')}`,`Poppy · ${t('walk')}`],['Wed','15',`Charlie · ${t('day care')}`,''],['Thu','16',`Billie · ${t('day care')}`,`Milo · ${t('walk')}`],['Fri','17',`Poppy · ${t('half day')}`,''],['Sat','18',t('Admin morning'),'']]; return `<div class="page-title-row"><div><h2>${t('Bookings overview')}</h2><p>${t('11 bookings · 76% of this week’s care capacity')}</p></div><button class="primary" id="new-booking">${t('＋ New booking')}</button></div><div class="grid week">${days.map((d,i)=>`<div class="day ${i===0?'today':''}"><div class="day-head">${t(d[0])}<strong>${d[1]}</strong></div>${d[2]?`<div class="event">${d[2]}</div>`:''}${d[3]?`<div class="event peach">${d[3]}</div>`:''}</div>`).join('')}</div><section class="card" style="margin-top:25px"><div class="section-head" style="margin:0"><div><h2>${t('Upcoming handovers')}</h2><p>${t('Everything owners need before the doorbell rings')}</p></div></div><div class="today-list" style="margin-top:15px"><div class="booking"><time>17:30</time><div><h4>Billie Blue · ${t('pickup')}</h4><p>${t('Story draft ready · lead and food tub packed')}</p></div><i class="dot"></i></div><div class="booking"><time>18:00</time><div><h4>Charlie Rose · ${t('pickup')}</h4><p>${t('Add final rest update before handover')}</p></div><i class="dot peach"></i></div></div></section>`; },
-  business() { setHeader('BUSINESS · JULY','A small business, clearly seen'); const bars=[46,58,51,72,63,79,86]; return `<div class="grid metrics"><div class="card metric"><small>${t('REVENUE BOOKED')}</small><strong>€2,840</strong><span class="tag">${t('↑ 13% vs June')}</span></div><div class="card metric"><small>${t('NET AFTER EXPENSES')}</small><strong>€2,196</strong><span class="tag">${t('77% margin')}</span></div><div class="card metric"><small>${t('CARE HOURS')}</small><strong>94h</strong><span class="tag">${t('€30.21 / hour')}</span></div><div class="card metric"><small>${t('REPEAT OWNERS')}</small><strong>82%</strong><span class="tag">${t('Healthy')}</span></div></div><div class="grid page-grid" style="margin-top:22px"><section class="card"><div class="section-head" style="margin-top:0"><div><h2>${t('Revenue rhythm')}</h2><p>${t('Last 7 months · demo data')}</p></div></div><div class="bar-chart">${bars.map((h,i)=>`<div class="bar ${i===6?'current':''}" style="height:${h}%"><span>${t(['Jan','Feb','Mar','Apr','May','Jun','Jul'][i])}</span></div>`).join('')}</div></section><aside class="card"><div class="section-head" style="margin-top:0"><div><h2>${t('Recent expenses')}</h2><p>${t('€644 this month')}</p></div><button class="link-button" id="add-expense">${t('＋ Add')}</button></div><div class="expense-row"><div class="expense-icon">🦴</div><div><strong>${t('Enrichment supplies')}</strong><small>${t('Pet shop · 10 July')}</small></div><strong>€48</strong></div><div class="expense-row"><div class="expense-icon">🚙</div><div><strong>${t('Fuel')}</strong><small>${t('Travel · 8 July')}</small></div><strong>€72</strong></div><div class="expense-row"><div class="expense-icon">🛡</div><div><strong>${t('Business insurance')}</strong><small>${t('Monthly · 1 July')}</small></div><strong>€119</strong></div></aside></div>`; },
+  schedule() { setHeader('SAMPLE SCHEDULE · 12–18 JULY','A week with room to breathe'); const days=[['Sun','12','Billie · 08:00','Charlie · 09:00'],['Mon','13',`Milo · ${t('walk')}`,''],['Tue','14',`Billie · ${t('day care')}`,`Poppy · ${t('walk')}`],['Wed','15',`Charlie · ${t('day care')}`,''],['Thu','16',`Billie · ${t('day care')}`,`Milo · ${t('walk')}`],['Fri','17',`Poppy · ${t('half day')}`,''],['Sat','18',t('Admin morning'),'']]; return `<p class="preview-banner">${t('Sample schedule · bookings are previews.')}</p><div class="page-title-row"><div><h2>${t('Bookings overview')}</h2><p>${t('11 bookings · 76% of this week’s care capacity')}</p></div><button class="primary" id="new-booking">${t('＋ New booking')}</button></div><div class="grid week">${days.map((d,i)=>`<div class="day ${i===0?'today':''}"><div class="day-head">${t(d[0])}<strong>${d[1]}</strong></div>${d[2]?`<div class="event">${d[2]}</div>`:''}${d[3]?`<div class="event peach">${d[3]}</div>`:''}</div>`).join('')}</div><section class="card" style="margin-top:25px"><div class="section-head" style="margin:0"><div><h2>${t('Upcoming handovers')}</h2><p>${t('Everything owners need before the doorbell rings')}</p></div></div><div class="today-list" style="margin-top:15px"><div class="booking"><time>17:30</time><div><h4>Billie Blue · ${t('pickup')}</h4><p>${t('Story draft ready · lead and food tub packed')}</p></div><i class="dot"></i></div><div class="booking"><time>18:00</time><div><h4>Charlie Rose · ${t('pickup')}</h4><p>${t('Add final rest update before handover')}</p></div><i class="dot peach"></i></div></div></section>`; },
+  business() { setHeader('SAMPLE BUSINESS · JULY','A small business, clearly seen'); const bars=[46,58,51,72,63,79,86]; return `<p class="preview-banner">${t('Sample figures · this is a business preview, not your accounts.')}</p><div class="grid metrics"><div class="card metric"><small>${t('REVENUE BOOKED')}</small><strong>€2,840</strong><span class="tag">${t('↑ 13% vs June')}</span></div><div class="card metric"><small>${t('NET AFTER EXPENSES')}</small><strong>€2,196</strong><span class="tag">${t('77% margin')}</span></div><div class="card metric"><small>${t('CARE HOURS')}</small><strong>94h</strong><span class="tag">${t('€30.21 / hour')}</span></div><div class="card metric"><small>${t('REPEAT OWNERS')}</small><strong>82%</strong><span class="tag">${t('Healthy')}</span></div></div><div class="grid page-grid" style="margin-top:22px"><section class="card"><div class="section-head" style="margin-top:0"><div><h2>${t('Revenue rhythm')}</h2><p>${t('Last 7 months · demo data')}</p></div></div><div class="bar-chart">${bars.map((h,i)=>`<div class="bar ${i===6?'current':''}" style="height:${h}%"><span>${t(['Jan','Feb','Mar','Apr','May','Jun','Jul'][i])}</span></div>`).join('')}</div></section><aside class="card"><div class="section-head" style="margin-top:0"><div><h2>${t('Recent expenses')}</h2><p>${t('€644 this month')}</p></div><button class="link-button" id="add-expense">${t('＋ Add')}</button></div><div class="expense-row"><div class="expense-icon">🦴</div><div><strong>${t('Enrichment supplies')}</strong><small>${t('Pet shop · 10 July')}</small></div><strong>€48</strong></div><div class="expense-row"><div class="expense-icon">🚙</div><div><strong>${t('Fuel')}</strong><small>${t('Travel · 8 July')}</small></div><strong>€72</strong></div><div class="expense-row"><div class="expense-icon">🛡</div><div><strong>${t('Business insurance')}</strong><small>${t('Monthly · 1 July')}</small></div><strong>€119</strong></div></aside></div>`; },
   settings() { setHeader('SETTINGS','Your calm corner'); return `<section class="card empty"><div class="big">⚙️</div><h2>${t('Demo settings')}</h2><p>${t('External integrations are intentionally unavailable in this local prototype.')}</p><button class="ghost" id="reset-demo">${t('Reset demo observations')}</button></section>`; }
 };
 
@@ -1314,12 +1847,12 @@ languagePicker.onchange=async()=>{
 };
 function boot() {
   if (window.DogCareAPI) {
-    state.language = window.DogCareAPI.getLanguage() || 'en';
+    state.language = window.DogCareAPI.getLanguage() || 'fr';
     const obs = window.DogCareAPI.getObservations();
     state.observations = {billie:[],charlie:[], ...obs};
     state.invites = window.DogCareAPI.getInvites() || [];
   } else {
-    state.language = localStorage.getItem('dogcare-language') || 'en';
+    state.language = localStorage.getItem('dogcare-language') || 'fr';
     state.observations = loadObservations();
     state.invites = loadInvites();
   }

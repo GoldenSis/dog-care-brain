@@ -73,6 +73,10 @@ class BrowserFixture(unittest.IsolatedAsyncioTestCase, ApiServerTestCase):
         _http(self.port, "PUT", "/api/invites", {"invites": []}, cookie=self.sid)
         await self.page.goto(self.url)
         await self.wait_ready()
+        if not self.api_mode:
+            # Shared journey assertions use English; the anonymous default is
+            # checked separately from this explicit saved preference.
+            await self.page.select_option('#language-picker', 'en')
 
     async def wait_ready(self):
         await self.page.wait_for_function("document.querySelector('#app-content')?.dataset.ready === 'true'")
@@ -118,7 +122,7 @@ class BrowserAcceptanceTest(BrowserFixture):
     async def test_stored_time_and_date_render_as_text_in_every_view(self):
         markup = '<svg onload="window.injected=true"></svg>'
         observations = {"billie": [
-            {"id": 801, "text": "Time check", "title": "Time", "tags": [], "time": markup, "date": "Today"},
+            {"id": 0, "text": "Time check", "title": "Time", "tags": [], "time": markup, "date": "Today"},
             {"id": 802, "text": "Date check", "title": "Date", "tags": [], "time": "09:00", "date": markup},
         ], "charlie": []}
         if self.api_mode:
@@ -128,6 +132,7 @@ class BrowserAcceptanceTest(BrowserFixture):
             await self.page.evaluate("data => localStorage.setItem('dogcare-observations', JSON.stringify(data))", observations)
         await self.page.reload()
         await self.wait_ready()
+        self.assertEqual(await self.page.locator('.activity-row').get_attribute('data-evidence-id'), '0')
         for view in ('dashboard', 'dogs', 'handoff'):
             await self.page.evaluate('view => navigate(view)', view)
             self.assertIn(markup, await self.page.locator('#app-content').text_content())
@@ -266,6 +271,19 @@ class StaticBrowserAcceptanceTest(BrowserAcceptanceTest):
         cls.static_thread.join(timeout=2)
         super().tearDownClass()
 
+    async def test_french_default_and_saved_language_survive_reload(self):
+        await self.page.evaluate("localStorage.removeItem('dogcare-language')")
+        await self.page.reload()
+        await self.wait_ready()
+        self.assertEqual(await self.page.locator('html').get_attribute('lang'), 'fr')
+        self.assertEqual(await self.page.input_value('#language-picker'), 'fr')
+        await self.page.select_option('#language-picker', 'en')
+        await self.page.reload()
+        await self.wait_ready()
+        self.assertEqual(await self.page.locator('html').get_attribute('lang'), 'en')
+        self.assertEqual(await self.page.input_value('#language-picker'), 'en')
+        self.assertEqual(self.console_errors, [])
+
     async def test_static_records_import_once_and_survive_a_fresh_browser(self):
         self.assertTrue(await self.page.evaluate('window.DOGCARE_API === undefined'))
         api_requests = []
@@ -362,7 +380,8 @@ class StaticBrowserAcceptanceTest(BrowserAcceptanceTest):
         self.assertEqual(await self.page.locator('.timeline-card p').first.text_content(), account_note)
         self.assertIn(note, await self.page.locator('#app-content').text_content())
         await self.capture_evidence('account-timeline-fresh-browser.png')
-        await self.page.click('.topbar [data-go="invite"]')
+        await self.page.click('.more-toggle')
+        await self.page.click('#more-nav [data-page="invite"]')
         self.assertIn('Account Carer', await self.page.locator('#pending-invites').text_content())
         self.assertIn('Demo Carer', await self.page.locator('#pending-invites').text_content())
         await self.capture_evidence('account-invites-fresh-browser.png')
@@ -711,7 +730,12 @@ class AccountRecoveryTest(BrowserFixture):
         await self.page.reload()
         await self.wait_ready()
         self.assertEqual(await self.page.evaluate('Object.values(state.observations).flat().length'), 0)
-        await self.page.click('.topbar [data-go="capture"]')
+        await self.page.click('[data-dog="charlie"]')
+        await self.page.click('#mobile-menu')
+        await self.page.click('[data-page="dashboard"]')
+        self.assertEqual(await self.page.locator('.activity-list [data-evidence-id]').count(), 0)
+        await self.page.click('.activity-list [data-capture-dog="billie"]')
+        self.assertEqual(await self.page.locator('.dog-pick.active').get_attribute('data-capture-dog'), 'billie')
         await self.page.fill('#observation', 'First real observation')
         await self.page.click('#save-observation')
         await self.page.evaluate('DogCareAPI.whenSaved()')
