@@ -24,6 +24,9 @@ main { width: 100%; min-width: 0; }
 .utility-brand span { color: var(--orange); }
 .utility-owner, .utility-workspace { font: 500 9px/1.5 var(--mono); letter-spacing: 1px; text-transform: uppercase; }
 .utility-workspace { margin-left: auto; }
+.utility-by { font: 500 9px/1.5 var(--mono); letter-spacing: 0.5px; color: var(--cream); text-decoration: none; opacity: 0.85; margin-left: -12px; }
+.utility-by b { font-weight: 700; color: var(--orange); }
+.utility-by:hover { opacity: 1; text-decoration: underline; }
 .sidebar { position: sticky; top: -122px; left: auto; height: auto; width: auto; display: block; padding: 0 36px; background: #fff7e9f5; border: 0; color: var(--ink); z-index: 30; backdrop-filter: blur(14px); }
 .sidebar::after, .nav-label, .sidebar-foot { display: none; }
 .brand { display: flex; justify-content: space-between; align-items: end; gap: 20px; height: 122px; max-width: 1528px; margin: auto; padding: 14px 0 18px; letter-spacing: 0; }
