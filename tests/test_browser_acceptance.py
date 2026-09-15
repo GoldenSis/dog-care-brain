@@ -4,6 +4,7 @@ import os
 import sys
 import threading
 import unittest
+from datetime import datetime, timezone
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -44,7 +45,7 @@ class BrowserFixture(unittest.IsolatedAsyncioTestCase, ApiServerTestCase):
         self.addAsyncCleanup(self.playwright.stop)
         self.browser = await self.playwright.chromium.launch(headless=True)
         self.addAsyncCleanup(self.browser.close)
-        self.context = await self.browser.new_context(viewport={"width": 390, "height": 844})
+        self.context = await self.browser.new_context(viewport={"width": 390, "height": 844}, timezone_id='Europe/Paris')
         self.addAsyncCleanup(self.context.close)
         await self.context.add_cookies([{
             "name": "dc_s", "value": self.sid, "url": self.url, "httpOnly": True,
@@ -89,6 +90,7 @@ class BrowserFixture(unittest.IsolatedAsyncioTestCase, ApiServerTestCase):
         if directory:
             path = Path(directory)
             path.mkdir(parents=True, exist_ok=True)
+            await self.page.evaluate("window.scrollTo({top: 0, behavior: 'instant'})")
             await self.page.screenshot(path=str(path / name), full_page=True,
                                        animations='disabled')
 
@@ -99,6 +101,142 @@ class BrowserFixture(unittest.IsolatedAsyncioTestCase, ApiServerTestCase):
 
 
 class BrowserAcceptanceTest(BrowserFixture):
+    async def test_capture_drafts_stay_with_their_dog_across_navigation(self):
+        await self.page.click('.topbar [data-go="capture"]')
+        await self.page.click('#observation')
+        self.assertEqual(await self.page.locator('#observation').count(), 1)
+        billie_note = 'TEST MUSE — Billie drank water after a 10 minute walk.'
+        charlie_note = 'TEST MUSE — Charlie rested for 15 minutes.'
+        await self.page.fill('#observation', billie_note)
+        await self.page.click('[data-capture-dog="billie"]')
+        await self.capture_evidence(f'draft-reselect-{self.api_mode}.png')
+        self.assertEqual(await self.page.input_value('#observation'), billie_note)
+        await self.page.click('[data-capture-dog="charlie"]')
+        self.assertEqual(await self.page.input_value('#observation'), '')
+        await self.page.fill('#observation', charlie_note)
+        await self.page.select_option('#language-picker', 'fr')
+        self.assertEqual(await self.page.input_value('#observation'), charlie_note)
+        await self.page.click('#mobile-menu')
+        await self.page.click('[data-page="handoff"]')
+        await self.page.click('.topbar [data-go="capture"]')
+        self.assertEqual(await self.page.input_value('#observation'), charlie_note)
+        await self.page.click('[data-capture-dog="billie"]')
+        self.assertEqual(await self.page.input_value('#observation'), billie_note)
+        self.assertIn('Nutrition', await self.page.locator('#detected').text_content())
+        await self.page.click('#save-observation')
+        await self.page.wait_for_selector('.timeline-card')
+        await self.page.click('.topbar [data-go="capture"]')
+        self.assertEqual(await self.page.input_value('#observation'), '')
+        await self.page.click('[data-capture-dog="charlie"]')
+        self.assertEqual(await self.page.input_value('#observation'), charlie_note)
+        self.assertEqual(self.console_errors, [])
+
+    async def test_changing_language_does_not_translate_a_users_draft(self):
+        await self.page.click('.topbar [data-go="capture"]')
+        await self.page.fill('#observation', 'Care moment')
+        await self.page.select_option('#language-picker', 'fr')
+        self.assertEqual(await self.page.input_value('#observation'), 'Care moment')
+        await self.page.click('#observation')
+        await self.page.fill('#observation', '<textarea> literal text & accents é')
+        await self.page.click('[data-capture-dog="billie"]')
+        self.assertEqual(await self.page.input_value('#observation'), '<textarea> literal text & accents é')
+
+    async def test_old_dictation_callbacks_cannot_change_another_dogs_draft(self):
+        await self.page.click('.topbar [data-go="capture"]')
+        await self.page.click('#record-audio')
+        await self.page.evaluate("window.oldRecognition = testRecognition; oldRecognition.emit('TEST MUSE — Billie drank water', true)")
+        await self.page.click('[data-capture-dog="charlie"]')
+        await self.page.click('#record-audio')
+        await self.page.evaluate("testRecognition.emit('TEST MUSE — Charlie rested', true)")
+        await self.page.evaluate("oldRecognition.onstart(); oldRecognition.emit('WRONG DOG', true); oldRecognition.onerror({error:'not-allowed'}); oldRecognition.onend()")
+        self.assertEqual(await self.page.input_value('#observation'), 'TEST MUSE — Charlie rested')
+        self.assertTrue(await self.page.is_visible('#listening-badge'))
+        self.assertNotIn('denied', await self.page.locator('#transcription-status').text_content())
+        await self.page.click('#stop-audio')
+        await self.page.click('[data-capture-dog="billie"]')
+        self.assertEqual(await self.page.input_value('#observation'), 'TEST MUSE — Billie drank water')
+        self.assertEqual(self.console_errors, [])
+
+    async def test_stop_accepts_final_dictation_but_manual_correction_wins(self):
+        await self.page.click('.topbar [data-go="capture"]')
+        await self.page.click('#record-audio')
+        await self.page.evaluate("window.stoppingRecognition = testRecognition; stoppingRecognition.stop = () => {}; stoppingRecognition.emit('TEST MUSE — drank', false)")
+        await self.page.click('#stop-audio')
+        await self.page.evaluate("stoppingRecognition.emit('TEST MUSE — drank water', true); stoppingRecognition.onend()")
+        self.assertEqual(await self.page.input_value('#observation'), 'TEST MUSE — drank water')
+        self.assertFalse(await self.page.is_visible('#listening-badge'))
+        await self.page.fill('#observation', '')
+        await self.page.click('#record-audio')
+        await self.page.evaluate("window.stoppingRecognition = testRecognition; stoppingRecognition.stop = () => {}; stoppingRecognition.emit('TEST MUSE — 10 minutes', false)")
+        await self.page.click('#stop-audio')
+        await self.page.fill('#observation', 'TEST MUSE — corrected to 15 minutes')
+        await self.page.evaluate("stoppingRecognition.emit('TEST MUSE — 10 minutes', true); stoppingRecognition.onend()")
+        self.assertEqual(await self.page.input_value('#observation'), 'TEST MUSE — corrected to 15 minutes')
+        self.assertEqual(self.console_errors, [])
+
+    async def test_corrected_note_survives_reload_and_leaves_next_days_handoff(self):
+        # 23:55 in Paris: UTC conversion would misdate the next-day boundary.
+        await self.page.clock.install(time=datetime(2030, 1, 2, 22, 55, tzinfo=timezone.utc))
+        await self.page.select_option('#language-picker', 'fr')
+        await self.page.click('.topbar [data-go="capture"]')
+        await self.page.click('[data-capture-dog="charlie"]')
+        await self.page.fill('#observation', 'TEST MUSE — repos pendant 10 minutes.')
+        corrected = 'TEST MUSE — repos pendant 15 minutes.'
+        await self.page.fill('#observation', corrected)
+        await self.page.click('#save-observation')
+        await self.page.wait_for_selector('.timeline-card')
+        self.assertEqual(await self.page.locator('h1').text_content(), 'Charlie Rose')
+        self.assertEqual(await self.page.locator('.timeline-card p').first.text_content(), corrected)
+        await self.page.reload()
+        await self.wait_ready()
+        await self.page.click('#mobile-menu')
+        await self.page.click('[data-page="handoff"]')
+        await self.page.click('[data-handoff-dog="charlie"]')
+        evidence = self.page.locator('.evidence-row').filter(has_text=corrected)
+        self.assertEqual(await evidence.count(), 1)
+        observation_id = await evidence.get_attribute('data-evidence-id')
+        await self.capture_evidence(f'corrected-handoff-{self.api_mode}.png')
+        await evidence.click()
+        self.assertEqual(await self.page.locator(f'#observation-{observation_id} > p').text_content(), corrected)
+        await self.page.click('[data-dog="billie"]')
+        self.assertNotIn(corrected, await self.page.locator('.timeline').text_content())
+        await self.page.clock.fast_forward(10 * 60 * 1000)
+        await self.page.reload()
+        await self.wait_ready()
+        await self.page.click('#mobile-menu')
+        await self.page.click('[data-page="handoff"]')
+        await self.page.click('[data-handoff-dog="charlie"]')
+        await self.capture_evidence(f'next-day-handoff-{self.api_mode}.png')
+        self.assertEqual(await self.page.locator('.evidence-row').filter(has_text=corrected).count(), 0)
+        await self.page.click('#mobile-menu')
+        await self.page.click('[data-page="dogs"]')
+        self.assertEqual(await self.page.locator(f'#observation-{observation_id} > p').text_content(), corrected)
+        self.assertNotIn('Aujourd’hui', await self.page.locator(f'#observation-{observation_id} time').text_content())
+        self.assertEqual(self.console_errors, [])
+
+    async def test_legacy_timestamped_notes_keep_history_without_becoming_today(self):
+        await self.page.clock.install(time=datetime(2030, 1, 2, 10, tzinfo=timezone.utc))
+        old_id = int(datetime(2030, 1, 1, 10, tzinfo=timezone.utc).timestamp() * 1000)
+        observations = {'billie': [
+            {'id': old_id, 'text': 'TEST MUSE — yesterday only', 'title': 'Care moment',
+             'tags': ['General care'], 'time': '10:00', 'date': 'Today'},
+        ], 'charlie': []}
+        if self.api_mode:
+            status, body, _ = _http(self.port, 'PUT', '/api/observations', {'observations': observations}, self.sid)
+            self.assertEqual(status, 200, body)
+        else:
+            await self.page.evaluate("data => localStorage.setItem('dogcare-observations', JSON.stringify(data))", observations)
+        await self.page.reload()
+        await self.wait_ready()
+        await self.page.click('#mobile-menu')
+        await self.page.click('[data-page="handoff"]')
+        await self.capture_evidence(f'legacy-handoff-{self.api_mode}.png')
+        self.assertEqual(await self.page.locator('.evidence-row').count(), 0)
+        await self.page.click('#mobile-menu')
+        await self.page.click('[data-page="dogs"]')
+        self.assertEqual(await self.page.locator(f'#observation-{old_id} > p').text_content(), observations['billie'][0]['text'])
+        self.assertNotIn('Today', await self.page.locator(f'#observation-{old_id} time').text_content())
+
     async def test_audio_file_preserves_inline_recordings(self):
         result = await self.page.evaluate('''async () => {
             const file = await audioFile({url:'data:audio/webm;base64,YQ=='});
@@ -255,6 +393,36 @@ class QuietStaticHandler(SimpleHTTPRequestHandler):
 
 class StaticBrowserAcceptanceTest(BrowserAcceptanceTest):
     api_mode = False
+
+    async def test_failed_browser_save_keeps_draft_and_retry_persists_once(self):
+        original = await self.page.evaluate("localStorage.getItem('dogcare-observations')")
+        await self.page.click('.topbar [data-go="capture"]')
+        note = 'TEST MUSE — keep this note when storage fails.'
+        await self.page.fill('#observation', note)
+        await self.page.evaluate('''() => {
+            window.originalSetItem = Storage.prototype.setItem;
+            Storage.prototype.setItem = function(key, value) {
+                if (key === 'dogcare-observations') throw new DOMException('Full', 'QuotaExceededError');
+                return window.originalSetItem.call(this, key, value);
+            };
+        }''')
+        await self.page.click('#save-observation')
+        await self.capture_evidence('failed-storage.png')
+        self.assertEqual(await self.page.locator('#observation').count(), 1)
+        self.assertEqual(await self.page.input_value('#observation'), note)
+        self.assertIn('not saved', (await self.page.locator('[role="alert"]').text_content()).lower())
+        self.assertEqual(await self.page.evaluate("localStorage.getItem('dogcare-observations')"), original)
+        await self.page.evaluate('() => { Storage.prototype.setItem = window.originalSetItem; }')
+        await self.page.click('#save-observation')
+        await self.page.wait_for_selector('.timeline-card')
+        await self.page.reload()
+        await self.wait_ready()
+        await self.page.click('#mobile-menu')
+        await self.page.click('[data-page="dogs"]')
+        self.assertEqual(await self.page.locator('.timeline-card').filter(has_text=note).count(), 1)
+        await self.page.click('.topbar [data-go="capture"]')
+        self.assertEqual(await self.page.input_value('#observation'), '')
+        self.assertEqual(self.console_errors, [])
 
     @classmethod
     def setUpClass(cls):
@@ -590,8 +758,8 @@ class AccountRecoveryTest(BrowserFixture):
             await route.continue_()
 
         await self.page.route('**/api/blobs', delay)
-        await self.page.evaluate("audioDraft = {url:'data:audio/webm;base64,YQ==',duration:1}")
         await self.page.click('.topbar [data-go="capture"]')
+        await self.page.evaluate("audioDraft = {url:'data:audio/webm;base64,YQ==',duration:1}")
         await self.page.fill('#observation', 'Wait for my recording')
         await self.page.click('#save-observation')
         await asyncio.wait_for(started.wait(), timeout=5)
@@ -612,8 +780,8 @@ class AccountRecoveryTest(BrowserFixture):
 
     async def test_failed_capture_keeps_text_and_audio_for_retry_without_duplicates(self):
         await self.page.route('**/api/observations', lambda route: route.fulfill(status=503, content_type='application/json', body='{}'))
-        await self.page.evaluate("audioDraft = {url:'data:audio/webm;base64,YQ==',duration:1}")
         await self.page.click('.topbar [data-go="capture"]')
+        await self.page.evaluate("audioDraft = {url:'data:audio/webm;base64,YQ==',duration:1}")
         await self.page.fill('#observation', 'Retry this note')
         await self.page.click('#save-observation')
         await self.page.evaluate('DogCareAPI.whenSaved()')
