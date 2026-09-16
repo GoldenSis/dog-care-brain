@@ -11,6 +11,7 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 - Private API storage defaults to `~/.local/share/dogcare-brain`; runtime paths must resolve outside the static root. See README for legacy data relocation. Import eligibility closes on care writes; initialization protects pre-fix saved history too.
 - Account mutations bind to the loaded business and check care revisions; see README for the CLI contract and stale-draft recovery. Read snapshots and their revisions in the same transaction.
 - Generated crawl corpora belong outside the repository unless explicitly reviewed and approved for inclusion.
+- French terminology: use **carnet de bord** for everyday records and **dog-sitter** for the person, following the user's correction (2026-09-16). Label individual entries **notes du quotidien**. Do not translate everyday care as **soins** or the role as **gardeur/gardien de chien**. Keep actual health and veterinary terms, medical guidance, privacy meaning, and the idiom **Aux petits soins** intact.
 
 ## Maintaining this file
 
