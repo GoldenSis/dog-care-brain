@@ -30,7 +30,7 @@ const translations = {
     'DOG PROFILE':'PROFIL DU CHIEN', 'RAPID CAPTURE':'SAISIE RAPIDE', 'Capture the moment':'Saisir le moment',
     'MEDIA LIBRARY':'MÉDIATHÈQUE', 'Little moments, safely kept':'De petits instants, précieusement gardés',
     'OWNER UPDATE · DRAFT':'MISE À JOUR PROPRIÉTAIRE · BROUILLON', 'A lovely day, ready to share':'Une belle journée, prête à partager',
-    'INVITE PREVIEW':'APERÇU D’INVITATION', 'Share care context safely':'Partager le contexte de soin en toute sécurité',
+    'INVITE PREVIEW':'APERÇU D’INVITATION', 'Share care context safely':'Partager le carnet de bord en toute sécurité',
     'SCHEDULE · 12–18 JULY':'PLANNING · 12–18 JUILLET', 'A week with room to breathe':'Une semaine qui laisse respirer',
     'BUSINESS · JULY':'ACTIVITÉ · JUILLET', 'A small business, clearly seen':'Une petite entreprise, clairement pilotée',
     SETTINGS:'RÉGLAGES', 'Your calm corner':'Votre coin de sérénité',
@@ -48,13 +48,13 @@ const translations = {
     'Revenue booked':'Chiffre d’affaires réservé', 'Capacity filled':'Capacité remplie', 'Healthy momentum':'Belle dynamique',
     'You’re €340 ahead of this point last month.':'Vous avez 340 € d’avance sur la même période le mois dernier.',
     // Dogs view
-    'Care record':'Dossier de soin', 'Everything that helps {name} feel understood.':'Tout ce qui aide {name} à se sentir compris.',
+    'Care record':'Carnet de bord', 'Everything that helps {name} feel understood.':'Tout ce qui aide {name} à se sentir compris.',
     '＋ Add observation':'＋ Ajouter une observation', 'Owner:':'Propriétaire :',
     'Needs & lifestyle':'Besoins & mode de vie', 'Personalise these with the owner — not breed stereotypes.':'Personnalisez-les avec le propriétaire — pas selon des clichés de race.',
     Energy:'Énergie', Movement:'Mouvement', Enrichment:'Enrichissement', Sensitivities:'Sensibilités',
-    'Care timeline':'Historique de soin', '{count} recorded moments':'{count} moments enregistrés',
-    'Care insight':'Éclairage de soin', 'Evidence-based prompt · never a diagnosis':'Repère fondé sur les faits · jamais un diagnostic',
-    'Care context':'Contexte de soin', 'Quick reference for every handover':'Repère rapide pour chaque relais',
+    'Care timeline':'Carnet de bord', '{count} recorded moments':'{count} moments enregistrés',
+    'Care insight':'À retenir', 'Evidence-based prompt · never a diagnosis':'Repère fondé sur les faits · jamais un diagnostic',
+    'Care context':'Informations pour le relais', 'Quick reference for every handover':'Repère rapide pour chaque relais',
     HEALTH:'SANTÉ', BEHAVIOUR:'COMPORTEMENT', 'VET & EMERGENCY':'VÉTÉRINAIRE & URGENCE',
     Food:'Alimentation', Walk:'Promenade', Pickup:'Récupération', 'Set with owner':'À définir avec le propriétaire',
     'Vet access':'Accès vétérinaire', 'Preview only · no clinic is contacted':'Aperçu uniquement · aucune clinique n’est contactée',
@@ -67,15 +67,15 @@ const translations = {
     'Routine context is building':'Le contexte de routine se construit',
     'Several activity observations are now linked to this dog. Add energy and enrichment targets to make future insights more personal.':'Plusieurs observations d’activité sont désormais liées à ce chien. Ajoutez des objectifs d’énergie et d’enrichissement pour des éclairages plus personnalisés.',
     'No pattern yet':'Aucune tendance pour l’instant',
-    'Keep capturing small moments. Insights appear only when there is enough care history to support them.':'Continuez de noter les petits moments. Les éclairages n’apparaissent que lorsqu’un historique de soin suffisant les justifie.',
+    'Keep capturing small moments. Insights appear only when there is enough care history to support them.':'Continuez de noter les petits moments. Les éclairages n’apparaissent que lorsque les notes du quotidien sont assez nombreuses pour les justifier.',
     // Tags
     Nutrition:'Nutrition', Medication:'Médication', 'Health check':'Contrôle de santé', Behaviour:'Comportement', Social:'Social', Training:'Éducation',
-    Activity:'Activité', 'Health watch':'Vigilance santé', 'General care':'Soin général', Time:'Heure',
+    Activity:'Activité', 'Health watch':'Vigilance santé', 'General care':'Quotidien', Time:'Heure',
     'Mood · bright':'Humeur · rayonnante', 'Exercise · 42 min':'Exercice · 42 min', 'Behaviour · calm':'Comportement · calme', 'Mood · settled':'Humeur · apaisée',
     'Day care':'Garde de jour', 'All good':'Tout va bien', Settled:'Apaisé', 'Checked in':'Arrivé', 'Consent on file':'Accord enregistré',
     // Capture
     'What just happened?':'Que vient-il de se passer ?', 'Write naturally. DogCare Brain will organise the useful details.':'Écrivez naturellement. DogCare Brain organisera les détails utiles.',
-    'Who is this about?':'Pour quel chien ?', 'Care update':'Note de soin',
+    'Who is this about?':'Pour quel chien ?', 'Care update':'Note du quotidien',
     'Try: Ate all breakfast, playful with Mabel, loose stool at 10:30…':'Essayez : A mangé tout son petit-déjeuner, joueuse avec Mabel, selles molles à 10:30…',
     'Detected details':'Détails détectés', '· updates as you type':'· se met à jour à mesure que vous écrivez',
     'Start typing to see structured care tags':'Commencez à écrire pour voir les étiquettes structurées',
@@ -99,9 +99,9 @@ const translations = {
     'Review this draft before sharing. In a future connected version, you could send it through WhatsApp or add it to an Instagram story.':'Relisez ce brouillon avant partage. Une future version connectée pourra préparer WhatsApp ou Instagram.',
     'Preview for':'Aperçu pour', 'Preview WhatsApp message':'Prévisualiser le message WhatsApp', 'Draft preview only · no message will be sent':'Brouillon uniquement · aucun message ne sera envoyé',
     // Invite
-    'Prepare an invite':'Préparer une invitation', 'Build a local pending invite preview for an owner or trusted carer. Nothing is sent.':'Créez un aperçu d’invitation local, en attente, pour un propriétaire ou un aidant de confiance. Rien n’est envoyé.',
+    'Prepare an invite':'Préparer une invitation', 'Build a local pending invite preview for an owner or trusted carer. Nothing is sent.':'Créez un aperçu d’invitation local, en attente, pour un propriétaire ou un dog-sitter de confiance. Rien n’est envoyé.',
     'Invite role':'Rôle de l’invité', Owner:'Propriétaire', 'Family member who receives updates':'Membre de la famille qui reçoit les mises à jour',
-    'Trusted carer':'Aidant de confiance', 'Backup helper with limited context':'Aide de secours avec un contexte limité',
+    'Trusted carer':'Dog-sitter de confiance', 'Backup helper with limited context':'Aide de secours avec un contexte limité',
     Name:'Nom', 'e.g. Camille Martin':'ex. : Camille Martin', Email:'E-mail', 'Can preview':'Peut consulter',
     'Daily stories':'Récits quotidiens', 'Owner-ready recaps and media placeholders':'Récapitulatifs prêts pour le propriétaire et médias de démonstration',
     'Structured observations and handover notes':'Observations structurées et notes de relais',
@@ -113,11 +113,11 @@ const translations = {
     'Pending invites':'Invitations en attente', 'Local preview queue':'File d’aperçus locaux',
     'No pending invites yet':'Aucune invitation en attente', 'Create a preview to see it queued here.':'Créez un aperçu pour le voir apparaître ici.',
     'Pending preview':'Aperçu en attente', 'New contact':'Nouveau contact', 'Email needed before preview':'E-mail requis avant l’aperçu',
-    Role:'Rôle', 'Shared care context':'Contexte de soin partagé', 'Choose at least one area':'Choisissez au moins un domaine',
+    Role:'Rôle', 'Shared care context':'Informations partagées', 'Choose at least one area':'Choisissez au moins un domaine',
     'Ready as a pending preview':'Prêt comme aperçu en attente',
-    'No delivery will happen from this demo. Review the summary with the sitter before copying anything elsewhere.':'Aucun envoi ne partira de cette démo. Passez le récapitulatif en revue avec la personne concernée avant de copier quoi que ce soit ailleurs.',
+    'No delivery will happen from this demo. Review the summary with the sitter before copying anything elsewhere.':'Aucun envoi ne partira de cette démo. Passez le récapitulatif en revue avec le dog-sitter avant de copier quoi que ce soit ailleurs.',
     // Schedule
-    'Bookings overview':'Vue des réservations', '11 bookings · 76% of this week’s care capacity':'11 réservations · 76 % de la capacité de soin cette semaine', '＋ New booking':'＋ Nouvelle réservation',
+    'Bookings overview':'Vue des réservations', '11 bookings · 76% of this week’s care capacity':'11 réservations · 76 % de la capacité d’accueil cette semaine', '＋ New booking':'＋ Nouvelle réservation',
     Sun:'Dim', Mon:'Lun', Tue:'Mar', Wed:'Mer', Thu:'Jeu', Fri:'Ven', Sat:'Sam',
     walk:'promenade', 'day care':'garde de jour', 'half day':'demi-journée', 'Admin morning':'Matinée administrative',
     'Upcoming handovers':'Prochains départs', 'Everything owners need before the doorbell rings':'Tout ce dont les propriétaires ont besoin avant la sonnette',
@@ -125,7 +125,7 @@ const translations = {
     'Add final rest update before handover':'Ajouter une dernière note de repos avant le départ',
     // Business
     'REVENUE BOOKED':'CA RÉSERVÉ', '↑ 13% vs June':'↑ 13 % vs juin', 'NET AFTER EXPENSES':'NET APRÈS FRAIS', '77% margin':'77 % de marge',
-    'CARE HOURS':'HEURES DE SOIN', '€30.21 / hour':'30,21 € / heure', 'REPEAT OWNERS':'PROPRIÉTAIRES FIDÈLES', Healthy:'Sain',
+    'CARE HOURS':'HEURES DE GARDE', '€30.21 / hour':'30,21 € / heure', 'REPEAT OWNERS':'PROPRIÉTAIRES FIDÈLES', Healthy:'Sain',
     'Revenue rhythm':'Rythme du chiffre d’affaires', 'Last 7 months · demo data':'7 derniers mois · données de démonstration',
     Jan:'Jan', Feb:'Fév', Mar:'Mar', Apr:'Avr', May:'Mai', Jun:'Juin', Jul:'Juil',
     'Recent expenses':'Dépenses récentes', '€644 this month':'644 € ce mois-ci', '＋ Add':'＋ Ajouter',
@@ -136,7 +136,7 @@ const translations = {
     'Demo settings':'Réglages de démonstration', 'External integrations are intentionally unavailable in this local prototype.':'Les intégrations externes sont volontairement indisponibles dans ce prototype local.',
     'Reset demo observations':'Réinitialiser les observations de démonstration',
     // Toasts
-    'Add a care update first':'Ajoutez d’abord une note de soin', 'Saved to {name}’s timeline':'Enregistré dans le journal de {name}',
+    'Add a care update first':'Ajoutez d’abord une note du quotidien', 'Saved to {name}’s timeline':'Enregistré dans le journal de {name}',
     'Add a name for the invite preview':'Ajoutez un nom pour l’aperçu d’invitation', 'Add an email for the invite preview':'Ajoutez un e-mail pour l’aperçu d’invitation',
     'Choose at least one thing to share':'Choisissez au moins un élément à partager', 'Pending invite preview created — nothing was sent':'Aperçu d’invitation en attente créé — rien n’a été envoyé',
     'WhatsApp preview only — nothing was sent':'Aperçu WhatsApp uniquement — rien n’a été envoyé',
@@ -146,7 +146,7 @@ const translations = {
     'Booking creation is a demo preview':'La création de réservation est un aperçu de démonstration', 'Expense entry is a demo preview':'La saisie de dépense est un aperçu de démonstration',
     'Demo observations reset':'Observations de démonstration réinitialisées',
     // Observation titles from capture inference
-    'Health & care observation':'Observation de santé & soin', 'Activity update':'Note d’activité', 'Meal update':'Note de repas', 'Care moment':'Moment de soin',
+    'Health & care observation':'Observation de santé & soin', 'Activity update':'Note d’activité', 'Meal update':'Note de repas', 'Care moment':'Moment du quotidien',
     // Seed observations
     'Breakfast & morning check-in':'Petit-déjeuner & point du matin',
     'Finished her full breakfast and drank well. Bright, relaxed and ready for the day.':'A terminé tout son petit-déjeuner et bien bu. Éveillée, détendue et prête pour la journée.',
@@ -169,16 +169,16 @@ const translations = {
     'Add favourite enrichment':'Ajouter l’enrichissement préféré', 'Add sensitivities and recovery needs':'Ajouter les sensibilités et besoins de récupération',
     '10:10 woodland walk':'10:10 balade en forêt', '11:30 garden play':'11:30 jeu au jardin',
     // Voice recorder
-    'Voice note':'Note vocale', 'Care update voice note':'Note vocale de soin', '{title} voice note':'Note vocale · {title}', 'Play {label}':'Écouter {label}',
+    'Voice note':'Note vocale', 'Care update voice note':'Note vocale du quotidien', '{title} voice note':'Note vocale · {title}', 'Play {label}':'Écouter {label}',
     'Dictate or type your note':'Dictez ou écrivez votre note', 'Dictate':'Dicter', 'Dictate your note':'Dictez votre note', 'Stop dictation':'Arrêter la dictée', 'Listening…':'J’écoute…',
     'Dictate or type: Ate all breakfast, playful with Mabel, loose stool at 10:30…':'Dictez ou écrivez : a mangé tout le petit-déjeuner, joueuse avec Mabel, selles molles à 10:30…',
     'Tap the mic to dictate — your words fill the note as you speak. The mic is only used after you tap it.':'Touchez le micro pour dicter — vos mots remplissent la note à mesure que vous parlez. Le micro n’est utilisé qu’après l’avoir touché.',
     Stop:'Arrêter', 'Recording duration':'Durée de l’enregistrement', 'Discard recording':'Supprimer l’enregistrement',
     'AI structuring and audio stay in this browser. Nothing is uploaded or sent.':'La structuration IA et l’audio restent dans ce navigateur. Rien n’est téléversé ni envoyé.',
     'Voice note cleared. Tap the mic to dictate again.':'Note vocale supprimée. Touchez le micro pour dicter à nouveau.',
-    'Voice recording is not available in this browser. You can still type and save the care update.':'L’enregistrement vocal n’est pas disponible dans ce navigateur. Vous pouvez tout de même saisir et enregistrer la note de soin.',
+    'Voice recording is not available in this browser. You can still type and save the care update.':'L’enregistrement vocal n’est pas disponible dans ce navigateur. Vous pouvez tout de même saisir et enregistrer la note du quotidien.',
     'Recording stopped because the microphone became unavailable.':'Enregistrement interrompu car le micro est devenu indisponible.',
-    'Voice note ready. Play it back, discard it, or save it with the care update.':'Note vocale prête. Écoutez-la, supprimez-la ou enregistrez-la avec la note de soin.',
+    'Voice note ready. Play it back, discard it, or save it with the care update.':'Note vocale prête. Écoutez-la, supprimez-la ou enregistrez-la avec la note du quotidien.',
     'Speak naturally — your words fill the note. Tap Stop when you’re finished.':'Parlez naturellement — vos mots remplissent la note. Touchez Arrêter quand vous avez terminé.',
     'Two-minute limit reached. Preparing your voice note…':'Limite de deux minutes atteinte. Préparation de votre note vocale…',
     'Microphone access was denied. You can allow it in browser settings or continue with a typed update.':'L’accès au micro a été refusé. Vous pouvez l’autoriser dans les réglages du navigateur ou continuer avec une note saisie.',
@@ -186,7 +186,7 @@ const translations = {
     'Stop the recording before saving':'Arrêtez l’enregistrement avant de sauvegarder',
     // Gallery · voice notes & social previews
     'Demo media and voice notes kept in this browser.':'Médias de démonstration et notes vocales conservés dans ce navigateur.',
-    'Voice notes':'Notes vocales', 'Attached locally to care updates for this browser session':'Rattachées localement aux notes de soin pour cette session de navigation',
+    'Voice notes':'Notes vocales', 'Attached locally to care updates for this browser session':'Rattachées localement aux notes du quotidien pour cette session de navigation',
     'Social access previews':'Aperçus d’accès aux réseaux sociaux',
     'Explore what a future connection could share. No account is connected and nothing can be posted.':'Découvrez ce qu’une future connexion pourrait partager. Aucun compte n’est connecté et rien ne peut être publié.',
     'Photo and story draft':'Brouillon de photo et de story', 'Page update draft':'Brouillon de publication de page', 'Short video draft':'Brouillon de vidéo courte',
@@ -198,7 +198,7 @@ const translations = {
     'Speech-to-text uses your browser’s speech service. Depending on your browser, audio may be sent to its provider for transcription.':'La transcription utilise le service vocal de votre navigateur. Selon le navigateur, l’audio peut être envoyé à son fournisseur pour être transcrit.',
     'AI structuring and recorded audio stay in this browser. Speech transcription may use your browser provider’s service.':'La structuration IA et l’audio enregistré restent dans ce navigateur. La transcription peut utiliser le service de son fournisseur.',
     'Speech-to-text is not available in this browser. You can still record audio or type your update.':'La transcription vocale n’est pas disponible dans ce navigateur. Vous pouvez toujours enregistrer l’audio ou saisir votre note.',
-    'Listening… your words will appear in the care update.':'Écoute en cours… vos mots apparaîtront dans la note de soin.',
+    'Listening… your words will appear in the care update.':'Écoute en cours… vos mots apparaîtront dans la note du quotidien.',
     'Speech recognition permission was denied. Allow microphone access in browser settings or continue typing.':'L’autorisation de reconnaissance vocale a été refusée. Autorisez le micro dans les réglages du navigateur ou continuez à écrire.',
     'Speech recognition stopped unexpectedly. Your transcript so far is still editable.':'La reconnaissance vocale s’est arrêtée inopinément. Le texte déjà transcrit reste modifiable.',
     'Transcript added. Review and edit it before saving.':'Transcription ajoutée. Relisez-la et modifiez-la avant l’enregistrement.',
@@ -207,7 +207,7 @@ const translations = {
     'Share this update':'Partager cette note', 'Use your device’s share sheet for any app, including Instagram. If it is unavailable, choose an option below.':'Utilisez le menu de partage de votre appareil pour toute application, y compris Instagram. S’il est indisponible, choisissez une option ci-dessous.',
     'Share…':'Partager…', WhatsApp:'WhatsApp', Telegram:'Telegram', Facebook:'Facebook', 'Copy for Instagram':'Copier pour Instagram',
     'Instagram does not offer web sharing for text. Copy the update, then paste it into Instagram.':'Instagram ne propose pas de partage web pour le texte. Copiez la note, puis collez-la dans Instagram.',
-    '{name}’s care update':'Note de soin de {name}', 'Review this draft, then share it with the app you choose.':'Relisez ce brouillon, puis partagez-le avec l’application de votre choix.',
+    '{name}’s care update':'Note du quotidien de {name}', 'Review this draft, then share it with the app you choose.':'Relisez ce brouillon, puis partagez-le avec l’application de votre choix.',
     'The share sheet could not open. Use one of the sharing options below.':'Le menu de partage n’a pas pu s’ouvrir. Utilisez l’une des options ci-dessous.',
     'Update copied. Open Instagram and paste it where you want.':'Note copiée. Ouvrez Instagram et collez-la où vous le souhaitez.', 'Copy failed. Select and copy the update text manually.':'La copie a échoué. Sélectionnez et copiez manuellement le texte de la note.',
     'Saved for this session, but browser storage is full':'Enregistré pour cette session, mais le stockage du navigateur est plein'
@@ -738,7 +738,7 @@ const translations = {
 const ACCOUNT_STORAGE = 'Care records and recordings are stored in your business’s own account store on the server it runs, accessible only to signed-in members of your business, never to a third party.';
 const ACCOUNT_INVITE = 'Pending invite preview stored in your business account. Nothing is sent.';
 Object.assign(translations.fr, {
-  [ACCOUNT_STORAGE]: 'Les notes de soin et enregistrements sont stockés dans le compte de votre entreprise, sur le serveur qu’elle exploite, accessibles uniquement à ses membres connectés, jamais à un tiers.',
+  [ACCOUNT_STORAGE]: 'Les notes du quotidien et enregistrements sont stockés dans le compte de votre entreprise, sur le serveur qu’elle exploite, accessibles uniquement à ses membres connectés, jamais à un tiers.',
   [ACCOUNT_INVITE]: 'Aperçu d’invitation en attente stocké dans le compte de votre entreprise. Rien n’est envoyé.'
 });
 Object.assign(translations.it, {
@@ -763,7 +763,7 @@ Object.assign(translations.fr, {
   "Capture a moment": "Noter un moment",
   "Write or dictate, then review.": "Écrivez ou dictez, puis relisez.",
   "Prepare the handoff": "Préparer le relais",
-  "The details the next carer needs.": "Les détails utiles à la personne qui prend le relais.",
+  "The details the next carer needs.": "Les détails utiles au dog-sitter qui prend le relais.",
   "Make their daily story": "Raconter leur journée",
   "A personal recap to review.": "Un récit personnalisé à relire.",
 
@@ -798,7 +798,7 @@ Object.assign(translations.fr, {
   "Skip to content": "Aller au contenu",
   "YOUR CARE WORKSPACE": "VOTRE ESPACE DE SOIN",
   "Care notes, stories & handoffs. All together.": "Notes de soin, récits et relais. Tout au même endroit.",
-  "Open care record": "Ouvrir le carnet de soin",
+  "Open care record": "Ouvrir le carnet de bord",
   "From Billie’s care log": "Dans le carnet de Billie",
   "View care timeline": "Voir le carnet"
 });
@@ -1210,26 +1210,26 @@ Object.assign(translations.it, {'Muse assistant':'Assistente Muse'});
 Object.assign(translations.de, {'Muse assistant':'Muse Assistent'});
 Object.assign(translations.es, {'Muse assistant':'Asistente Muse'});
 Object.assign(translations.fr, {
-  Handoff:'Relais', 'CARE CONTINUITY · TODAY':'CONTINUITÉ DES SOINS · AUJOURD’HUI', 'A clear handoff for whoever cares next':'Un relais clair pour la prochaine personne qui prend soin',
-  "Built from today's captured observations. Review before sharing or starting care.":'Constitué à partir des observations saisies aujourd’hui. Vérifiez avant de partager ou de commencer les soins.',
+  Handoff:'Relais', 'CARE CONTINUITY · TODAY':'LE RELAIS · AUJOURD’HUI', 'A clear handoff for whoever cares next':'Un relais clair pour la prochaine personne qui prend soin',
+  "Built from today's captured observations. Review before sharing or starting care.":'Constitué à partir des observations saisies aujourd’hui. Vérifiez avant de partager ou de prendre le relais.',
   'Handoff audience':'Destinataire du relais', 'Next carer':'Prochain aidant', '{count} observations today':'{count} observations aujourd’hui',
-  'Prepared for {audience}':'Préparé pour {audience}', "{name}'s care highlights":'Points clés de soin de {name}',
+  'Prepared for {audience}':'Destinataire : {audience}', "{name}'s care highlights":'Points clés de soin de {name}',
   '{count} captured moments · last update {time}':'{count} moments saisis · dernière mise à jour {time}', 'not yet recorded':'pas encore enregistrée',
-  'No observations captured today yet. Add a care moment before handoff.':'Aucune observation saisie aujourd’hui pour l’instant. Ajoutez une note de soin avant le relais.',
+  'No observations captured today yet. Add a care moment before handoff.':'Aucune observation saisie aujourd’hui pour l’instant. Ajoutez une note du quotidien avant le relais.',
   'Health observation — factual, not diagnostic':'Observation de santé — factuelle, pas un diagnostic', 'Health context':'Contexte de santé',
-  'NEXT CARE':'PROCHAINS SOINS', 'What to do next':'Que faire ensuite', '＋ Add follow-up observation':'＋ Ajouter une observation de suivi',
-  'Evidence for this handoff':'Preuves pour ce relais', "Open any source observation in {name}'s care timeline.":'Ouvrez n’importe quelle observation source dans l’historique de soin de {name}.',
+  'NEXT CARE':'POUR LA SUITE', 'What to do next':'Que faire ensuite', '＋ Add follow-up observation':'＋ Ajouter une observation de suivi',
+  'Evidence for this handoff':'Preuves pour ce relais', "Open any source observation in {name}'s care timeline.":'Ouvrez n’importe quelle observation source dans le carnet de bord de {name}.',
   'Review owner story':'Revoir le récit propriétaire', "View today's gallery":'Voir la galerie du jour', 'View source →':'Voir la source →',
   'No source observations available yet.':'Aucune observation source disponible pour l’instant.',
   'Food and drink: {text}':'Alimentation et boisson : {text}', 'Movement and enrichment: {text}':'Mouvement et enrichissement : {text}',
   '{count} factual health observation is linked below. This is not a diagnosis; keep observing and contact a veterinarian if you are concerned.':'{count} observation de santé factuelle est liée ci-dessous. Ce n’est pas un diagnostic ; continuez à observer et contactez un vétérinaire en cas d’inquiétude.',
   '{count} factual health observations are linked below. This is not a diagnosis; keep observing and contact a veterinarian if you are concerned.':'{count} observations de santé factuelles sont liées ci-dessous. Ce n’est pas un diagnostic ; continuez à observer et contactez un vétérinaire en cas d’inquiétude.',
-  "No health-watch observations were recorded today. This reflects today's care log, not a clinical assessment.":'Aucune observation de santé à surveiller n’a été enregistrée aujourd’hui. Cela reflète le journal de soin du jour, pas une évaluation clinique.',
+  "No health-watch observations were recorded today. This reflects today's care log, not a clinical assessment.":'Aucune observation de santé à surveiller n’a été enregistrée aujourd’hui. Cela reflète le carnet de bord du jour, pas une évaluation clinique.',
   'Continue to observe the specific signs noted below.':'Continuez à observer les signes précis notés ci-dessous.',
-  'Share any change or concern with the next carer, and contact your veterinarian if concerned.':'Partagez tout changement ou toute inquiétude avec le prochain aidant, et contactez votre vétérinaire en cas d’inquiétude.',
+  'Share any change or concern with the next carer, and contact your veterinarian if concerned.':'Partagez tout changement ou toute inquiétude avec le prochain dog-sitter, et contactez votre vétérinaire en cas d’inquiétude.',
   'Keep the usual home routine for food, rest and movement.':'Gardez la routine habituelle à la maison pour l’alimentation, le repos et le mouvement.',
-  'Share any change that could help the next carer.':'Partagez tout changement qui pourrait aider le prochain aidant.',
-  'Read the linked observations before care starts.':'Lisez les observations liées avant de commencer les soins.',
+  'Share any change that could help the next carer.':'Partagez tout changement qui pourrait aider le prochain dog-sitter.',
+  'Read the linked observations before care starts.':'Lisez les observations liées avant de prendre le relais.',
   'Observe and record any change using factual language; contact the owner and veterinarian if concerned.':'Observez et notez tout changement en termes factuels ; contactez le propriétaire et le vétérinaire en cas d’inquiétude.',
   'Follow the owner-confirmed food, movement and rest routine.':'Suivez la routine d’alimentation, de mouvement et de repos confirmée par le propriétaire.',
   'Add the next useful observation so the owner has a continuous record.':'Ajoutez la prochaine observation utile pour que le propriétaire dispose d’un suivi continu.'
@@ -1318,8 +1318,8 @@ const assistantCopy = {
   },
   fr: {
     edition:'ASSISTANT DE SOIN PRIVÉ', heroKicker:'MUSE · LE BUS DES TOUTOUS', heroHeading:'Bonjour, Adine-Sophie.', heroText:'Billie Blue et Charlie Rose sont bien arrivées. J’ai rassemblé leur contexte de soin et les prochaines étapes de la journée.', talk:'Parler à Muse ✦', add:'Ajouter une note de soin',
-    eyebrow:'ASSISTANT PRIVÉ · LE BUS DES TOUTOUS', heading:'Muse · Votre assistant de soin', introKicker:'MUSE POUR ADINE-SOPHIE', introHeading:'Comment puis-je aider aujourd’hui ?', introText:'Parlez naturellement. Muse utilise uniquement les informations de soin de ce prototype privé.', prompts:['Résume-moi la journée','Que faut-il surveiller ?','Préparer le relais propriétaire'], ask:'Demander à Muse', placeholder:'Posez une question sur la journée, un chien ou le prochain relais…', privacy:'Prototype privé · Votre question et l’historique de soin restent dans ce navigateur. Muse ne contacte aucun client ni service externe.', quick:'ACTIONS RAPIDES', keep:'Faire avancer les soins', muse:'Muse', you:'Vous', actions:[['Ajouter une note de soin','Dicter, modifier et valider'],['Vérifier le relais','Points clés, preuves et suite'],['Prévisualiser le récit','Relire avant partage']],
-    briefing:(billie,charlie)=>`Bonjour, Adine-Sophie. Billie Blue a ${billie} notes de soin aujourd’hui et Charlie Rose en a ${charlie}. Elles sont bien arrivées ; déjeuner et temps calme sont prévus à 12 h 30.`, noHealth:'Aucune observation de santé à surveiller n’est enregistrée aujourd’hui pour Billie Blue ou Charlie Rose. Cela reflète seulement le journal du jour et ne constitue pas un diagnostic. Continuez à observer et notez factuellement tout changement.', health:(count,notes)=>`J’ai trouvé ${count} observation${count===1?'':'s'} factuelle${count===1?'':'s'} à surveiller : ${notes} Il s’agit d’un contexte de soin, pas d’un diagnostic ; continuez à observer et contactez le propriétaire ou un vétérinaire en cas d’inquiétude.`, handoff:'Le relais de soin est prêt à être vérifié. Chaque point clé renvoie à son observation source et le vocabulaire de santé reste factuel et non diagnostique.', capture:'Je peux vous aider à la noter. Ouvrez une note de soin, parlez naturellement, arrêtez l’enregistrement, modifiez le texte puis validez-le dans l’historique du chien.', fallback:'Je peux résumer la journée, signaler les observations à surveiller, préparer un relais ou ouvrir une nouvelle note de soin. Ce prototype répond uniquement à partir des informations présentes dans ce navigateur.'
+    eyebrow:'ASSISTANT PRIVÉ · LE BUS DES TOUTOUS', heading:'Muse · Votre assistant du quotidien', introKicker:'MUSE POUR ADINE-SOPHIE', introHeading:'Comment puis-je aider aujourd’hui ?', introText:'Parlez naturellement. Muse utilise uniquement les notes du quotidien de ce prototype privé.', prompts:['Résume-moi la journée','Que faut-il surveiller ?','Préparer le relais propriétaire'], ask:'Demander à Muse', placeholder:'Posez une question sur la journée, un chien ou le prochain relais…', privacy:'Prototype privé · Votre question et le carnet de bord restent dans ce navigateur. Muse ne contacte aucun client ni service externe.', quick:'ACTIONS RAPIDES', keep:'Organiser la journée', muse:'Muse', you:'Vous', actions:[['Ajouter une note du quotidien','Dicter, modifier et valider'],['Vérifier le relais','Points clés, preuves et suite'],['Prévisualiser le récit','Relire avant partage']],
+    briefing:(billie,charlie)=>`Bonjour, Adine-Sophie. Billie Blue a ${billie} notes du quotidien aujourd’hui et Charlie Rose en a ${charlie}. Elles sont bien arrivées ; déjeuner et temps calme sont prévus à 12 h 30.`, noHealth:'Aucune observation de santé à surveiller n’est enregistrée aujourd’hui pour Billie Blue ou Charlie Rose. Cela reflète seulement le journal du jour et ne constitue pas un diagnostic. Continuez à observer et notez factuellement tout changement.', health:(count,notes)=>`J’ai trouvé ${count} observation${count===1?'':'s'} factuelle${count===1?'':'s'} à surveiller : ${notes} Il s’agit d’un contexte de soin, pas d’un diagnostic ; continuez à observer et contactez le propriétaire ou un vétérinaire en cas d’inquiétude.`, handoff:'Le relais est prêt à être vérifié. Chaque point clé renvoie à son observation source et le vocabulaire de santé reste factuel et non diagnostique.', capture:'Je peux vous aider à la noter. Ouvrez une note du quotidien, parlez naturellement, arrêtez l’enregistrement, modifiez le texte puis validez-le dans l’historique du chien.', fallback:'Je peux résumer la journée, signaler les observations à surveiller, préparer un relais ou ouvrir une nouvelle note du quotidien. Ce prototype répond uniquement à partir des informations présentes dans ce navigateur.'
   }
 };
 assistantCopy.it={...assistantCopy.en,heroHeading:'Buongiorno, Adine-Sophie.',heroText:'Billie Blue e Charlie Rose sono entrambe arrivate. Ho raccolto il loro contesto di cura e i prossimi momenti della giornata.',talk:'Parla con Muse ✦',add:'Aggiungi una nota di cura',eyebrow:'ASSISTENTE PRIVATO · LE BUS DES TOUTOUS',heading:'Muse · Il tuo assistente di cura',introKicker:'MUSE PER ADINE-SOPHIE',introHeading:'Come posso aiutarti oggi?',introText:'Parla naturalmente. Muse usa solo le informazioni di cura presenti in questo prototipo privato.',prompts:['Riepiloga la giornata','Cosa richiede attenzione?','Prepara il passaggio al proprietario'],ask:'Chiedi a Muse',placeholder:'Chiedi della giornata, di un cane o del prossimo passaggio…',privacy:'Prototipo privato · La domanda e lo storico delle cure restano in questo browser. Muse non contatta clienti o servizi esterni.',quick:'AZIONI RAPIDE',keep:'Porta avanti le cure',you:'Tu',actions:[['Aggiungi una nota','Parla, modifica e convalida'],['Controlla il passaggio','Punti chiave, prove e prossime cure'],['Anteprima del racconto','Rileggi prima di condividere']],briefing:(billie,charlie)=>`Buongiorno, Adine-Sophie. Billie Blue ha ${billie} momenti di cura registrati oggi e Charlie Rose ne ha ${charlie}. Sono entrambe arrivate; pranzo e riposo sono previsti alle 12:30.`};
@@ -1355,7 +1355,7 @@ Object.assign(translations.fr, {
   "Capture the moment": "Noter un moment",
   "Start typing to see structured care tags": "Les catégories apparaissent pendant que vous écrivez",
   "A clear handoff for whoever cares next": "Tout pour bien prendre le relais",
-  "Next carer": "Personne qui prend le relais",
+  "Next carer": "Dog-sitter suivant",
   "{name}'s care highlights": "L’essentiel pour {name}",
   "Evidence for this handoff": "Les notes à consulter",
   "Review owner story": "Relire le résumé pour le propriétaire"
