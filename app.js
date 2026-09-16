@@ -1189,6 +1189,12 @@ Object.assign(translations.es, { "Speech-to-text is not available in this browse
 
 let state = { page: 'dashboard', dog: 'billie', handoffAudience: 'carer', language: 'fr', observations: window.DogCareAPI ? {billie:[],charlie:[]} : structuredClone(baseObservations), invites: [], assistantMessages: [] };
 let audioDraft = null;
+const captureDrafts = {};
+const SAVE_FAILED = 'Note not saved. Browser storage is unavailable or full. Your draft is still here; copy it before closing this page, or free space and retry.';
+Object.assign(translations.fr, { [SAVE_FAILED]: 'Note non enregistrée. Le stockage du navigateur est indisponible ou plein. Votre brouillon est toujours ici : copiez-le avant de fermer cette page, ou libérez de la place puis réessayez.' });
+Object.assign(translations.it, { [SAVE_FAILED]: 'Nota non salvata. La memoria del browser non è disponibile o è piena. La bozza è ancora qui: copiala prima di chiudere la pagina oppure libera spazio e riprova.' });
+Object.assign(translations.de, { [SAVE_FAILED]: 'Notiz nicht gespeichert. Der Browserspeicher ist nicht verfügbar oder voll. Dein Entwurf ist noch hier: Kopiere ihn vor dem Schließen dieser Seite oder schaffe Platz und versuche es erneut.' });
+Object.assign(translations.es, { [SAVE_FAILED]: 'Nota no guardada. El almacenamiento del navegador no está disponible o está lleno. Tu borrador sigue aquí: cópialo antes de cerrar esta página o libera espacio y vuelve a intentarlo.' });
 let activeRecorder = null;
 let recordingTimer = null;
 let activeAudioStream = null;
@@ -1441,7 +1447,13 @@ function loadObservations() {
 }
 function saveObservations(observations = state.observations) {
   if (window.DogCareAPI) return window.DogCareAPI.saveObservations(observations);
-  try { localStorage.setItem('dogcare-observations', JSON.stringify(observations)); } catch { showToast(t('Saved for this session, but browser storage is full')); }
+  try { localStorage.setItem('dogcare-observations', JSON.stringify(observations)); }
+  catch {
+    const error = document.querySelector('#save-error');
+    if (error) { error.textContent = t(SAVE_FAILED); error.hidden = false; }
+    else showToast(t(SAVE_FAILED));
+    return false;
+  }
   return true;
 }
 function loadInvites() {
@@ -1473,8 +1485,17 @@ async function persistChange(save, button) {
   }
 }
 window.addEventListener('beforeunload', event => {
-  if (savePending) { event.preventDefault(); event.returnValue = ''; }
+  rememberCaptureDraft();
+  if (savePending || Object.values(captureDrafts).some(draft => draft.text.trim() || draft.audio)) {
+    event.preventDefault(); event.returnValue = '';
+  }
 });
+function rememberCaptureDraft() {
+  const input = document.querySelector('#observation');
+  if (input) captureDrafts[input.dataset.captureOwner] = {
+    text: input.value, audio: audioDraft, error: !document.querySelector('#save-error').hidden
+  };
+}
 function escapeHtml(value) { return String(value).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
 function showToast(message) { const toast=document.querySelector('#toast'); toast.textContent=message; toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'),2500); }
 function dogAvatar(key) { const d=dogs[key]; return `<div class="dog-avatar ${d.colour}">${key==='billie'?`<img src="assets/photos/billie-pines.jpg" alt="Billie Blue" width="960" height="1280">`:`<span class="dog-initials" aria-hidden="true">CR</span><small>${t('Photo to add')}</small>`}</div>`; }
@@ -1520,7 +1541,27 @@ function careInsight(key) {
   if (activity.length >= 2) return { level:'good', title:t('Routine context is building'), text:t('Several activity observations are now linked to this dog. Add energy and enrichment targets to make future insights more personal.') };
   return { level:'neutral', title:t('No pattern yet'), text:t('Keep capturing small moments. Insights appear only when there is enough care history to support them.') };
 }
-function todayObservations(key) { return state.observations[key].filter(observation => observation.date === 'Today'); }
+function localDay(date = new Date()) {
+  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+}
+function observationDay(observation) {
+  // Older app-created records used an epoch-ms ID but stored only "Today".
+  // Low-numbered demo IDs keep their illustrative Today/Yesterday labels.
+  const id = Number(observation.id);
+  if (observation.date === 'Today' && Number.isSafeInteger(id) && id >= 946684800000 && id <= 8640000000000000) {
+    return localDay(new Date(id));
+  }
+  return observation.date;
+}
+function observationDateLabel(observation) {
+  const day = observationDay(observation);
+  if (day === localDay()) return t('Today');
+  return t(day);
+}
+function todayObservations(key) {
+  const today = localDay();
+  return state.observations[key].filter(observation => ['Today', today].includes(observationDay(observation)));
+}
 function hasTag(observation, pattern) { return observation.tags.some(tag => pattern.test(tag)); }
 function handoffSummary(key) {
   const observations=todayObservations(key), health=observations.filter(o=>hasTag(o,/health|medication|sick|stool/i));
@@ -1578,7 +1619,7 @@ const views = {
       </section>
       <div class="club-care-grid">
         <section class="club-dogs"><div class="section-head"><h2>${t('The dogs')}</h2><button class="link-button" data-go="dogs">${t('View profiles')} <span aria-hidden="true">↗</span></button></div><div class="dog-row">${Object.entries(dogs).map(([key,d])=>`<button class="card dog-card" data-dog="${key}">${dogAvatar(key)}<span class="dog-meta"><strong class="dog-name">${d.name}</strong><span class="dog-owner">${d.owner}</span><span class="dog-record-count">${t('Open care record')}</span></span><span class="dog-arrow" aria-hidden="true">↗</span></button>`).join('')}</div><p class="sample-note">${t('Sample workspace · care records to explore')}</p></section>
-        <section class="club-latest"><div class="section-head"><h2>${t('From Billie’s care log')}</h2><button class="link-button" data-dog="billie">${t('View care timeline')} <span aria-hidden="true">↗</span></button></div><div class="activity-list"><button class="activity-row" ${latest.id != null ? `data-evidence-id="${latest.id}" data-evidence-dog="billie"` : 'data-capture-dog="billie"'}><span class="activity-time">${escapeHtml(latest.time)}<small>${escapeHtml(t(latest.date))}</small></span><span class="activity-copy"><strong>${escapeHtml(t(latest.title))}</strong><span class="activity-preview">${escapeHtml(t(latest.text))}</span></span><span class="activity-arrow" aria-hidden="true">↗</span></button></div><button class="club-assistant" data-go="assistant"><span><strong>${t('Ask Muse.')}</strong><small>${t('Review the day or get ready for the next handoff.')}</small></span><span aria-hidden="true">↗</span></button></section>
+        <section class="club-latest"><div class="section-head"><h2>${t('From Billie’s care log')}</h2><button class="link-button" data-dog="billie">${t('View care timeline')} <span aria-hidden="true">↗</span></button></div><div class="activity-list"><button class="activity-row" ${latest.id != null ? `data-evidence-id="${latest.id}" data-evidence-dog="billie"` : 'data-capture-dog="billie"'}><span class="activity-time">${escapeHtml(latest.time)}<small>${escapeHtml(observationDateLabel(latest))}</small></span><span class="activity-copy"><strong>${escapeHtml(t(latest.title))}</strong><span class="activity-preview">${escapeHtml(t(latest.text))}</span></span><span class="activity-arrow" aria-hidden="true">↗</span></button></div><button class="club-assistant" data-go="assistant"><span><strong>${t('Ask Muse.')}</strong><small>${t('Review the day or get ready for the next handoff.')}</small></span><span aria-hidden="true">↗</span></button></section>
       </div>
       <section class="club-journal"><div class="journal-landscape"><img src="assets/photos/pack-on-the-trail.jpg" alt="${t('Dogs following a sunlit trail through the woods.')}" width="720" height="1280" loading="lazy"></div><div class="journal-intro"><span class="eyebrow">@BUS_DESTOUTOUS</span><h2>${t('A glimpse of their world.')}</h2><p>${t('Photos and films from @bus_destoutous.')}</p><button class="secondary" data-go="gallery">${t('See the photo journal')} <span aria-hidden="true">↗</span></button></div><div class="journal-portrait"><img src="assets/photos/adine-woodland.jpg" alt="${t('Adine-Sophie walking with the dogs in the woods.')}" width="720" height="1280" loading="lazy"></div></section>
     </div>
@@ -1594,12 +1635,12 @@ const views = {
     return `<div class="page-title-row"><div><h2>${t('Care record')}</h2><p>${tf('Everything that helps {name} feel understood.', {name:d.name.split(' ')[0]})}</p></div><button class="primary" data-go="capture">${t('＋ Add observation')}</button></div><div class="grid page-grid"><div>
       <section class="card profile-hero">${dogAvatar(key)}<div><h2>${d.name}</h2><p>${t(d.breed)} · ${t(d.age)} · ${t('Owner:')} ${d.owner}</p>${tagsHtml(['Checked in','Consent on file'])}</div></section>
       <section class="card" style="margin-top:20px"><div class="section-head" style="margin-top:0"><div><h2>${t('Needs & lifestyle')}</h2><p>${t('Personalise these with the owner — not breed stereotypes.')}</p></div></div><div class="facts"><div class="fact"><small>${t('Energy')}</small><strong>${t(d.needs.energy)}</strong></div><div class="fact"><small>${t('Movement')}</small><strong>${t(d.needs.movement)}</strong></div><div class="fact"><small>${t('Enrichment')}</small><strong>${t(d.needs.enrichment)}</strong></div><div class="fact"><small>${t('Sensitivities')}</small><strong>${t(d.needs.sensitivities)}</strong></div></div></section>
-      <div class="section-head"><div><h2>${t('Care timeline')}</h2><p>${tf('{count} recorded moments', {count:obs.length})}</p></div><button class="link-button" data-go="handoff">${t('View daily handoff')}</button></div><div class="timeline">${obs.map(o=>`<article class="card timeline-card" id="observation-${o.id}"><div class="timeline-top"><h4>${escapeHtml(t(o.title))}</h4><time>${escapeHtml(o.time)} · ${escapeHtml(t(o.date))}</time></div><p>${escapeHtml(t(o.text))}</p>${audioHtml(o.audio, tf('{title} voice note', {title:t(o.title)}))}${tagsHtml(o.tags)}${shareControls(o,`share-${o.id}`)}</article>`).join('')}</div>
+      <div class="section-head"><div><h2>${t('Care timeline')}</h2><p>${tf('{count} recorded moments', {count:obs.length})}</p></div><button class="link-button" data-go="handoff">${t('View daily handoff')}</button></div><div class="timeline">${obs.map(o=>`<article class="card timeline-card" id="observation-${o.id}"><div class="timeline-top"><h4>${escapeHtml(t(o.title))}</h4><time>${escapeHtml(o.time)} · ${escapeHtml(observationDateLabel(o))}</time></div><p>${escapeHtml(t(o.text))}</p>${audioHtml(o.audio, tf('{title} voice note', {title:t(o.title)}))}${tagsHtml(o.tags)}${shareControls(o,`share-${o.id}`)}</article>`).join('')}</div>
     </div><aside><section class="card"><div class="section-head" style="margin-top:0"><div><h2>${t('Care insight')}</h2><p>${t('Evidence-based prompt · never a diagnosis')}</p></div></div><div class="context ${careInsight(key).level==='review'?'behaviour':''}"><strong>${careInsight(key).title}</strong><p>${careInsight(key).text}</p></div></section><section class="card" style="margin-top:20px"><div class="section-head" style="margin-top:0"><div><h2>${t('Care context')}</h2><p>${t('Quick reference for every handover')}</p></div></div><div class="context-list"><div class="context"><strong>${t('HEALTH')}</strong><p>${t(d.health)}</p></div><div class="context behaviour"><strong>${t('BEHAVIOUR')}</strong><p>${t(d.behaviour)}</p></div><div class="context vet"><strong>${t('VET & EMERGENCY')}</strong><p>${t(d.vet)}</p></div></div><div class="facts"><div class="fact"><small>${t('Food')}</small><strong>${t('Set with owner')}</strong></div><div class="fact"><small>${t('Walk')}</small><strong>${t('Set with owner')}</strong></div><div class="fact"><small>${t('Pickup')}</small><strong>${t('Set with owner')}</strong></div></div></section><section class="card" style="margin-top:20px"><div class="section-head" style="margin-top:0"><div><h2>${t('Vet access')}</h2><p>${t('Preview only · no clinic is contacted')}</p></div></div><p style="font-size:12px;color:var(--muted);line-height:1.5">${t(d.vet)}</p><div class="composer-actions"><button class="secondary" id="vet-call">${t('Call clinic')}</button><button class="ghost" id="vet-video">${t('Video consult')}</button></div></section><section class="card" style="margin-top:20px"><h3 style="font:400 20px Georgia,serif">${t('Switch dog')}</h3><div class="dog-picker">${Object.entries(dogs).map(([k,x])=>`<button class="dog-pick ${k===key?'active':''}" data-dog="${k}">${dogAvatar(k)}<div><strong>${x.name.split(' ')[0]}</strong><small>${t(x.age)}</small></div></button>`).join('')}</div></section></aside></div>`;
   },
   capture() {
     const d=dogs[state.dog]; setHeader('RAPID CAPTURE', 'Capture the moment');
-    return `<div class="page-title-row"><div><h2>${t('What just happened?')}</h2><p>${t('Write naturally. Keep the details that matter.')}</p></div></div><section class="card composer"><label class="label">${t('Who is this about?')}</label><div class="dog-picker">${Object.entries(dogs).map(([k,x])=>`<button class="dog-pick ${k===state.dog?'active':''}" data-capture-dog="${k}">${dogAvatar(k)}<div><strong>${x.name}</strong><small>${t(x.last)}</small></div></button>`).join('')}</div><label class="label" for="observation">${t('Care update')}</label><p class="dictate-hint">${t('Dictate or type your note')}</p><div class="note-field" id="note-field"><textarea id="observation" placeholder="${t('Ate breakfast, enjoyed a walk, settled down for a nap…')}"></textarea><button class="mic-button" type="button" id="record-audio" aria-label="${t('Dictate your note')}"><span class="mic-glyph" aria-hidden="true">🎤</span><span class="mic-text">${t('Dictate')}</span></button><button class="mic-button recording" type="button" id="stop-audio" hidden aria-label="${t('Stop dictation')}"><span class="mic-glyph" aria-hidden="true">■</span><span class="mic-text">${t('Stop')}</span></button><div class="listening-badge" id="listening-badge" hidden><span class="pulse-dot" aria-hidden="true"></span><span class="listening-text">${t('Listening…')}</span><span id="recording-duration" class="listening-timer" aria-label="${t('Recording duration')}">00:00</span></div></div><div class="voice-meta"><p id="recording-status" role="status">${t('Tap the mic to dictate — your words fill the note as you speak. The mic is only used after you tap it.')}</p><p id="transcription-status" role="status" class="voice-meta-status"></p><div id="audio-preview">${audioDraft ? `${audioHtml(audioDraft, t('Care update voice note'))}<button class="link-button discard-audio" type="button" id="discard-audio">${t('Discard recording')}</button>` : ''}</div><p class="transcription-privacy">${t('Speech-to-text uses your browser’s speech service. Depending on your browser, audio may be sent to its provider for transcription.')}</p></div><label class="label">${t('Detected details')} <small style="font-weight:400;text-transform:none;letter-spacing:0"> ${t('· updates as you type')}</small></label><div class="detected" id="detected"><em>${t('Start typing to see structured care tags')}</em></div><p id="health-safety" class="preview-note" hidden>${t('Health observations are factual notes, not diagnoses. Contact a veterinarian if concerned.')}</p><div class="composer-actions"><small>${storageCopy('AI structuring and recorded audio stay in this browser. Speech transcription may use your browser provider’s service.')}</small><button class="primary" id="save-observation">${tf("Save to {name}'s timeline →", {name:d.name.split(' ')[0]})}</button></div></section>`;
+    return `<div class="page-title-row"><div><h2>${t('What just happened?')}</h2><p>${t('Write naturally. Keep the details that matter.')}</p></div></div><section class="card composer"><label class="label">${t('Who is this about?')}</label><div class="dog-picker">${Object.entries(dogs).map(([k,x])=>`<button class="dog-pick ${k===state.dog?'active':''}" data-capture-dog="${k}">${dogAvatar(k)}<div><strong>${x.name}</strong><small>${t(x.last)}</small></div></button>`).join('')}</div><label class="label" for="observation">${t('Care update')}</label><p class="dictate-hint">${t('Dictate or type your note')}</p><div class="note-field" id="note-field"><textarea id="observation" data-capture-owner="${state.dog}" placeholder="${t('Ate breakfast, enjoyed a walk, settled down for a nap…')}"></textarea><button class="mic-button" type="button" id="record-audio" aria-label="${t('Dictate your note')}"><span class="mic-glyph" aria-hidden="true">🎤</span><span class="mic-text">${t('Dictate')}</span></button><button class="mic-button recording" type="button" id="stop-audio" hidden aria-label="${t('Stop dictation')}"><span class="mic-glyph" aria-hidden="true">■</span><span class="mic-text">${t('Stop')}</span></button><div class="listening-badge" id="listening-badge" hidden><span class="pulse-dot" aria-hidden="true"></span><span class="listening-text">${t('Listening…')}</span><span id="recording-duration" class="listening-timer" aria-label="${t('Recording duration')}">00:00</span></div></div><div class="voice-meta"><p id="recording-status" role="status">${t('Tap the mic to dictate — your words fill the note as you speak. The mic is only used after you tap it.')}</p><p id="transcription-status" role="status" class="voice-meta-status"></p><div id="audio-preview">${audioDraft ? `${audioHtml(audioDraft, t('Care update voice note'))}<button class="link-button discard-audio" type="button" id="discard-audio">${t('Discard recording')}</button>` : ''}</div><p class="transcription-privacy">${t('Speech-to-text uses your browser’s speech service. Depending on your browser, audio may be sent to its provider for transcription.')}</p></div><label class="label">${t('Detected details')} <small style="font-weight:400;text-transform:none;letter-spacing:0"> ${t('· updates as you type')}</small></label><div class="detected" id="detected"><em>${t('Start typing to see structured care tags')}</em></div><p id="health-safety" class="preview-note" hidden>${t('Health observations are factual notes, not diagnoses. Contact a veterinarian if concerned.')}</p><p id="save-error" role="alert" class="preview-note" ${captureDrafts[state.dog]?.error?'':'hidden'}>${captureDrafts[state.dog]?.error?t(SAVE_FAILED):''}</p><div class="composer-actions"><small>${storageCopy('AI structuring and recorded audio stay in this browser. Speech transcription may use your browser provider’s service.')}</small><button class="primary" id="save-observation">${tf("Save to {name}'s timeline →", {name:d.name.split(' ')[0]})}</button></div></section>`;
   },
   gallery() { setHeader('OUTDOOR JOURNAL','Life at Le Bus des Toutous'); const items=[['good-company.jpg','Good company','DYknTgAFPMo'],['pack-on-the-trail.jpg','A walk with the pack','DJ2A0xrsF-a'],['adine-woodland.jpg','Out in the woods','DJ2A0xrsF-a']]; const audioItems=Object.values(state.observations).flat().filter(o=>o.audio?.url); return `<div class="page-title-row"><div><h2>${t('Photo journal')}</h2><p>${t('Photos and films from @bus_destoutous.')}</p></div></div>${audioItems.length?`<section class="card audio-library"><div class="section-head"><div><h2>${t('Voice notes')}</h2><p>${storageCopy('Attached locally to care updates for this browser session')}</p></div></div>${audioItems.map(o=>audioHtml(o.audio,t(o.title))).join('')}</section>`:''}<section class="journal-film"><video class="day-film" controls muted playsinline preload="none" poster="assets/photos/pack-on-the-trail.jpg" aria-label="${t('A day with Adine-Sophie')}"><source src="assets/films/a-day-with-adine.mp4" type="video/mp4"></video><div><h2>${t('A day with Adine-Sophie')}</h2><p>${t('From the doorstep to the forest, with Adine-Sophie.')}</p><a href="https://www.instagram.com/reel/DJ2A0xrsF-a/" target="_blank" rel="noreferrer">@bus_destoutous ↗</a></div></section><div class="grid media-grid">${items.map((x,i)=>`<article class="media-item"><img class="media-art ${x[0]==='good-company.jpg'?'company-photo':''}" src="assets/photos/${x[0]}" alt="${t(x[1])}" loading="lazy"><div class="media-copy"><strong>${t(x[1])}</strong><a href="https://www.instagram.com/reel/${x[2]}/" target="_blank" rel="noreferrer">@bus_destoutous ↗</a></div></article>`).join('')}</div><section class="card social-preview" aria-labelledby="social-heading"><div class="section-head"><div><h2 id="social-heading">${t('Social access previews')}</h2><p>${t('Explore what a future connection could share. No account is connected and nothing can be posted.')}</p></div></div><div class="social-platforms">${[['Instagram','Photo and story draft'],['Facebook','Page update draft'],['YouTube','Short video draft']].map(([name,detail])=>`<article><span class="platform-mark" aria-hidden="true">${name[0]}</span><div><strong>${name}</strong><small>${t(detail)} · ${t('local preview only')}</small></div><button class="ghost social-access" type="button" data-platform="${name}" aria-label="${escapeHtml(tf('Preview local {name} access', {name}))}">${t('Preview access')}</button></article>`).join('')}</div><div class="local-boundary"><strong>${t('No social connection')}</strong><span>${t('No credentials are collected, no network request is made, and no content is posted.')}</span></div></section>`; },
   handoff() {
@@ -1686,8 +1727,18 @@ async function startAudioRecording() {
     status.textContent=error?.name==='NotAllowedError' ? t('Microphone access was denied. You can allow it in browser settings or continue with a typed update.') : t('The microphone could not be started. You can continue with a typed update.');
   }
 }
-function stopTranscription() {
-  if(activeRecognition) activeRecognition.stop();
+function stopTranscription(cancel = false) {
+  const recognition = activeRecognition;
+  if (cancel) activeRecognition = null;
+  if (recognition) recognition.stop();
+  setListeningState(false);
+  const start = document.querySelector('#record-audio'), stop = document.querySelector('#stop-audio');
+  if (start) start.hidden = false;
+  if (stop) stop.hidden = true;
+  const status = document.querySelector('#transcription-status');
+  if (recognition && status) status.textContent = document.querySelector('#observation')?.value.trim()
+    ? t('Transcript added. Review and edit it before saving.')
+    : t('Listening stopped. You can try again or type your update.');
 }
 function startTranscription() {
   const Recognition=window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1696,23 +1747,29 @@ function startTranscription() {
   const startButton=document.querySelector('#record-audio'), stopButton=document.querySelector('#stop-audio');
   if(!Recognition){ status.textContent=t('Speech-to-text is not available in this browser. You can still record audio or type your update.'); return; }
   const recognition=new Recognition(), existing=input.value.trim(), languageCodes={fr:'fr-FR',de:'de-DE',es:'es-ES',it:'it-IT',en:'en-US'};
+  stopTranscription(true);
+  activeRecognition = recognition;
+  const isCurrent = () => activeRecognition === recognition && input.isConnected;
   let finalText='';
   recognition.lang=languageCodes[state.language] || 'en-US';
   recognition.continuous=true;
   recognition.interimResults=true;
-  recognition.onstart=()=>{activeRecognition=recognition;setListeningState(true);startButton&&(startButton.hidden=true);stopButton&&(stopButton.hidden=false);const _rs=document.querySelector('#recording-status');if(_rs)_rs.textContent=t('Listening… your words will appear in the care update.');status.textContent=t('Listening… your words will appear in the care update.');};
+  recognition.onstart=()=>{if(!isCurrent()){recognition.stop();return;}setListeningState(true);startButton&&(startButton.hidden=true);stopButton&&(stopButton.hidden=false);const _rs=document.querySelector('#recording-status');if(_rs)_rs.textContent=t('Listening… your words will appear in the care update.');status.textContent=t('Listening… your words will appear in the care update.');};
   recognition.onresult=event=>{
+    if (!isCurrent()) return;
     let interim='';
     for(let i=event.resultIndex;i<event.results.length;i++){
       const words=event.results[i][0].transcript.trim();
       if(event.results[i].isFinal) finalText += `${finalText?' ':''}${words}`; else interim += `${interim?' ':''}${words}`;
     }
     input.value=[existing,finalText,interim].filter(Boolean).join(' ');
+    recognition.writingTranscript = true;
     input.dispatchEvent(new Event('input',{bubbles:true}));
+    recognition.writingTranscript = false;
   };
-  recognition.onerror=event=>{const _msg=['not-allowed','service-not-allowed'].includes(event.error) ? t('Speech recognition permission was denied. Allow microphone access in browser settings or continue typing.') : t('Speech recognition stopped unexpectedly. Your transcript so far is still editable.'); const _rs=document.querySelector('#recording-status'); if(_rs)_rs.textContent=_msg; status.textContent=_msg;};
-  recognition.onend=()=>{if(activeRecognition===recognition)activeRecognition=null;setListeningState(false);startButton&&(startButton.hidden=false);stopButton&&(stopButton.hidden=true);if(!status.textContent || status.textContent===t('Listening… your words will appear in the care update.'))status.textContent=finalText?t('Transcript added. Review and edit it before saving.'):t('Listening stopped. You can try again or type your update.');};
-  try { recognition.start(); } catch { status.textContent=t('Speech recognition could not start. You can still record audio or type your update.'); }
+  recognition.onerror=event=>{if(!isCurrent())return;const _msg=['not-allowed','service-not-allowed'].includes(event.error) ? t('Speech recognition permission was denied. Allow microphone access in browser settings or continue typing.') : t('Speech recognition stopped unexpectedly. Your transcript so far is still editable.'); const _rs=document.querySelector('#recording-status'); if(_rs)_rs.textContent=_msg; status.textContent=_msg;};
+  recognition.onend=()=>{if(!isCurrent())return;activeRecognition=null;setListeningState(false);startButton&&(startButton.hidden=false);stopButton&&(stopButton.hidden=true);if(!status.textContent || status.textContent===t('Listening… your words will appear in the care update.'))status.textContent=finalText?t('Transcript added. Review and edit it before saving.'):t('Listening stopped. You can try again or type your update.');};
+  try { recognition.start(); } catch { if(activeRecognition===recognition)activeRecognition=null;status.textContent=t('Speech recognition could not start. You can still record audio or type your update.'); }
 }
 async function audioFile(audio) {
   const src=recordingUrl(audio?.url);
@@ -1760,7 +1817,7 @@ function updateInviteSummary() {
   const permissionLabels = formatPermissions(invite.permissions);
   summary.innerHTML = `<div class="summary-person"><span>${invite.role === 'trusted-carer' ? '🤝' : '🏡'}</span><div><strong>${escapeHtml(firstName)}</strong><small>${escapeHtml(invite.email || t('Email needed before preview'))}</small></div></div><div class="summary-line"><b>${t('Role')}</b><span>${inviteRoleLabel(invite.role)}</span></div><div class="summary-line"><b>${t('Shared care context')}</b><span>${permissionLabels.length ? permissionLabels.map(label => escapeHtml(t(label))).join(', ') : t('Choose at least one area')}</span></div><div class="notice compact"><strong>${t('Ready as a pending preview')}</strong>${t('No delivery will happen from this demo. Review the summary with the sitter before copying anything elsewhere.')}</div>`;
 }
-function navigate(page) { if(savePending)return; if(!appReady){document.querySelector('.sidebar').classList.remove('open');return;} if(page!=='capture'){stopActiveRecording();stopTranscription();} state.page=page; document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.page===page)); content.innerHTML=views[page](); localizeContent(); bindView(); document.querySelector('.sidebar').classList.remove('open'); window.scrollTo({top:0}); }
+function navigate(page) { if(savePending)return; if(!appReady){document.querySelector('.sidebar').classList.remove('open');return;} if(state.page==='capture'){stopActiveRecording();stopTranscription(true);rememberCaptureDraft();} state.page=page; if(page==='capture')audioDraft=captureDrafts[state.dog]?.audio || null; document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.page===page)); content.innerHTML=views[page](); localizeContent(); bindView(); document.querySelector('.sidebar').classList.remove('open'); window.scrollTo({top:0}); }
 function bindView() {
   document.querySelectorAll('[data-go]').forEach(el=>el.onclick=()=>navigate(el.dataset.go));
   document.querySelectorAll('[data-assistant-action]').forEach(el=>el.onclick=()=>navigate(el.dataset.assistantAction));
@@ -1775,7 +1832,9 @@ function bindView() {
   document.querySelectorAll('[data-evidence-id]').forEach(el=>el.onclick=()=>{const id=el.dataset.evidenceId;state.dog=el.dataset.evidenceDog;navigate('dogs');requestAnimationFrame(()=>document.querySelector(`#observation-${id}`)?.scrollIntoView({behavior:'smooth',block:'center'}));});
   const input=document.querySelector('#observation');
   if(input){
-    input.oninput=()=>{const tags=infer(input.value);document.querySelector('#detected').innerHTML=input.value.trim()?tagsHtml(tags):`<em>${t('Start typing to see structured care tags')}</em>`;document.querySelector('#health-safety').hidden=!tags.includes('Health watch');};
+    input.value=captureDrafts[input.dataset.captureOwner]?.text || '';
+    input.oninput=event=>{if(event && activeRecognition && !activeRecognition.writingTranscript)stopTranscription(true);const tags=infer(input.value);document.querySelector('#detected').innerHTML=input.value.trim()?tagsHtml(tags):`<em>${t('Start typing to see structured care tags')}</em>`;document.querySelector('#health-safety').hidden=!tags.includes('Health watch');};
+    input.oninput();
     // Dictate transcribes into editable text; the audio-recording helper is not called here.
     document.querySelector('#record-audio').onclick=()=>{startTranscription();};
     document.querySelector('#stop-audio').onclick=()=>{stopTranscription();};
@@ -1786,13 +1845,16 @@ function bindView() {
       const text=input.value.trim();
       if(!text){input.focus();showToast(t('Add a care update first'));return;}
       if(activeRecorder?.state==='recording'){showToast(t('Stop the recording before saving'));return;}
-      stopTranscription();
+      stopTranscription(true);
       const tags=infer(text), now=new Date(), dog=state.dog;
-      const observation={id:Date.now(),time:now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),date:'Today',title:titleFrom(text,tags),text,tags,audio:audioDraft};
+      const observation={id:now.getTime(),time:now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),date:localDay(now),title:titleFrom(text,tags),text,tags,audio:audioDraft};
       const observations={...state.observations,[dog]:[observation,...state.observations[dog]]};
       if(!await persistChange(()=>saveObservations(observations),event.currentTarget))return;
       state.observations=observations;
       audioDraft=null;
+      input.value='';
+      document.querySelector('#save-error').hidden=true;
+      delete captureDrafts[dog];
       showToast(tf('Saved to {name}’s timeline', {name:dogs[dog].name}));
       navigate('dogs');
     };

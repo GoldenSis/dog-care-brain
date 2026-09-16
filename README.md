@@ -129,6 +129,10 @@ API errors generally return `{ "ok": false, "error": "…" }`. Invalid JSON or c
 
 Health-watch content is deliberately phrased as factual observation rather than diagnosis. The handoff reminds carers to keep observing and contact the owner or a veterinarian when concerned.
 
+Capture keeps a separate unsaved draft for each dog while the tab remains open. Switching dogs, language, or views preserves each draft; a successful save clears only that dog's draft. Save before reloading or closing the tab: drafts are not persisted, and the browser warns when leaving with unsaved work. If browser storage fails, capture remains editable and displays a persistent failure message; retrying after storage is available saves the note once.
+
+New observations store their local calendar date as `YYYY-MM-DD`. Today's handoff uses that day, while older observations stay in the timeline. Existing app-created records that stored the literal `Today` are dated using their epoch-millisecond ID when read, without rewriting stored history. Low-numbered demo records retain their illustrative Today/Yesterday labels.
+
 ## Try the invite preview flow
 
 1. Open **Invite** from the sidebar or top bar.
