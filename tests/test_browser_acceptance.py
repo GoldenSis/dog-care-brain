@@ -378,11 +378,61 @@ class BrowserAcceptanceTest(BrowserFixture):
 
     async def test_mobile_capture_discloses_storage_and_transcription(self):
         await self.page.click('.topbar [data-go="capture"]')
-        copy = await self.page.locator('.composer-actions small').text_content()
+        self.assertTrue(await self.page.locator('#voice-service-notice').is_visible())
+        self.assertIn("browser provider", await self.page.locator('#voice-service-notice').text_content())
+        self.assertFalse(await self.page.locator('.storage-notice').is_visible())
+        await self.page.click('.capture-help summary')
+        self.assertTrue(await self.page.locator('.storage-notice').is_visible())
+        copy = await self.page.locator('.storage-notice').text_content()
         self.assertIn("business’s own account" if self.api_mode else "stay in this browser", copy)
         self.assertIn("provider for transcription", await self.page.locator('.transcription-privacy').text_content())
         dimensions = await self.page.evaluate("({ viewport: innerWidth, content: document.documentElement.scrollWidth })")
         self.assertLessEqual(dimensions["content"], dimensions["viewport"])
+        self.assertEqual(self.console_errors, [])
+
+    async def test_capture_save_stays_reachable_in_short_mobile_viewports(self):
+        await self.page.click('.topbar [data-go="capture"]')
+        for width, height in [(390, 844), (320, 568), (390, 420)]:
+            await self.page.set_viewport_size({"width": width, "height": height})
+            await self.page.evaluate("scrollTo({top: 0, behavior: 'instant'})")
+            save = await self.page.locator('#save-observation').bounding_box()
+            self.assertGreaterEqual(save['y'], 0)
+            self.assertLessEqual(save['y'] + save['height'], height)
+            self.assertGreaterEqual(save['height'], 44)
+            self.assertLessEqual(await self.page.evaluate('document.documentElement.scrollWidth'), width)
+        await self.page.click('.capture-help summary')
+        await self.page.evaluate("scrollTo({top: document.documentElement.scrollHeight, behavior: 'instant'})")
+        help_box = await self.page.locator('.capture-help').bounding_box()
+        save_box = await self.page.locator('.capture-save').bounding_box()
+        self.assertLessEqual(help_box['y'] + help_box['height'], save_box['y'])
+        await self.page.fill('#observation', 'Billie drank water after a short walk.')
+        await self.page.click('#save-observation')
+        await self.page.wait_for_selector('.timeline-card')
+        self.assertIn('Billie drank water', await self.page.locator('.timeline-card').first.text_content())
+        self.assertEqual(self.console_errors, [])
+
+    async def test_capture_save_tracks_visual_viewport_and_resets_after_keyboard(self):
+        await self.page.click('.topbar [data-go="capture"]')
+        # Simulate viewport shrink/pan only: this does not exercise a real phone keyboard.
+        await self.page.evaluate("""() => {
+            Object.defineProperties(visualViewport, {
+                height: { configurable: true, value: 420 },
+                offsetTop: { configurable: true, value: 70 },
+                scale: { configurable: true, value: 1 }
+            });
+            visualViewport.dispatchEvent(new Event('resize'));
+        }""")
+        save = await self.page.locator('#save-observation').bounding_box()
+        self.assertLessEqual(save['y'] + save['height'], 490)
+        await self.page.evaluate("""() => {
+            delete visualViewport.height;
+            delete visualViewport.offsetTop;
+            delete visualViewport.scale;
+            visualViewport.dispatchEvent(new Event('resize'));
+        }""")
+        save = await self.page.locator('#save-observation').bounding_box()
+        self.assertGreater(save['y'], 600)
+        self.assertLessEqual(save['y'] + save['height'], 844)
         self.assertEqual(self.console_errors, [])
 
 
