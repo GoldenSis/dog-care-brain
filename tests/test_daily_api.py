@@ -100,6 +100,30 @@ class DailyApiTest(ApiServerTestCase):
             self.save(cookie, daily, expected=400)
             self.assertEqual(self.state(cookie), before)
 
+    def test_unicode_text_limits_preserve_literal_values_and_reject_excess(self):
+        cookie = self.account()
+        value = self.daily()
+        value['clients'][0]['name'] = 'C' * 119 + '🐕'
+        value['dogs'][0]['name'] = 'D' * 119 + '🐕'
+        self.save(cookie, value)
+        payload = self.document(label='L' * 119 + '🐕', name='F' * 175 + '🐕.pdf')
+        saved = self.upload(cookie, payload)
+        self.assertEqual(saved['daily']['clients'], value['clients'])
+        self.assertEqual(saved['daily']['dogs'], value['dogs'])
+        for field in ('label', 'name'):
+            self.assertEqual(saved['daily']['documents'][0][field], payload[field])
+        self.assertEqual(self.state(cookie), saved)
+        for collection, field in (('clients', 'name'), ('dogs', 'name'), ('documents', 'label')):
+            with self.subTest(collection=collection, field=field):
+                invalid = copy.deepcopy(saved['daily'])
+                invalid[collection][0][field] += '🐕'
+                self.save(cookie, invalid, expected=400)
+                self.assertEqual(self.state(cookie), saved)
+        for field in ('label', 'name'):
+            with self.subTest(upload=field):
+                self.upload(cookie, {**payload, field: payload[field] + '🐕'}, expected=400)
+                self.assertEqual(self.state(cookie), saved)
+
     def test_walk_day_inclusive_night_exclusive_and_leap_dates(self):
         cookie = self.account()
         for service in ("walk", "day", "night"):

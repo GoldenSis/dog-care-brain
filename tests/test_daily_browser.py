@@ -1,4 +1,5 @@
 """Operational booking, summary and document journeys in disposable browser accounts."""
+import base64
 import threading
 from datetime import date, timedelta
 from functools import partial
@@ -73,6 +74,77 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
                               'unitMinor': 1800, 'currency': 'CHF'}]
         await self.seed_daily(daily)
         return daily
+
+    async def test_unicode_boundary_records_stay_visible_and_writable_after_reload(self):
+        client_name, dog_name = 'C' * 119 + '🐕', 'D' * 119 + '🐕'
+        label, filename = 'L' * 119 + '🐕', 'F' * 175 + '🐕.pdf'
+        pdf = b'%PDF-1.7\nUnicode boundary fixture'
+        daily = await self.page.evaluate('DailyModel.empty()')
+        daily['clients'] = [{'id': 'unicode-client', 'name': client_name}]
+        daily['dogs'] = [{'id': 'unicode-dog', 'name': dog_name, 'clientId': 'unicode-client'}]
+        daily['bookings'] = [{'id': 'unicode-booking', 'dogId': 'unicode-dog', 'service': 'night',
+                              'start': '2026-10-30', 'end': '2026-11-02',
+                              'unitMinor': 1250, 'currency': 'CHF'}]
+        document = {'dogId': 'unicode-dog', 'label': label, 'renewal': '', 'name': filename,
+                    'type': 'application/pdf', 'data': base64.b64encode(pdf).decode()}
+        if self.api_mode:
+            status, body, _ = _http(self.port, 'PUT', '/api/daily', {'daily': daily}, self.sid)
+            self.assertEqual(status, 200, body)
+            status, body, _ = _http(self.port, 'POST', '/api/documents', document, self.sid)
+            self.assertEqual(status, 200, body)
+            daily = body['daily']
+        else:
+            daily['documents'] = [{**document, 'id': 'unicode-document'}]
+            await self.page.evaluate("daily => localStorage.setItem('dogcare-daily-v1', JSON.stringify(daily))", daily)
+        await self.page.reload()
+        await self.wait_ready()
+        self.assertEqual(await self.snapshot(), daily)
+        await self.route('schedule')
+        await self.page.fill('#daily-month', '2026-10')
+        await self.page.locator('#daily-month').dispatch_event('change')
+        card = self.page.locator('[data-booking-id="unicode-booking"]')
+        self.assertEqual(await card.count(), 1)
+        self.assertEqual(await card.locator('strong').inner_text(), f'{dog_name} · {client_name}')
+        await card.locator('[data-edit-booking]').click()
+        self.assertEqual(await self.page.input_value('#booking-form [name="client"]'), client_name)
+        await self.page.fill('#booking-form [name="end"]', '2026-11-03')
+        await self.submit_booking()
+        daily['bookings'][0]['end'] = '2026-11-03'
+        self.assertEqual(await self.snapshot(), daily)
+        await self.page.reload()
+        await self.wait_ready()
+        await self.route('dogs')
+        await self.page.click('[data-dog="unicode-dog"]')
+        doc_id = daily['documents'][0]['id']
+        doc = self.page.locator(f'[data-document-id="{doc_id}"]')
+        self.assertEqual(await doc.locator('strong').inner_text(), label)
+        async with self.page.expect_download() as download_event:
+            await doc.locator('[data-open-document]').click()
+        download = await download_event.value
+        self.assertEqual(download.suggested_filename, filename)
+        self.assertEqual(Path(await download.path()).read_bytes(), pdf)
+        await doc.locator('summary').click()
+        await doc.locator('[name="renewal"]').fill('2027-10-05')
+        await doc.locator('[data-renewal] button').click()
+        await self.page.wait_for_function('!savePending')
+        daily['documents'][0]['renewal'] = '2027-10-05'
+        self.assertEqual(await self.snapshot(), daily)
+        await self.prepare_document()
+        await self.page.click('#document-form button')
+        await self.page.wait_for_function("document.querySelectorAll('[data-open-document]').length === 2 && !savePending")
+        saved = await self.snapshot()
+        self.assertEqual({**saved, 'documents': saved['documents'][:1]}, daily)
+        self.assertEqual(saved['documents'][1]['dogId'], 'unicode-dog')
+        await self.page.reload()
+        await self.wait_ready()
+        self.assertEqual(await self.snapshot(), saved)
+        await self.route('business')
+        await self.page.fill('#daily-month', '2026-10')
+        await self.page.locator('#daily-month').dispatch_event('change')
+        self.assertIn(client_name, await self.page.locator('.daily-summary').inner_text())
+        self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+        await self.capture_evidence(f'daily-unicode-boundary-{self.api_mode}.png')
+        self.assertEqual(self.console_errors, [])
 
     async def test_currency_hundredths_in_quotes_extensions_bookings_and_summaries(self):
         seeded = await self.page.evaluate('DailyModel.empty()')

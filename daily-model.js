@@ -22,7 +22,7 @@
   }
 
   function text(value, maximum) {
-    return typeof value === 'string' && value.trim().length > 0 && value.length <= maximum && !/[\x00-\x1f\x7f]/.test(value);
+    return typeof value === 'string' && value.trim().length > 0 && [...value].length <= maximum && !/[\x00-\x1f\x7f]/.test(value);
   }
 
   function fields(value, keys) {

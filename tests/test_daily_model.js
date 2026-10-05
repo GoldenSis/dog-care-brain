@@ -8,6 +8,25 @@ function records(bookings = [booking()]) {
 }
 const document = (changes = {}) => ({ id: 'document-1', dogId: 'dog-1', label: 'Proof fixture', renewal: '', type: 'application/pdf', name: 'proof.pdf', data: Buffer.from('%PDF-1.4\nfixture').toString('base64'), ...changes });
 
+for (const [collection, field, limit] of [['clients', 'name', 120], ['dogs', 'name', 120], ['documents', 'label', 120], ['documents', 'name', 180]]) {
+  test(`${collection}.${field} counts Unicode code points without changing text or other validation`, () => {
+    const value = records();
+    value.documents.push(document());
+    for (const text of ['x'.repeat(limit), 'x'.repeat(limit - 1) + '🐕', '🐕'.repeat(limit), ' e\u0301🐕 ']) {
+      value[collection][0][field] = text;
+      const before = JSON.stringify(value);
+      assert.equal(model.validateDaily(value), true);
+      assert.equal(JSON.stringify(value), before);
+    }
+    for (const text of ['x'.repeat(limit + 1), 'x'.repeat(limit) + '🐕', '🐕'.repeat(limit + 1), 'e\u0301'.repeat(limit / 2) + 'x', '', '  ', '🐕\n', '\x00🐕', '🐕\x7f', null, 120]) {
+      value[collection][0][field] = text;
+      const before = JSON.stringify(value);
+      assert.throws(() => model.validateDaily(value));
+      assert.equal(JSON.stringify(value), before);
+    }
+  });
+}
+
 test('new records contain no invented clients, bookings, documents or prices', () => {
   const value = model.empty();
   assert.deepEqual(value, { version: 1, clients: [], dogs: [], bookings: [], rates: { currency: 'CHF', walk: null, day: null, night: null }, documents: [] });
