@@ -389,7 +389,7 @@ class BrowserAcceptanceTest(BrowserFixture):
         self.assertIn("Camille Martin", await self.page.locator("#pending-invites").text_content())
 
         await self.page.click('[data-page="assistant"]')
-        self.assertEqual(await self.page.locator("h1").text_content(), "Muse · Votre assistant de soin")
+        self.assertEqual(await self.page.locator("h1").text_content(), "Muse · Votre assistant du quotidien")
         self.assertEqual(await self.page.locator("html").get_attribute("lang"), "fr")
         self.assertEqual(self.console_errors, [])
 
