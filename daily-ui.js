@@ -119,7 +119,7 @@
     document.querySelector('.daily-toolbar').hidden=true;
     const editor=document.querySelector('#booking-editor');editor.innerHTML=bookingForm();
     const form=document.querySelector('#booking-form');
-    function selectDog(){const choice=form.elements.dogId.value, registered=daily.dogs.find(d=>d.id===choice);form.querySelector('#new-dog-field').hidden=choice!==CREATE_DOG;form.elements.dogName.required=choice===CREATE_DOG;form.elements.client.value=registered?client(registered):dogs[choice]?.owner || '';form.elements.client.readOnly=!!registered;}
+    function selectDog(){const choice=form.elements.dogId.value, registered=daily.dogs.find(d=>d.id===choice);form.querySelector('#new-dog-field').hidden=choice!==CREATE_DOG;form.elements.dogName.required=choice===CREATE_DOG;form.elements.dogName.disabled=choice!==CREATE_DOG;form.elements.client.value=registered?client(registered):dogs[choice]?.owner || '';form.elements.client.readOnly=!!registered;}
     form.elements.dogId.onchange=selectDog;selectDog();
     const old=editing && daily.bookings.find(b=>b.id===editing);
     function selectService(){const same=old && old.service===form.elements.service.value, amount=same?old.unitMinor:daily.rates[form.elements.service.value];form.elements.unitMinor.value=amount===null?'':(amount/100).toFixed(2);form.elements.unitMinor.readOnly=!!(same&&old.unitMinor!==null);}

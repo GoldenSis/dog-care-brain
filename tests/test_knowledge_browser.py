@@ -32,6 +32,25 @@ class KnowledgeBrowserTest(BrowserFixture):
         for name, value in values.items():
             self.assertEqual(await self.page.input_value(f'#experience-form [name="{name}"]'), value)
 
+    async def snapshot(self):
+        return await self.page.evaluate("window.DogCareAPI ? DogCareAPI.getKnowledge() : JSON.parse(localStorage.getItem('dogcare-knowledge-v1'))")
+
+    async def seed_experience(self, values):
+        item = {'id': 'literal-experience', **values, 'category': 'colleague',
+                'url': 'https://example.org/experience', 'status': 'draft'}
+        saved = {'version': 1, 'experiences': [item]}
+        self.assertTrue(await self.page.evaluate('''async value => {
+            KnowledgeModel.validate(value);
+            if (window.DogCareAPI) return DogCareAPI.saveKnowledge(value);
+            localStorage.setItem('dogcare-knowledge-v1', JSON.stringify(value));
+            return true;
+        }''', saved))
+        await self.page.reload()
+        await self.wait_ready()
+        await self.open_health()
+        self.assertEqual(await self.snapshot(), saved)
+        return saved
+
     async def assert_experience_display(self, values):
         card = self.page.locator('[data-private-experience]')
         self.assertEqual(await card.locator('h2').text_content(), values['title'])
@@ -118,6 +137,125 @@ class KnowledgeBrowserTest(BrowserFixture):
         self.assertEqual(await self.page.input_value('[name="title"]'), 'Quiet greeting')
         self.assertEqual(self.console_errors, [])
         self.assertEqual(self.page_errors, [])
+
+    async def test_experience_whitespace_survives_draft_save_edit_and_reload(self):
+        values = {'title': '  Day care  ', 'body': '\n\t  All good\n\n  ', 'author': '  Settled  '}
+        await self.fill_experience()
+        for name, value in values.items():
+            await self.page.fill(f'#experience-form [name="{name}"]', value)
+        await self.submit()
+        await self.page.wait_for_selector('#experience-form', state='detached')
+        saved = await self.snapshot()
+        for name, value in values.items():
+            self.assertEqual(saved['experiences'][0][name], value)
+        for locale in ('fr', 'it', 'de', 'es', 'en'):
+            await self.assert_experience_display(values)
+            await self.page.click('[data-edit-experience]')
+            await self.assert_experience_fields(values)
+            await self.page.select_option('#language-picker', locale)
+            await self.page.wait_for_function('!savePending')
+            await self.assert_experience_fields(values)
+            await self.page.click('#main-nav [data-page="dashboard"]')
+            await self.open_health()
+            await self.assert_experience_fields(values)
+            self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+            await self.submit()
+            await self.page.wait_for_selector('#experience-form', state='detached')
+            await self.page.reload()
+            await self.wait_ready()
+            await self.open_health()
+            self.assertEqual(await self.snapshot(), saved)
+        await self.assert_experience_display(values)
+        self.assertEqual(self.console_errors, [])
+
+    async def test_experience_unicode_boundaries_remain_editable_without_truncation(self):
+        values = {'title': ' ' + 'T' * 115 + '\u2028\u2029🐕 ',
+                  'body': '\n\t' + '🐕' * 3996 + '\n ',
+                  'author': ' ' + '🐕' * 118 + ' '}
+        saved = await self.seed_experience(values)
+        for locale in ('fr', 'it', 'de', 'es', 'en'):
+            await self.page.click('[data-private-open]')
+            detail = self.page.locator('.knowledge-detail')
+            self.assertEqual(await detail.locator('h2').text_content(), values['title'])
+            self.assertEqual(await detail.locator('.knowledge-experience-body').text_content(), values['body'])
+            self.assertEqual(await detail.locator('.knowledge-experience-body + p').text_content(), values['author'])
+            await self.page.click('[data-edit-experience]')
+            await self.assert_experience_fields(values)
+            for name, value in values.items():
+                field = self.page.locator(f'#experience-form [name="{name}"]')
+                await field.fill(value[:-1])
+                await field.press('End')
+                await field.press('Space')
+                self.assertEqual(await field.input_value(), value)
+            await self.page.select_option('#language-picker', locale)
+            await self.page.wait_for_function('!savePending')
+            await self.assert_experience_fields(values)
+            self.assertTrue(await self.page.locator('#experience-form').evaluate('el => el.checkValidity()'))
+            self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+            await self.submit()
+            await self.page.wait_for_selector('#experience-form', state='detached')
+            await self.page.reload()
+            await self.wait_ready()
+            await self.open_health()
+            self.assertEqual(await self.snapshot(), saved)
+        self.assertEqual(self.console_errors, [])
+
+    async def test_saved_experience_line_endings_survive_unrelated_edits(self):
+        values = {'title': '  Day care  ', 'body': '\r\n\t  All good\r\n\r  ', 'author': '  Settled  '}
+        saved = await self.seed_experience(values)
+        for locale in ('fr', 'en'):
+            await self.assert_experience_display(values)
+            await self.page.click('[data-edit-experience]')
+            await self.assert_experience_fields({**values, 'body': values['body'].replace('\r\n', '\n').replace('\r', '\n')})
+            await self.page.fill('#experience-form [name="author"]', values['author'] + ' ')
+            values['author'] += ' '
+            saved['experiences'][0]['author'] = values['author']
+            await self.page.select_option('#language-picker', locale)
+            await self.page.wait_for_function('!savePending')
+            await self.submit()
+            await self.page.wait_for_selector('#experience-form', state='detached')
+            await self.page.reload()
+            await self.wait_ready()
+            await self.open_health()
+            self.assertEqual(await self.snapshot(), saved)
+        await self.page.click('[data-edit-experience]')
+        values['body'] = '\n  Edited observation\n '
+        await self.page.fill('#experience-form [name="body"]', values['body'])
+        await self.submit()
+        await self.page.wait_for_selector('#experience-form', state='detached')
+        await self.page.reload()
+        await self.wait_ready()
+        await self.open_health()
+        saved['experiences'][0]['body'] = values['body']
+        self.assertEqual(await self.snapshot(), saved)
+        await self.assert_experience_display(values)
+        self.assertEqual(self.console_errors, [])
+
+    async def test_experience_rejects_overlong_blank_and_unsafe_values_without_saving(self):
+        await self.fill_experience()
+        before = await self.snapshot()
+        valid = {'title': 'Day care', 'body': 'All good', 'author': 'Settled',
+                 'url': 'https://example.org/experience'}
+        invalid = [('title', '🐕' * 121), ('body', '🐕' * 4001), ('author', '🐕' * 121),
+                   ('title', '   '), ('body', '\n\t  '), ('url', 'javascript:alert(1)'),
+                   ('url', 'https://user:secret@example.org/experience')]
+        for name, value in invalid:
+            with self.subTest(field=name, length=len(value)):
+                for field, text in valid.items():
+                    await self.page.fill(f'#experience-form [name="{field}"]', text)
+                await self.page.fill(f'#experience-form [name="{name}"]', value)
+                self.assertEqual(await self.page.input_value(f'#experience-form [name="{name}"]'), value)
+                await self.submit()
+                self.assertTrue(await self.page.locator('#experience-form').is_visible())
+                self.assertTrue(await self.page.locator('#experience-form [role="alert"]').is_visible())
+                self.assertEqual(await self.snapshot(), before)
+                self.assertEqual(await self.page.locator('.knowledge-saved').count(), 0)
+        for name, value in valid.items():
+            await self.page.fill(f'#experience-form [name="{name}"]', value)
+        await self.submit()
+        await self.page.wait_for_selector('#experience-form', state='detached')
+        self.assertEqual(len((await self.snapshot())['experiences']), 1)
+        self.assertEqual(self.console_errors, [])
 
     async def test_search_guides_videos_locales_and_responsive_navigation(self):
         await self.page.select_option('#language-picker', 'fr')

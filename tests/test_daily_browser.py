@@ -75,6 +75,37 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
         await self.seed_daily(daily)
         return daily
 
+    async def test_invalid_registration_name_does_not_block_existing_dog_booking(self):
+        daily = await self.page.evaluate('DailyModel.empty()')
+        daily['clients'] = [{'id': 'existing-client', 'name': 'Fixture Client'}]
+        daily['dogs'] = [{'id': 'new', 'name': 'Existing Pup', 'clientId': 'existing-client'}]
+        await self.seed_daily(daily)
+        await self.new_booking(new_dog=True)
+        name = self.page.locator('#booking-form [name="dogName"]')
+        await name.fill('🐕' * 121)
+        self.assertFalse(await self.page.locator('#booking-form').evaluate('el => el.checkValidity()'))
+        for _ in range(2):
+            await self.page.select_option('#booking-form [name="dogId"]', 'new')
+            self.assertFalse(await self.page.locator('#new-dog-field').is_visible())
+            self.assertTrue(await self.page.locator('#booking-form').evaluate('el => el.checkValidity()'))
+            self.assertTrue(await name.is_disabled())
+            await self.page.select_option('#booking-form [name="dogId"]', label='Add a dog')
+            self.assertTrue(await name.is_enabled())
+            self.assertEqual(await name.input_value(), '🐕' * 121)
+            self.assertFalse(await self.page.locator('#booking-form').evaluate('el => el.checkValidity()'))
+        await self.page.select_option('#booking-form [name="dogId"]', 'new')
+        await self.submit_booking()
+        saved = await self.snapshot()
+        self.assertEqual(saved['dogs'], daily['dogs'])
+        self.assertEqual(saved['clients'], daily['clients'])
+        self.assertEqual(len(saved['bookings']), 1)
+        self.assertEqual(saved['bookings'][0]['dogId'], 'new')
+        await self.page.reload()
+        await self.wait_ready()
+        self.assertEqual(await self.snapshot(), saved)
+        self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+        self.assertEqual(self.console_errors, [])
+
     async def test_document_upload_counts_unicode_filename_code_points(self):
         filename = 'F' * 175 + '🐕.pdf'
         label = 'L' * 119 + '🐕'

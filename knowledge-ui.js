@@ -5,7 +5,7 @@
   let records=M.empty(), baseline=null, loadError=false, stale=false;
   let category='all', query='', topic='', selected=null, draft=null, editing=false, saved=false;
   const copy=key => (w.KnowledgeCopy[state.language] || w.KnowledgeCopy.en)[key];
-  const esc=value => String(value ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const esc=value => String(value ?? '').replace(/[&<>"'\r]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','\r':'&#13;'}[c]));
   const guideCopy=g => g.copy[state.language] || g.copy.fr;
   const normalize=value => value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase();
   const language=code => new Intl.DisplayNames([state.language],{type:'language'}).of(code);
@@ -36,8 +36,8 @@
   function rememberDraft() {
     const form=document.querySelector('#experience-form');
     if(!form)return;
-    const data=new FormData(form);
-    draft={id:draft.id,status:'draft',title:data.get('title'),body:data.get('body'),author:data.get('author'),url:data.get('url'),category:data.get('category')};
+    const data=new FormData(form), body=data.get('body');
+    draft={id:draft.id,status:'draft',title:data.get('title'),body:body===draft.body.replace(/\r\n?/g,'\n')?draft.body:body,author:data.get('author'),url:data.get('url'),category:data.get('category')};
   }
   function video(v) {
     return `<article class="knowledge-video"><strong>${esc(v.title)}</strong><p>${esc(v.provider)} · ${esc(language(v.language))} · ${esc(v.duration)}</p>${external(v.url,copy('watch'),'class="knowledge-link" data-video-link')}</article>`;
@@ -51,7 +51,7 @@
   }
   function form() {
     const label=(key,field)=>`<label class="daily-field">${esc(copy(key))}${field}</label>`;
-    return `<form class="card daily-form knowledge-form" id="experience-form"><h2 tabindex="-1">${esc(copy(records.experiences.some(x=>x.id===draft.id)?'edit':'add'))}</h2><p class="daily-help">${esc(copy('draftHelp'))}</p><p class="daily-help">${esc(copy('unsavedHelp'))}</p>${label('experienceTitle',`<input name="title" translate="no" required maxlength="120" value="${esc(draft.title)}">`)}${label('category',`<select name="category">${['colleague','traditional'].map(c=>`<option value="${c}" ${c===draft.category?'selected':''}>${esc(copy(c))}</option>`).join('')}</select>`)}${label('body',`<textarea name="body" translate="no" required maxlength="4000" rows="6">${esc(draft.body)}</textarea>`)}${label('author',`<input name="author" translate="no" maxlength="120" value="${esc(draft.author)}">`)}${label('link',`<input name="url" type="url" maxlength="2000" placeholder="https://…" value="${esc(draft.url)}">`)}<p class="daily-error" role="alert" hidden></p><div class="daily-actions"><button type="submit" class="primary">${esc(copy('save'))}</button><button type="button" class="ghost" id="cancel-experience">${esc(copy('cancel'))}</button></div></form>`;
+    return `<form class="card daily-form knowledge-form" id="experience-form"><h2 tabindex="-1">${esc(copy(records.experiences.some(x=>x.id===draft.id)?'edit':'add'))}</h2><p class="daily-help">${esc(copy('draftHelp'))}</p><p class="daily-help">${esc(copy('unsavedHelp'))}</p>${label('experienceTitle',`<input name="title" translate="no" required>`)}${label('category',`<select name="category">${['colleague','traditional'].map(c=>`<option value="${c}" ${c===draft.category?'selected':''}>${esc(copy(c))}</option>`).join('')}</select>`)}${label('body',`<textarea name="body" translate="no" required rows="6"></textarea>`)}${label('author',`<input name="author" translate="no">`)}${label('link',`<input name="url" type="url" maxlength="2000" placeholder="https://…" value="${esc(draft.url)}">`)}<p class="daily-error" role="alert" hidden></p><div class="daily-actions"><button type="submit" class="primary">${esc(copy('save'))}</button><button type="button" class="ghost" id="cancel-experience">${esc(copy('cancel'))}</button></div></form>`;
   }
   function results() {
     if(category==='videos') {
@@ -89,9 +89,10 @@
     content.querySelectorAll('[data-topic]').forEach(button=>button.onclick=()=>{topic=button.dataset.topic;category='practices';query='';saved=false;refresh(`[data-topic="${topic}"]`);});
     const f=content.querySelector('#experience-form');
     if(f) {
+      for(const name of ['title','body','author'])f.elements[name].value=draft[name];
       f.oninput=()=>{rememberDraft();saved=false;f.querySelector('.daily-error').hidden=true;};
       f.onsubmit=async event=>{
-        event.preventDefault();rememberDraft();const next=structuredClone(records),item={...draft,title:draft.title.trim(),body:draft.body.trim(),author:draft.author.trim(),url:draft.url.trim()};
+        event.preventDefault();rememberDraft();const next=structuredClone(records),item={...draft,url:draft.url.trim()};
         const index=next.experiences.findIndex(e=>e.id===item.id);if(index<0)next.experiences.unshift(item);else next.experiences[index]=item;
         let error='';try {M.validate(next);}catch {error='invalid';}
         if(!error && !await persistChange(()=>commit(next),f.querySelector('[type="submit"]')))error=stale?'stale':!w.DogCareAPI&&!w.navigator.locks?'locking':'saveError';
