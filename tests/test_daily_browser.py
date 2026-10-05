@@ -75,6 +75,85 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
         await self.seed_daily(daily)
         return daily
 
+    async def test_document_upload_counts_unicode_filename_code_points(self):
+        filename = 'F' * 175 + '🐕.pdf'
+        label = 'L' * 119 + '🐕'
+        pdf = b'%PDF-1.7\nUnicode upload fixture'
+        await self.prepare_document()
+        before = await self.snapshot()
+        await self.page.fill('#document-form [name="label"]', label + 'X')
+        self.assertEqual(await self.page.input_value('#document-form [name="label"]'), label + 'X')
+        self.assertFalse(await self.page.locator('#document-form').evaluate('el => el.checkValidity()'))
+        await self.page.click('#document-form button')
+        await self.page.wait_for_function('!savePending')
+        self.assertEqual(await self.snapshot(), before)
+        await self.page.fill('#document-form [name="label"]', label)
+        self.assertEqual(await self.page.input_value('#document-form [name="label"]'), label)
+        for too_long in ('F' + filename, 'F' * 177 + '.pdf'):
+            with self.subTest(filename=too_long):
+                await self.page.set_input_files('#document-form [name="file"]', {
+                    'name': too_long, 'mimeType': 'application/pdf', 'buffer': pdf})
+                await self.page.click('#document-form button')
+                await self.page.wait_for_function('!savePending')
+                error = self.page.locator('#document-form .daily-error')
+                self.assertTrue(await error.is_visible())
+                self.assertEqual(await error.inner_text(), await self.page.evaluate('DailyUI.text("invalidFile")'))
+                self.assertEqual(await self.snapshot(), before)
+                self.assertEqual(await self.page.input_value('#document-form [name="label"]'), label)
+                self.assertEqual(await self.page.input_value('#document-form [name="renewal"]'), '2027-10-05')
+                self.assertEqual(await self.page.locator('#document-form [name="file"]').evaluate('el => el.files[0].name'), too_long)
+        await self.page.set_input_files('#document-form [name="file"]', {
+            'name': filename, 'mimeType': 'application/pdf', 'buffer': pdf})
+        await self.page.click('#document-form button')
+        await self.page.wait_for_function('!savePending')
+        saved = await self.snapshot()
+        self.assertTrue(saved and saved['documents'], 'The 180-code-point filename was rejected during upload')
+        self.assertEqual(len(saved['documents']), 1)
+        document = saved['documents'][0]
+        self.assertEqual(document['name'], filename)
+        self.assertEqual(document['label'], label)
+        self.assertEqual(document['renewal'], '2027-10-05')
+        await self.page.reload()
+        await self.wait_ready()
+        self.assertEqual(await self.snapshot(), saved)
+        await self.route('dogs')
+        async with self.page.expect_download() as download_event:
+            await self.page.click(f'[data-open-document="{document["id"]}"]')
+        download = await download_event.value
+        self.assertEqual(download.suggested_filename, filename)
+        self.assertEqual(Path(await download.path()).read_bytes(), pdf)
+        self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+        self.assertEqual(self.console_errors, [])
+
+    async def test_registration_counts_unicode_name_code_points(self):
+        client_name, dog_name = 'C' * 117 + '\u2028\u2029🐕', '🐕' * 120
+        await self.new_booking(new_dog=True)
+        before = await self.snapshot()
+        for field, value in (('client', client_name), ('dogName', dog_name)):
+            await self.page.fill(f'#booking-form [name="{field}"]', value)
+            self.assertEqual(await self.page.input_value(f'#booking-form [name="{field}"]'), value)
+        self.assertTrue(await self.page.locator('#booking-form').evaluate('el => el.checkValidity()'))
+        for field, value in (('client', client_name), ('dogName', dog_name)):
+            with self.subTest(field=field):
+                too_long = value + 'X'
+                await self.page.fill(f'#booking-form [name="{field}"]', too_long)
+                self.assertEqual(await self.page.input_value(f'#booking-form [name="{field}"]'), too_long)
+                self.assertFalse(await self.page.locator('#booking-form').evaluate('el => el.checkValidity()'))
+                await self.page.click('#booking-form [type="submit"]')
+                await self.page.wait_for_function('!savePending')
+                self.assertEqual(await self.snapshot(), before)
+                await self.page.fill(f'#booking-form [name="{field}"]', value)
+        await self.submit_booking()
+        saved = await self.snapshot()
+        self.assertEqual(saved['clients'][0]['name'], client_name)
+        self.assertEqual(saved['dogs'][0]['name'], dog_name)
+        self.assertEqual(saved['dogs'][0]['clientId'], saved['clients'][0]['id'])
+        self.assertEqual(saved['bookings'][0]['dogId'], saved['dogs'][0]['id'])
+        await self.page.reload()
+        await self.wait_ready()
+        self.assertEqual(await self.snapshot(), saved)
+        self.assertEqual(self.console_errors, [])
+
     async def test_unicode_boundary_records_stay_visible_and_writable_after_reload(self):
         client_name, dog_name = 'C' * 119 + '🐕', 'D' * 119 + '🐕'
         label, filename = 'L' * 119 + '🐕', 'F' * 175 + '🐕.pdf'
