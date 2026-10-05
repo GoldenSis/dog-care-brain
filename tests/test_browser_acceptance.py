@@ -130,6 +130,24 @@ class BrowserAcceptanceTest(BrowserFixture):
             self.assertGreaterEqual((await self.page.locator('#main-nav').bounding_box())['y'], 0)
         self.assertEqual(self.console_errors, [])
 
+    async def test_navigation_keeps_all_locales_and_keyboard_access(self):
+        for width, height in ((1440, 900), (1024, 768), (390, 844)):
+            await self.page.set_viewport_size({'width': width, 'height': height})
+            for locale in ('fr', 'en', 'it', 'de', 'es'):
+                await self.page.select_option('#language-picker', locale)
+                await self.page.wait_for_function("language => document.documentElement.lang === language && !savePending", arg=locale)
+                for button in await self.page.locator('#main-nav [data-page]').all():
+                    await button.focus()
+                    await self.page.keyboard.press('Enter')
+                    self.assertEqual(await self.page.evaluate('state.page'), await button.get_attribute('data-page'))
+                    self.assertEqual(await button.get_attribute('aria-current'), 'page')
+                    self.assertLessEqual(await self.page.evaluate('document.documentElement.scrollWidth'), width)
+                await self.page.click('#main-nav [data-page="dashboard"]')
+                self.assertEqual(' '.join((await self.page.locator('body').inner_text()).upper().split()).count('LE BUS DES TOUTOUS'), 1)
+                self.assertNotIn('ADINE-SOPHIE', (await self.page.locator('.utility-bar').inner_text()).upper())
+                self.assertIn('Adine-Sophie', await self.page.locator('h1').inner_text())
+        self.assertEqual(self.console_errors, [])
+
     async def test_capture_drafts_stay_with_their_dog_across_navigation(self):
         await self.page.click('.topbar [data-go="capture"]')
         await self.page.click('#observation')
