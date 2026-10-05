@@ -241,3 +241,40 @@ test('interrupted write bodies show failure and the save queue recovers', async 
   await tick();
   assert.equal(h.calls.filter(call => call.method === 'PUT').length, 2);
 });
+
+test('daily and document saves share account revision queue without touching browser records', async () => {
+  let revision = 0;
+  const daily = { version: 1, clients: [], dogs: [], bookings: [], rates: {currency:'CHF',walk:null,day:null,night:null}, documents: [] };
+  const h = adapter({fetcher: async call => {
+    if (call.method === 'PUT' || call.method === 'POST') {
+      assert.equal(call.headers['X-DogCare-Business'], '1');
+      assert.equal(call.headers['If-Match'], `"${revision}"`);
+      revision++;
+    }
+    return response({...serverState, imported:true, revision, daily});
+  }});
+  await h.api.ready;
+  assert.deepEqual(await Promise.all([h.api.saveDaily(daily),h.api.saveDocument({dogId:'test'}),h.api.saveLanguage('fr')]),[true,true,true]);
+  assert.equal(h.calls.filter(c=>c.method).length,3);
+  assert.equal(h.storage.size,0);
+  const copy=h.api.getDaily();copy.bookings.push({id:'local'});
+  assert.equal(h.api.getDaily().bookings.length,0);
+});
+
+test('conflicting daily save retains cached records and blocks a queued document upload', async () => {
+  const daily={version:1,clients:[],dogs:[],bookings:[],rates:{currency:'CHF',walk:null,day:null,night:null},documents:[]};
+  const h=adapter({fetcher: async call=>call.method ? response({ok:false,reload_required:true},409) : response({...serverState,imported:true,daily})});
+  await h.api.ready;
+  assert.deepEqual(await Promise.all([h.api.saveDaily({...daily,bookings:[{id:'unsaved'}]}),h.api.saveDocument({})]),[false,false]);
+  assert.equal(h.api.getDaily().bookings.length,0);
+  assert.equal(h.calls.filter(c=>c.method).length,1);
+});
+
+test('document downloads use only authenticated private document URLs and retain failure state', async () => {
+  const h=adapter({fetcher: async call=>call.url.includes('/documents/') ? {ok:true,blob:async()=>({synthetic:true})} : response({...serverState,imported:true})});
+  await h.api.ready;
+  assert.equal(await h.api.getDocument('../other'),null);
+  assert.deepEqual(await h.api.getDocument('a'.repeat(32)),{synthetic:true});
+  assert.equal(h.calls.at(-1).credentials,'include');
+  assert.equal(h.calls.at(-1).url,'/api/documents/'+'a'.repeat(32));
+});

@@ -12,7 +12,9 @@ python3 -m http.server 4173
 
 Then open [http://localhost:4173](http://localhost:4173).
 
-No install or build step is required. Static mode stores observations, pending invite previews, and language in the browser's `localStorage` (`dogcare-observations`, `dogcare-invites`, and `dogcare-language`). **Reset demo observations** in Settings replaces only the observations with the original demo data; invites and language are retained.
+No install or build step is required. The four operational workflows—bookings, base rates/stay extensions, dog documents/follow-up and monthly summaries—are described in [Daily workflows](docs/daily-workflows.md). They persist in this browser in static mode and in the private SQLite database in account mode.
+
+Static mode stores observations, pending invite previews, and language in the browser's `localStorage` (`dogcare-observations`, `dogcare-invites`, and `dogcare-language`), with operational records and documents in `dogcare-daily-v1`. Browser quota limits apply; no cloud synchronization is implied. **Reset demo observations** in Settings replaces only the observations with the original demo data; invites and language are retained.
 
 Slice 1 (accounts, SQLite, still zero pip deps) — local only, no email keys:
 
@@ -40,7 +42,9 @@ curl -X POST http://localhost:4173/api/auth/request \
 
 Use your original scheme, hostname, and port if different. `localhost:4173` and `127.0.0.1:8787` have separate browser storage; the default account URL cannot see records from the static URL. Sign in to an unused business account at the original origin, accept the recording notice if shown, and let the import finish before making account writes. Browser copies stay intact, but an account already used for care writes cannot import them.
 
-Account mode imports whichever of the three browser keys exist, once per unused business. Missing keys leave the corresponding account data unchanged; explicitly empty observations or invites clear those collections. A language-only import also consumes this opportunity. The server's `imported` flag means import eligibility is closed, whether by import or by a successful observation, invite, language, or dog write. Uploading audio alone does not close it. A browser marker (`dogcare-imported:<business_id>`) also prevents repeat automatic imports; the server flag protects the account across browser profiles. With no browser keys, the new account keeps its demo data and remains eligible until a care write.
+Account mode imports whichever of the three browser keys exist, once per unused business. Missing keys leave the corresponding account data unchanged; explicitly empty observations or invites clear those collections. A language-only import also consumes this opportunity. The server's `imported` flag means import eligibility is closed, whether by import or by a successful observation, invite, language, dog, daily-record or document write. Uploading audio alone does not close it. A browser marker (`dogcare-imported:<business_id>`) also prevents repeat automatic imports; the server flag protects the account across browser profiles. With no browser keys, the new account keeps its demo data and remains eligible until a care write.
+
+**Daily bookings, rates, clients and documents are not imported by this legacy three-key process.** They remain in their original browser storage; see [daily storage and migration](docs/daily-workflows.md#storage-and-migration).
 
 A notice appears before existing inline recordings transfer. Cancel leaves browser data intact and account loading paused; reload to continue. Failed imports remain retryable and keep capture disabled until account loading succeeds. Startup also closes import eligibility for older accounts with non-demo history, invites, recordings, or a non-English preference. Audio is uploaded separately before the snapshot. Local browser copies are retained and are not updated by later account saves; switching back to static mode displays those older browser copies.
 
@@ -84,7 +88,10 @@ The local API uses JSON objects and a `dc_s` session cookie. JSON responses and 
 | `GET /api/auth/verify?t=<token>` | Consumes a magic link, sets the session cookie, and redirects to `/?signin=ok`; invalid/expired links redirect with `signin=bad` or `signin=expired`. |
 | `GET /api/auth/me` | Returns `{ "ok": true, "email": "…", "role": "owner" }` when signed in, otherwise `{ "ok": false }` with HTTP 200. |
 | `POST /api/auth/logout` | Send `{}` and the business header below; deletes the current session and clears its cookie. No revision required. |
-| `GET /api/state` | Full snapshot: `ok`, `business_id`, `imported`, `revision`, `email`, `role`, `language`, `dogs`, `observations`, `invites`. |
+| `GET /api/state` | Full snapshot: `ok`, `business_id`, `imported`, `revision`, `email`, `role`, `language`, `dogs`, `observations`, `invites`, `daily`. |
+| `PUT /api/daily` | `{ "daily": <snapshot> }`; validates and saves operational records, returning full account state. |
+| `POST /api/documents` | Dog, label, optional renewal, filename, supported MIME type and base64 file; returns full state. See [daily contract](docs/daily-workflows.md#api-contract). |
+| `GET /api/documents/<id>` | Business-scoped private document attachment; session required. |
 | `GET /api/dogs` | `{ "ok": true, "dogs": [{ "id": 1, "slug": "billie", "name": "Billie Blue" }, …] }`. |
 | `GET /api/dogs/<id>` | `{ "ok": true, "dog": { "id": …, "slug": "…", "name": "…" } }`; numeric ID, scoped to the signed-in business. |
 | `POST /api/dogs` | `{ "slug": "new-dog", "name": "New Dog" }`; creates a dog and returns `ok`, `business_id`, `revision`, and `dog`. Name is optional, defaults to the slug, and is trimmed to 80 characters. |
@@ -97,15 +104,15 @@ The local API uses JSON objects and a `dc_s` session cookie. JSON responses and 
 | `POST /api/blobs` | `{ "type": "audio/webm", "data": "<base64 bytes, without data-URL prefix>" }`; returns `{ "ok": true, "ref": "<filename>" }`. No revision required. |
 | `GET /api/blobs/<ref>` | Returns the current business's recording bytes; another business's file is not accessible. |
 
-Except for health and the request/verify/me auth routes, these endpoints require a valid session. Invite roles and permissions are preview data only: there is no invite acceptance or membership-granting endpoint. The API can store additional dogs, but the slice-1 UI still uses the fixed Billie/Charlie profiles.
+Except for health and the request/verify/me auth routes, these endpoints require a valid session. Invite roles and permissions are preview data only: there is no invite acceptance or membership-granting endpoint. New dogs entered through Planning join the daily registry and become available to the care-note UI; Billie and Charlie remain the initial profiles.
 
 ### Mutation contract
 
-First read `/api/state` with your session cookie. Include `X-DogCare-Business: <business_id>` on every authenticated POST/PUT, including uploads and logout. Care writes also require `If-Match: "<revision>"` from that state; the quotation marks are required. Each successful observation, invite, language, dog, or first-import write increments the business revision and closes import eligibility. Use the returned revision for the next care write. Uploads and logout do neither. A repeat `/api/import` still validates the payload and business binding, but returns the current state with `skipped: true` without checking or advancing the revision.
+First read `/api/state` with your session cookie. Include `X-DogCare-Business: <business_id>` on every authenticated POST/PUT, including uploads and logout. Care writes also require `If-Match: "<revision>"` from that state; the quotation marks are required. Each successful observation, invite, language, dog, daily-record, document, or first-import write increments the business revision and closes import eligibility. Use the returned revision for the next care write. Audio uploads and logout do neither; document uploads use the guarded revision contract. A repeat `/api/import` still validates the payload and business binding, but returns the current state with `skipped: true` without checking or advancing the revision.
 
 Observation/invite PUTs are **full replacements, not appends or per-dog updates**. Preserve all records you want to keep in the submitted snapshot. Omitting a dog removes its observations, but keeps the dog row; unknown valid slugs create dogs. `{ "observations": {} }` clears all observations, and `{ "invites": [] }` clears all invites. Import leaves absent top-level collections unchanged. Validation or database-constraint failures roll back the whole care write, including its revision. Successful care PUTs return the full state, read in the same transaction as the write. Language belongs to a user, even though changing it advances the business revision.
 
-The browser adapter in [api.js](api.js) loads these records before [app.js](app.js) renders them. `DogCareAPI.ready` resolves to a boolean; `false` means reload/sign-in/import recovery is needed before saving. The getters read its in-memory cache. `saveObservations`, `saveInvites`, and `saveLanguage` serialize writes and resolve to success booleans; `whenSaved()` waits for writes already queued. Account saves do not mirror data back into the three browser keys.
+The browser adapter in [api.js](api.js) loads these records before [app.js](app.js) renders them. `DogCareAPI.ready` resolves to a boolean; `false` means reload/sign-in/import recovery is needed before saving. The getters read its in-memory cache. `saveObservations`, `saveInvites`, `saveLanguage`, `saveDaily`, and `saveDocument` serialize writes and resolve to success booleans; `whenSaved()` waits for writes already queued. Account saves do not mirror data back into the three browser keys.
 
 ### Care payloads and recording references
 
@@ -175,7 +182,7 @@ This is a local interactive prototype using fictional demo care moments around t
 - **Static mode** (`python3 -m http.server`, no `DOGCARE_API`): care records and retained recordings are saved in this browser, with no API upload.
 - **Account mode** (`python3 api/server.py`, flag on): care records and recordings are stored in the business’s own account store on the server the business runs. API access is restricted to signed-in members of that business. The one-time recording import shows a notice before moving existing audio.
 
-Invitation creation remains a pending preview with no delivery. The magic-link mailer writes local `.dev-outbox` files only. Social connections, automatic owner delivery, payments, and cloud sync remain previews or drafts; social connection previews never collect credentials or post to a network. Explicit sharing can pass selected care content to the app you choose. Slice 2 remains closed: no deployment, keys, prices, or third-party email provider.
+Invitation creation remains a pending preview with no delivery. The magic-link mailer writes local `.dev-outbox` files only. Social connections, automatic owner delivery, payments, and cloud sync remain previews or drafts; social connection previews never collect credentials or post to a network. Explicit sharing can pass selected care content to the app you choose. Payments and subscriptions remain unimplemented. Operational rates are user supplied; this change adds no deployment, credentials or third-party email provider.
 
 Voice transcription uses the browser's built-in speech-recognition feature. Depending on the browser, microphone audio may be processed by the browser provider's speech service; users should check their browser's privacy terms before dictating.
 
@@ -196,8 +203,8 @@ python3.12 -m venv /tmp/dogcare-crawler
 Run the API regressions with the standard library and the adapter regressions with Node:
 
 ```bash
-python3 -m unittest tests.test_api_server tests.test_tenant_isolation tests.test_crawl_site -v
-node --test tests/test_api_adapter.js
+python3 -m unittest tests.test_api_server tests.test_tenant_isolation tests.test_daily_api tests.test_crawl_site -v
+node --test tests/test_api_adapter.js tests/test_daily_model.js
 ```
 
 The browser acceptance checks need the optional Playwright dependency and its matching Chromium binary; Crawl4AI is not required. Using `uv` and the Playwright version in `requirements-crawler.txt`:
@@ -207,7 +214,7 @@ uv run --python 3.12 --with playwright==1.61.0 python -m playwright install chro
 uv run --python 3.12 --with playwright==1.61.0 python -m unittest discover -s tests -v
 ```
 
-The suite starts its own local servers and temporary account storage. It covers both static and account modes, authentication, tenant isolation, safe migration and replacement writes, stale-tab/timeout recovery, protected recordings, robots/origin/output boundaries, the Muse briefing-to-handoff journey, dictated text editing, and mobile overflow.
+The suite starts its own local servers and temporary account storage. It covers both static and account modes, authentication, tenant isolation, safe migration and replacement writes, stale-tab/timeout recovery, protected recordings, robots/origin/output boundaries, the Muse briefing-to-handoff journey, dictated text editing, and mobile overflow. Daily-workflow checks cover booking create/reload/edit, original-rate extensions, cross-month allocation, unknown rates, private document download and renewal follow-up, and failed-save recovery in both storage modes.
 
 Navigation checks cover all 11 destinations and five locales at 1440 × 900, 1024 × 768, and 390 × 844, keyboard activation, active state, 44px targets, a single business brand, and heading visibility after switching from scrolled content. Separate checks verify active-button reveal within the phone strip and a short desktop sidebar.
 

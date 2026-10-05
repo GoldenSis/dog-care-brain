@@ -13,6 +13,7 @@
     observations: null,
     invites: [],
     language: "fr",
+    daily: null,
   };
 
   function url(path) {
@@ -134,6 +135,7 @@
     cache.observations = data.observations;
     cache.invites = data.invites;
     cache.language = data.language || "en";
+    cache.daily = data.daily || {version:1,clients:[],dogs:[],bookings:[],rates:{currency:"CHF",walk:null,day:null,night:null},documents:[]};
     return true;
   }
 
@@ -194,6 +196,32 @@
     },
     getLanguage() {
       return cache.language || "en";
+    },
+    getDaily() { return JSON.parse(JSON.stringify(cache.daily)); },
+    saveDaily(daily) {
+      const snapshot = JSON.parse(JSON.stringify(daily));
+      return enqueue(async () => {
+        const result = await putJson("/daily", {daily: snapshot});
+        return result.ok && acceptState(result.data);
+      });
+    },
+    saveDocument(document) {
+      const snapshot = JSON.parse(JSON.stringify(document));
+      return enqueue(async () => {
+        const result = await postJson("/documents", snapshot);
+        return result.ok && acceptState(result.data);
+      });
+    },
+    async getDocument(id) {
+      if (!hydrated || writeBlocked || !/^[a-f0-9]{32}$/.test(id)) return null;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), requestTimeout);
+      try {
+        const response = await fetch(url("/documents/" + id), {credentials:"include",signal:controller.signal});
+        if (!response.ok) return null;
+        return await response.blob();
+      } catch { return null; }
+      finally { clearTimeout(timer); }
     },
     saveObservations(obs) {
       if (!hydrated) return enqueue(() => false);

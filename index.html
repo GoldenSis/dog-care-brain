@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="media.css">
   <link rel="stylesheet" href="muse.css">
+  <link rel="stylesheet" href="daily.css">
 </head>
 <body>
   <a class="skip-link" href="#app-content" data-i18n="Skip to content">Aller au contenu</a>
@@ -21,6 +22,7 @@
         <div class="nav-group" role="group" aria-labelledby="nav-group-0">
           <p class="nav-group-label" id="nav-group-0" data-i18n="Today">Aujourd’hui</p>
           <button class="nav-item" data-page="dashboard"><b data-i18n="Home">Accueil</b></button>
+          <button class="nav-item" data-page="schedule"><b data-i18n="Schedule">Planning</b></button>
           <button class="nav-item" data-page="dogs"><b data-i18n="Dogs">Chiens</b></button>
           <button class="nav-item" data-page="capture"><b data-i18n="Capture">Ajouter une note</b></button>
           <button class="nav-item" data-page="handoff"><b data-i18n="Handoff">Passer le relais</b></button>
@@ -31,7 +33,6 @@
           <p class="nav-group-label" id="nav-group-1" data-i18n="Share & organise">Organisation</p>
           <button class="nav-item" data-page="gallery"><b data-i18n="Gallery">En images</b></button>
           <button class="nav-item" data-page="invite"><b data-i18n="Invite">Inviter</b></button>
-          <button class="nav-item" data-page="schedule"><b data-i18n="Schedule">Planning</b></button>
           <button class="nav-item" data-page="business"><b data-i18n="Business">Activité</b></button>
           <button class="nav-item" data-page="settings"><b data-i18n="Settings">Réglages</b></button>
         </div>
@@ -43,6 +44,9 @@
     </main>
   </div>
   <div id="toast" class="toast" role="status"></div>
+  <script src="daily-model.js"></script>
+  <script src="daily-copy.js"></script>
+  <script src="daily-ui.js"></script>
   <script src="api.js"></script>
   <script src="app.js"></script>
 </body>

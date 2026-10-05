@@ -17,6 +17,8 @@ from http import cookies as httpcookies
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlparse
 
+import daily
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT_DEFAULT = os.path.dirname(HERE)
 COOKIE = "dc_s"
@@ -458,7 +460,8 @@ def state_of(user, c=None):
     return {"ok": True, "business_id": user["business_id"], "imported": bool(business["imported"]),
             "revision": business["revision"],
             "email": user["email"], "role": user["role"],
-            "language": lang, "dogs": dogs, "observations": obs, "invites": inv}
+            "language": lang, "dogs": dogs, "observations": obs, "invites": inv,
+            "daily": daily.load(c, user["business_id"])}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -562,6 +565,32 @@ class Handler(BaseHTTPRequestHandler):
             out["skipped"] = skipped
         return self._send(out)
 
+    def _write_daily(self, user, payload, uploading=False):
+        try:
+            with _lock, connection() as c:
+                c.execute("BEGIN IMMEDIATE")
+                current = daily.load(c, user["business_id"])
+                if uploading:
+                    blob = daily.upload(payload, current)
+                    ident = secrets.token_hex(16)
+                    document = {key: payload[key] for key in ("dogId", "label", "renewal", "type", "name")}
+                    document.update(id=ident, href="/api/documents/" + ident)
+                    current["documents"].append(document)
+                else:
+                    current = daily.validate(payload.get("daily"), current)
+                if self._advance_revision(c, user) is None:
+                    return
+                if uploading:
+                    c.execute("INSERT INTO daily_document(business_id,id,mime,contents) VALUES(?,?,?,?)",
+                              (user["business_id"], ident, payload["type"], blob))
+                daily.save(c, user["business_id"], current)
+                out = state_of(user, c)
+        except ValueError as error:
+            return self._send({"ok": False, "error": str(error)}, 400)
+        except sqlite3.Error:
+            return self._send({"ok": False, "error": "daily records could not be saved"}, 500)
+        return self._send(out)
+
     def do_GET(self):
         parsed = urlparse(self.path)
         path = parsed.path
@@ -622,6 +651,29 @@ class Handler(BaseHTTPRequestHandler):
             if not u:
                 return
             return self._send({"ok": True, "invites": state_of(u)["invites"]})
+        if path.startswith("/api/documents/"):
+            u = self._need_user()
+            if not u:
+                return
+            ident = path[len("/api/documents/"):]
+            if not daily.ID.fullmatch(ident):
+                return self._send({"ok": False, "error": "not found"}, 404)
+            with connection() as c:
+                row = c.execute("SELECT mime,contents FROM daily_document WHERE business_id=? AND id=?",
+                                (u["business_id"], ident)).fetchone()
+            if not row:
+                return self._send({"ok": False, "error": "not found"}, 404)
+            extension = {"application/pdf": "pdf", "image/jpeg": "jpg", "image/png": "png"}[row["mime"]]
+            self.send_response(200)
+            self.send_header("Content-Type", row["mime"])
+            self.send_header("Content-Length", str(len(row["contents"])))
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Content-Security-Policy", "sandbox; default-src 'none'")
+            self.send_header("Content-Disposition", f'attachment; filename="document-{ident}.{extension}"')
+            self.end_headers()
+            self.wfile.write(row["contents"])
+            return
         if path.startswith("/api/blobs/"):
             u = self._need_user()
             if not u:
@@ -679,6 +731,8 @@ class Handler(BaseHTTPRequestHandler):
         u = self._need_mutation_user()
         if not u:
             return
+        if path == "/api/documents":
+            return self._write_daily(u, payload, uploading=True)
         if path == "/api/import":
             return self._write_care(u, payload, importing=True)
         if path == "/api/dogs":
@@ -746,6 +800,8 @@ class Handler(BaseHTTPRequestHandler):
         u = self._need_mutation_user()
         if not u:
             return
+        if path == "/api/daily":
+            return self._write_daily(u, payload)
         key = {"/api/observations": "observations", "/api/invites": "invites",
                "/api/prefs": "language"}.get(path)
         if not key:

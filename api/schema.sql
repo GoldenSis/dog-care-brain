@@ -83,3 +83,18 @@ CREATE TABLE IF NOT EXISTS pref (
   user_id INTEGER PRIMARY KEY REFERENCES user(id),
   language TEXT NOT NULL DEFAULT 'en'
 );
+
+-- Additive operational records; existing accounts start without invented activity.
+CREATE TABLE IF NOT EXISTS business_daily (
+  business_id INTEGER PRIMARY KEY REFERENCES business(id),
+  snapshot TEXT NOT NULL
+);
+
+-- Never exposed through the public static tree; downloads require the owning account.
+CREATE TABLE IF NOT EXISTS daily_document (
+  business_id INTEGER NOT NULL REFERENCES business(id),
+  id TEXT NOT NULL,
+  mime TEXT NOT NULL,
+  contents BLOB NOT NULL,
+  PRIMARY KEY (business_id, id)
+);
