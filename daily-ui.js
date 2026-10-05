@@ -29,16 +29,17 @@
       const candidate=raw || M.empty(); M.validateDaily(candidate); daily=candidate; syncDogs();
     } catch { loadError=true; }
   }
-  async function save(next, button) {
+  async function commitDaily(next) {
     if(loadError)return false;
     try { M.validateDaily(next); } catch { return false; }
-    const ok=await persistChange(async()=>{
+    const ok=await (async()=>{
       if(w.DogCareAPI)return w.DogCareAPI.saveDaily(next);
       try {localStorage.setItem(KEY,JSON.stringify(next));return true;} catch {return false;}
-    },button);
+    })();
     if(ok) { daily=w.DogCareAPI ? structuredClone(w.DogCareAPI.getDaily()) : next; syncDogs(); }
     return ok;
   }
+  function save(next, button) { return persistChange(()=>commitDaily(next),button); }
   function ensureDog(next, dogId, name, clientName) {
     const clean=clientName.trim();
     if(!clean || !name.trim())throw Error('missing');
@@ -143,17 +144,27 @@
     const rates=document.querySelector('#rates-form');if(rates)rates.onsubmit=async e=>{e.preventDefault();try{const next=structuredClone(daily);next.rates={currency:rates.elements.currency.value,...Object.fromEntries(['walk','day','night'].map(s=>[s,M.parseMinor(rates.elements[s].value)]))};if(!await save(next,rates.querySelector('button'))){setError(rates);return;}rates.querySelector('.daily-error').hidden=true;document.querySelector('#rates-saved').textContent=text('saved');}catch{setError(rates,'invalidRate');}};
     document.querySelectorAll('[data-open-document]').forEach(b=>b.onclick=()=>openDocument(daily.documents.find(d=>d.id===b.dataset.openDocument),b));
     document.querySelectorAll('[data-renewal]').forEach(form=>form.onsubmit=async e=>{e.preventDefault();const next=structuredClone(daily);next.documents.find(d=>d.id===form.dataset.renewal).renewal=form.elements.renewal.value;if(!await save(next,form.querySelector('button'))){setError(form);return;}navigate('dogs');document.querySelector('#dog-documents').scrollIntoView({block:'start'});});
-    const form=document.querySelector('#document-form');if(form)form.onsubmit=async e=>{
-      e.preventDefault();const button=form.querySelector('button'), file=form.elements.file.files[0];let data;
-      try{data=await fileData(file);}catch{setError(form,'invalidFile');return;}
-      const next=structuredClone(daily), profile=dogs[state.dog];
-      try{ensureDog(next,state.dog,profile.name,profile.owner);}catch{setError(form,'clientRequired');return;}
-      if(!daily.dogs.some(d=>d.id===state.dog) && !await save(next,button)){setError(form);return;}
-      const doc={dogId:state.dog,label:form.elements.label.value.trim(),renewal:form.elements.renewal.value,name:file.name,type:file.type,data};
-      let ok;
-      if(w.DogCareAPI){ok=await persistChange(()=>w.DogCareAPI.saveDocument(doc),button);if(ok){daily=structuredClone(w.DogCareAPI.getDaily());syncDogs();}}
-      else {next.documents.push({...doc,id:id()});ok=await save(next,button);}
-      if(!ok){setError(form);return;}navigate('dogs');document.querySelector('#dog-documents').scrollIntoView({block:'start'});showToast(text('saved'));
+    const form=document.querySelector('#document-form'), dogId=state.dog;if(form)form.onsubmit=async e=>{
+      e.preventDefault();
+      if(savePending || loadError)return;
+      const button=form.querySelector('button'), file=form.elements.file.files[0], profile={...dogs[dogId]};
+      const label=form.elements.label.value.trim(), renewal=form.elements.renewal.value;
+      const ok=await persistChange(async()=>{
+        let data;
+        try{data=await fileData(file);}catch{setError(form,'invalidFile');return false;}
+        const next=structuredClone(daily);
+        try{ensureDog(next,dogId,profile.name,profile.owner);}catch{setError(form,'clientRequired');return false;}
+        const doc={dogId,label,renewal,name:file.name,type:file.type,data};
+        let saved;
+        if(w.DogCareAPI){
+          if(!daily.dogs.some(d=>d.id===dogId) && !await commitDaily(next)){setError(form);return false;}
+          saved=await w.DogCareAPI.saveDocument(doc);
+          if(saved){daily=structuredClone(w.DogCareAPI.getDaily());syncDogs();}
+        }else{next.documents.push({...doc,id:id()});saved=await commitDaily(next);}
+        if(!saved)setError(form);
+        return saved;
+      },button);
+      if(!ok)return;state.dog=dogId;navigate('dogs');document.querySelector('#dog-documents').scrollIntoView({block:'start'});showToast(text('saved'));
     };
   }
   w.DailyUI={text,load,home,schedule,business,documents,bind};

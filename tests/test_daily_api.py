@@ -176,13 +176,69 @@ class DailyApiTest(ApiServerTestCase):
         before_b = self.state(b)
         self.save(b, self.daily(), expected=409, headers=self.headers(after))
         self.assertEqual(self.state(b), before_b)
-        self.save(a, self.daily(), expected=400, headers=stale)  # Cannot remove existing doc.
+        conflict = self.save(a, self.daily(), expected=409, headers=stale)
+        self.assertTrue(conflict["reload_required"])
         self.save(a, after["daily"], expected=409, headers=stale)
         self.upload(a, expected=409, headers=stale)
         self.assertEqual(self.state(a), after)
         with self.server_mod.connection() as c:
             self.assertEqual(c.execute("SELECT count(*) FROM daily_document WHERE business_id=?",
                                        (after["business_id"],)).fetchone()[0], 1)
+
+    def test_registered_identifiers_preserve_notes_documents_and_import_boundary(self):
+        cookie = self.account()
+        value = self.daily()
+        identifiers = ["Dog_1", "dog_1"]
+        status, created, _ = _http(self.port, "POST", "/api/dogs",
+                                   {"slug": "Dog_1", "name": "Registered dog"}, cookie)
+        self.assertEqual(status, 200, created)
+        self.assertEqual(created["dog"]["slug"], "Dog_1")
+        value["dogs"] = [{"id": key, "name": key, "clientId": "c1"} for key in identifiers]
+        value["bookings"][0]["dogId"] = identifiers[0]
+        self.save(cookie, value)
+        saved = self.upload(cookie, self.document(dogId=identifiers[0]))
+        observations = {**saved["observations"], **{
+            key: [{"id": 100 + index, "text": "Retained " + key, "tags": [],
+                   "time": "", "date": "", "title": ""}]
+            for index, key in enumerate(identifiers)}}
+        status, body, _ = _http(self.port, "PUT", "/api/observations",
+                                {"observations": observations}, cookie)
+        self.assertEqual(status, 200, body)
+        self.assertEqual(body["observations"], observations)
+        self.assertEqual(body["daily"], saved["daily"])
+        dog_rows = {dog["slug"]: dog["id"] for dog in body["dogs"]}
+        self.assertEqual(dog_rows["Dog_1"], created["dog"]["id"])
+        self.assertNotEqual(dog_rows["Dog_1"], dog_rows["dog_1"])
+        self.assertTrue(body["imported"])
+        status, imported, _ = _http(self.port, "POST", "/api/import",
+                                    {"observations": {"billie": []}}, cookie)
+        self.assertEqual(status, 200, imported)
+        self.assertTrue(imported["skipped"])
+        self.assertEqual(imported["observations"], observations)
+        self.server_mod.init()
+        self.assertEqual(self.state(cookie)["daily"], saved["daily"])
+        self.assertEqual(self.state(cookie)["observations"], observations)
+
+    def test_legacy_care_identifier_remains_valid_in_daily_records(self):
+        cookie = self.account()
+        key = "legacy-" + "x" * 74
+        status, body, _ = _http(self.port, "PUT", "/api/observations",
+                                {"observations": {key: [{"text": "Legacy note"}]}}, cookie)
+        self.assertEqual(status, 200, body)
+        value = self.daily()
+        value["dogs"][0]["id"] = key
+        value["bookings"][0]["dogId"] = key
+        saved = self.save(cookie, value)
+        self.assertEqual(saved["observations"], body["observations"])
+
+    def test_invalid_daily_write_rolls_back_revision_and_import_eligibility(self):
+        cookie = self.account()
+        before = self.state(cookie)
+        invalid = self.daily()
+        invalid["dogs"][0]["clientId"] = "missing"
+        self.save(cookie, invalid, expected=400)
+        self.upload(cookie, expected=400)
+        self.assertEqual(self.state(cookie), before)
 
     def test_database_failure_rolls_back_snapshot_revision_and_binary(self):
         cookie = self.account()

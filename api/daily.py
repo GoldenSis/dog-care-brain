@@ -5,7 +5,7 @@ import json
 import re
 from datetime import date
 
-ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,79}")
+ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,80}")
 CURRENCY = re.compile(r"[A-Z]{3}")
 MAX_FILE = 5 * 1024 * 1024
 MAX_RECORDS = 5000

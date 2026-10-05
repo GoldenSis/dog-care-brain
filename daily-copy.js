@@ -1,6 +1,7 @@
 /* Daily workflow labels. No prices or clinical renewal schedules are assumed. */
 window.DailyCopy = {
   en: {
+    sampleNote: 'Sample note',
     dailyWork: 'Your daily work', dailyIntro: 'Book a stay or walk, find a document and follow this month’s bookings.',
     planning: 'Planning', monthly: 'Monthly summary', documents: 'Documents and follow-up',
     browserStorage: 'Saved only in this browser, on this device. Not synced to an account or server.',
@@ -43,6 +44,7 @@ window.DailyCopy = {
     energyToComplete: 'Confirm with the owner', movementToComplete: 'Set a daily movement target', enrichmentToComplete: 'Add favourite activities', sensitivitiesToComplete: 'Add sensitivities and rest needs',
   },
   fr: {
+    sampleNote: 'Note d’exemple',
     dailyWork: 'Votre quotidien', dailyIntro: 'Préparez un séjour ou une promenade, retrouvez un document et suivez les réservations du mois.',
     planning: 'Planning', monthly: 'Récapitulatif mensuel', documents: 'Documents et suivi',
     browserStorage: 'Enregistré uniquement dans ce navigateur, sur cet appareil. Aucune synchronisation avec un compte ou un serveur.',
@@ -85,6 +87,7 @@ window.DailyCopy = {
     energyToComplete: 'À confirmer avec le propriétaire', movementToComplete: 'Précisez l’activité quotidienne', enrichmentToComplete: 'Ajoutez les activités préférées', sensitivitiesToComplete: 'Ajoutez les sensibilités et les besoins de repos',
   },
   it: {
+    sampleNote: 'Nota di esempio',
     dailyWork: 'Il tuo lavoro quotidiano', dailyIntro: 'Prenota un soggiorno o una passeggiata, ritrova un documento e segui le prenotazioni del mese.',
     planning: 'Calendario', monthly: 'Riepilogo mensile', documents: 'Documenti e scadenze',
     browserStorage: 'Salvato solo in questo browser, su questo dispositivo. Nessuna sincronizzazione con un account o un server.',
@@ -127,6 +130,7 @@ window.DailyCopy = {
     energyToComplete: 'Da confermare con il proprietario', movementToComplete: 'Indica l’attività quotidiana', enrichmentToComplete: 'Aggiungi le attività preferite', sensitivitiesToComplete: 'Aggiungi sensibilità ed esigenze di riposo',
   },
   de: {
+    sampleNote: 'Beispielnotiz',
     dailyWork: 'Dein Arbeitsalltag', dailyIntro: 'Buche einen Aufenthalt oder Spaziergang, finde Dokumente und behalte die Buchungen des Monats im Blick.',
     planning: 'Planung', monthly: 'Monatsübersicht', documents: 'Dokumente und Fristen',
     browserStorage: 'Nur in diesem Browser auf diesem Gerät gespeichert. Keine Synchronisierung mit einem Konto oder Server.',
@@ -169,6 +173,7 @@ window.DailyCopy = {
     energyToComplete: 'Mit dem Halter klären', movementToComplete: 'Tägliche Bewegung festlegen', enrichmentToComplete: 'Lieblingsbeschäftigungen ergänzen', sensitivitiesToComplete: 'Empfindlichkeiten und Ruhebedarf ergänzen',
   },
   es: {
+    sampleNote: 'Nota de ejemplo',
     dailyWork: 'Tu trabajo diario', dailyIntro: 'Reserva una estancia o un paseo, encuentra un documento y consulta las reservas del mes.',
     planning: 'Planificación', monthly: 'Resumen mensual', documents: 'Documentos y seguimiento',
     browserStorage: 'Guardado solo en este navegador, en este dispositivo. No se sincroniza con una cuenta ni con un servidor.',

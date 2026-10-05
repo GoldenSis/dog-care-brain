@@ -16,6 +16,20 @@ test('new records contain no invented clients, bookings, documents or prices', (
   assert.equal(model.empty().rates.day, null);
 });
 
+test('daily dog identifiers retain mixed case, underscores and legacy care lengths', () => {
+  for (const id of ['Dog_1', 'dog_1', 'legacy-' + 'x'.repeat(74)]) {
+    const value = records([booking({ dogId: id })]);
+    value.dogs[0].id = id;
+    assert.equal(model.validateDaily(value), true);
+    assert.equal(value.dogs[0].id, id);
+  }
+  for (const id of ['x'.repeat(82), '_dog', '../dog', 'dog\n']) {
+    const value = records([booking({ dogId: id })]);
+    value.dogs[0].id = id;
+    assert.throws(() => model.validateDaily(value));
+  }
+});
+
 test('calendar validation rejects normalized and ambiguous dates and handles leap years', () => {
   for (const valid of ['2024-02-29', '2000-02-29', '0001-01-01', '9999-12-31']) assert.equal(model.validDate(valid), true, valid);
   for (const invalid of ['2026-02-29', '1900-02-29', '2026-04-31', '2026-13-01', '2026-2-01', '0000-01-01', '2026-01-01T00:00Z', null, 20260101]) assert.equal(model.validDate(invalid), false, String(invalid));

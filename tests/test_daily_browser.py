@@ -6,6 +6,7 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 
 from tests.test_browser_acceptance import BrowserFixture, QuietStaticHandler, ROOT
+from tests.test_tenant_isolation import _http
 
 
 class DailyBrowserAcceptanceTest(BrowserFixture):
@@ -42,6 +43,223 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
         await self.page.fill('#rates-form [name="night"]', night)
         await self.page.click('#rates-form button')
         await self.page.wait_for_function("document.querySelector('#rates-saved').textContent.length > 0 && !savePending")
+
+    async def prepare_document(self):
+        await self.route('dogs')
+        await self.page.fill('#document-form [name="label"]', 'Original proof')
+        await self.page.fill('#document-form [name="renewal"]', '2027-10-05')
+        await self.page.set_input_files('#document-form [name="file"]', {
+            'name': 'proof.pdf', 'mimeType': 'application/pdf', 'buffer': b'%PDF-1.7\nfixture'})
+
+    async def test_document_read_locks_navigation_and_snapshots_owner_and_form(self):
+        await self.prepare_document()
+        await self.page.evaluate('''() => {
+            const read = File.prototype.arrayBuffer;
+            window.fileReads = 0;
+            File.prototype.arrayBuffer = function() {
+                window.fileReads++;
+                return new Promise(resolve => { window.finishFileRead = () => resolve(read.call(this)); });
+            };
+        }''')
+        await self.page.click('#document-form button')
+        await self.page.wait_for_function('!!window.finishFileRead')
+        locked = await self.page.evaluate('''() => ({
+            pending: savePending, inert: document.querySelector('.app-shell').inert,
+            disabled: document.querySelector('#document-form button').disabled
+        })''')
+        await self.page.evaluate('''() => {
+            const form = document.querySelector('#document-form');
+            form.requestSubmit();
+            form.elements.label.value = 'Changed during read';
+            form.elements.renewal.value = '2029-01-01';
+            navigate('capture');
+            state.dog = 'charlie';
+            window.finishFileRead();
+        }''')
+        await self.page.wait_for_function('''() => {
+            const daily = window.DogCareAPI ? DogCareAPI.getDaily() : JSON.parse(localStorage.getItem('dogcare-daily-v1'));
+            return daily?.documents.length > 0 && !savePending;
+        }''')
+        document = (await self.snapshot())['documents'][0]
+        self.assertEqual(document['dogId'], 'billie')
+        self.assertEqual(document['label'], 'Original proof')
+        self.assertEqual(document['renewal'], '2027-10-05')
+        self.assertEqual(locked, {'pending': True, 'inert': True, 'disabled': True})
+        self.assertEqual(await self.page.evaluate('window.fileReads'), 1)
+        self.assertEqual(len((await self.snapshot())['documents']), 1)
+        self.assertEqual(self.console_errors, [])
+
+    async def test_document_failure_releases_guard_and_keeps_retryable_form(self):
+        await self.prepare_document()
+        await self.page.evaluate('''() => {
+            window.originalRead = File.prototype.arrayBuffer;
+            File.prototype.arrayBuffer = () => Promise.reject(new Error('Unreadable fixture'));
+        }''')
+        await self.page.click('#document-form button')
+        await self.page.wait_for_selector('#document-form .daily-error:not([hidden])')
+        self.assertFalse(await self.page.evaluate('savePending || document.querySelector(".app-shell").inert'))
+        self.assertEqual(await self.page.input_value('#document-form [name="label"]'), 'Original proof')
+        self.assertFalse(await self.page.locator('#document-form button').is_disabled())
+        await self.page.evaluate('() => { File.prototype.arrayBuffer = window.originalRead; }')
+        await self.page.click('#document-form button')
+        await self.page.wait_for_selector('[data-open-document]')
+        self.assertEqual(len((await self.snapshot())['documents']), 1)
+
+    async def test_upload_stays_guarded_through_registration_and_document_save(self):
+        if not self.api_mode:
+            self.skipTest('Account registration and upload requests')
+        await self.prepare_document()
+        await self.page.evaluate('''() => {
+            for (const method of ['saveDaily', 'saveDocument']) {
+                const original = DogCareAPI[method];
+                DogCareAPI[method] = async (...args) => {
+                    const saved = await original(...args);
+                    await new Promise(resolve => { window['finish_' + method] = resolve; });
+                    return saved;
+                };
+            }
+        }''')
+        await self.page.click('#document-form button')
+        for method in ('saveDaily', 'saveDocument'):
+            await self.page.wait_for_function('(method) => !!window["finish_" + method]', arg=method)
+            self.assertTrue(await self.page.evaluate('savePending && document.querySelector(".app-shell").inert'))
+            await self.page.evaluate('''() => {
+                document.querySelector('#document-form').requestSubmit();
+                navigate('capture');
+            }''')
+            self.assertEqual(await self.page.evaluate('state.page'), 'dogs')
+            await self.page.evaluate('(method) => window["finish_" + method]()', method)
+        await self.page.wait_for_selector('[data-open-document]')
+        saved = await self.snapshot()
+        self.assertEqual(len(saved['dogs']), 1)
+        self.assertEqual(len(saved['documents']), 1)
+        self.assertEqual(saved['documents'][0]['dogId'], 'billie')
+        self.assertEqual(self.console_errors, [])
+
+    async def test_registered_dogs_keep_notes_and_routes_after_sample_reset(self):
+        await self.new_booking(new_dog=True)
+        await self.submit_booking()
+        noted = (await self.snapshot())['dogs'][0]['id']
+        await self.new_booking(new_dog=True)
+        await self.page.fill('#booking-form [name="dogName"]', 'Empty Pup')
+        await self.submit_booking()
+        empty = (await self.snapshot())['dogs'][1]['id']
+        for dog_id in (noted, 'billie'):
+            await self.route('capture')
+            await self.page.click(f'[data-capture-dog="{dog_id}"]')
+            await self.page.fill('#observation', 'Saved real note for ' + dog_id)
+            await self.page.click('#save-observation')
+            await self.page.wait_for_selector('.timeline-card')
+        await self.page.evaluate('''async () => {
+            state.observations.billie = state.observations.billie.filter(note => note.id !== 1);
+            state.observations.billie.push({id: 1, time: '10:00', date: localDay(),
+                title: 'Stored arrival fact', text: 'Owner recorded arrival and consent.', tags: []});
+            await saveObservations();
+        }''')
+        await self.page.reload()
+        await self.wait_ready()
+        records = await self.snapshot()
+        before = await self.page.evaluate('structuredClone(state.observations)')
+        await self.route('settings')
+        await self.page.click('#reset-demo')
+        await self.page.wait_for_function('state.page === "dashboard" && !savePending')
+        self.assertEqual(await self.snapshot(), records)
+        after = await self.page.evaluate('state.observations')
+        self.assertEqual(after.get(noted), before[noted])
+        self.assertEqual(after.get(empty), [])
+        self.assertIn(before['billie'][0], after['billie'])
+        self.assertIn(before['billie'][-1], after['billie'])
+        self.assertEqual(len({note['id'] for note in after['billie']}), len(after['billie']))
+        await self.route('handoff')
+        await self.page.click('[data-evidence-id="1"]')
+        self.assertEqual(await self.page.locator('#observation-1').count(), 1)
+        self.assertIn('Owner recorded arrival and consent.', await self.page.locator('#observation-1').inner_text())
+        for dog_id in (empty, noted):
+            await self.route('dogs')
+            await self.page.click(f'[data-dog="{dog_id}"]')
+            for route in ('dogs', 'handoff', 'story', 'capture'):
+                await self.route(route)
+                self.assertEqual(await self.page.evaluate('state.page'), route)
+            await self.page.fill('#observation', 'After reset ' + dog_id)
+            await self.page.click('#save-observation')
+            await self.page.wait_for_function('state.page === "dogs" && !savePending')
+            self.assertIn('After reset ' + dog_id, await self.page.locator('.timeline').inner_text())
+        await self.page.reload()
+        await self.wait_ready()
+        final = await self.page.evaluate('state.observations')
+        self.assertEqual(final[noted][1:], before[noted])
+        self.assertIn(before['billie'][0], final['billie'])
+        self.assertEqual(await self.snapshot(), records)
+        self.assertEqual(self.console_errors, [])
+
+    async def test_registered_profiles_have_no_invented_arrival_or_consent(self):
+        await self.new_booking(new_dog=True, start='2099-10-30', end='2099-11-02')
+        await self.submit_booking()
+        dog_id = (await self.snapshot())['dogs'][0]['id']
+        await self.page.reload()
+        await self.wait_ready()
+        await self.route('dogs')
+        await self.page.click(f'[data-dog="{dog_id}"]')
+        for locale in ('en', 'fr', 'it', 'de', 'es'):
+            await self.page.select_option('#language-picker', locale)
+            await self.page.wait_for_function('!savePending')
+            hero = await self.page.locator('.profile-hero').inner_text()
+            for label in ('Checked in', 'Consent on file'):
+                self.assertNotIn((await self.page.evaluate('(label) => t(label)', label)).lower(), hero.lower())
+        await self.page.select_option('#language-picker', 'en')
+        await self.page.wait_for_function('!savePending')
+        await self.page.click('[data-dog="billie"]')
+        self.assertIn('Sample', await self.page.locator('.timeline').inner_text())
+        self.assertNotIn('Consent on file', await self.page.locator('.profile-hero').inner_text())
+
+    async def test_additional_dogs_fit_care_pickers_at_all_sizes(self):
+        for index in range(3):
+            await self.new_booking(new_dog=True)
+            await self.page.fill('#booking-form [name="dogName"]', 'Registered' + 'longname' * 10 + str(index))
+            await self.submit_booking()
+        await self.page.select_option('#language-picker', 'fr')
+        await self.page.wait_for_function('!savePending')
+        for width, height in ((390, 844), (1024, 768), (1440, 900)):
+            await self.page.set_viewport_size({'width': width, 'height': height})
+            for route in ('capture', 'dogs', 'story'):
+                await self.route(route)
+                self.assertEqual(await self.page.locator('.dog-pick').count(), 5)
+                self.assertLessEqual(await self.page.evaluate('document.documentElement.scrollWidth'), width)
+                for button in await self.page.locator('.dog-pick').all():
+                    box = await button.bounding_box()
+                    self.assertGreaterEqual(box['width'], 44)
+                    self.assertGreaterEqual(box['height'], 44)
+                    self.assertGreaterEqual(box['x'], 0)
+                    self.assertLessEqual(box['x'] + box['width'], width)
+                    self.assertTrue(await button.evaluate('el => el.scrollWidth <= el.clientWidth'))
+                await self.capture_evidence(f'daily-dog-pickers-{route}-{width}-{self.api_mode}.png')
+        self.assertEqual(self.console_errors, [])
+
+    async def test_stale_document_snapshot_requires_reload_and_retains_draft(self):
+        if not self.api_mode:
+            self.skipTest('Account revision recovery')
+        await self.prepare_document()
+        await self.page.click('#document-form button')
+        await self.page.wait_for_selector('[data-open-document]')
+        await self.route('business')
+        await self.page.fill('#rates-form [name="day"]', '42.00')
+        status, uploaded, _ = _http(self.port, 'POST', '/api/documents', {
+            'dogId': 'billie', 'label': 'Other tab', 'renewal': '', 'name': 'other.pdf',
+            'type': 'application/pdf', 'data': 'JVBERi0xLjcK'}, self.sid)
+        self.assertEqual(status, 200, uploaded)
+        writes = []
+        self.page.on('request', lambda request: writes.append(request) if request.url.endswith('/api/daily') else None)
+        await self.page.click('#rates-form button')
+        await self.page.wait_for_selector('#rates-form .daily-error:not([hidden])')
+        self.assertIn('reload', (await self.page.locator('#toast').inner_text()).lower())
+        self.assertEqual(await self.page.input_value('#rates-form [name="day"]'), '42.00')
+        await self.page.click('#rates-form button')
+        await self.page.wait_for_function('!savePending')
+        self.assertEqual(len(writes), 1)
+        self.assertEqual(_http(self.port, 'GET', '/api/state', cookie=self.sid)[1], uploaded)
+        self.assertTrue(any('409' in error for error in self.console_errors))
+        self.console_errors[:] = [error for error in self.console_errors if '409' not in error]
+        self.assertEqual(self.console_errors, [])
 
     async def test_booking_reload_extension_and_monthly_actual_totals(self):
         await self.rates('25.00')

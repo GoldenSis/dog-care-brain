@@ -2,6 +2,8 @@
 
 Planning saves bookings against a dog and client. The existing care-note, history, handoff and gallery journeys remain available. Operational lists start empty; the sample care notes are separate from saved bookings. Booking records describe **planned** services, not completed visits, invoices or payments.
 
+A booking does not record arrival or consent, so profiles show neither status as a badge. Sample timeline entries are labelled separately. Resetting sample observations restores those examples while retaining saved notes, registered dogs and their daily records.
+
 ## Bookings and rates
 
 Open **Planning**, choose **New booking**, then a known dog or **New dog**. A known dog's client is reused; a new dog can reuse an existing client by name. Choose a walk, day care or overnight stay, enter the dates and inspect the units and amount before saving. Saved bookings can be reopened and edited after reload.
@@ -43,7 +45,7 @@ The schemas and exact limits are authoritative in [api/daily.py](../api/daily.py
 
 ## Hosting boundary
 
-The current public app is served as static GitHub Pages; the existing domain's DNS is managed through Infomaniak. Static hosting cannot execute the Python API or provide its private persistent database. Infomaniak is the intended server destination, but a suitable Python runtime, private persistent disk and HTTPS reverse-proxy configuration have not been verified or provisioned by this change. DNS, hosting, authentication and live data are unchanged.
+Static hosting cannot execute the Python API or provide its private persistent database. An account deployment needs a Python runtime, private persistent storage outside the static document root, an HTTPS reverse proxy, secure session cookies, tested backup and restore procedures, and an explicit production sign-in delivery solution.
 
 For a compatible account deployment, run the existing stdlib server behind an HTTPS reverse proxy with private storage outside the document root. Example configuration for an operator to adapt after provisioning:
 
@@ -53,4 +55,4 @@ DC_ROOT=/srv/dogcare/app DC_DATA_DIR=/srv/dogcare/private \
 DC_INSECURE_COOKIE=0 python3 api/server.py
 ```
 
-The listener itself remains HTTP on loopback; the proxy must preserve the public Host and terminate HTTPS. The development magic-link mailer still writes a private local outbox; this change does not set up email delivery. Back up the private database consistently with SQLite WAL and retain the private audio directory. Provisioning and external release require separate approval.
+The listener itself remains HTTP on loopback; the proxy must preserve the public Host and terminate HTTPS. Keep secure cookies enabled. The development magic-link mailer writes a private local outbox; production needs a configured delivery solution before people can sign in. Back up the private database consistently with SQLite WAL, retain the private audio directory, and verify that both can be restored. Provisioning and external release require separate approval.

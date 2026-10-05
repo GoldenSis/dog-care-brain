@@ -10,7 +10,7 @@
   const DAY = 86400000;
   const SERVICES = ['walk', 'day', 'night'];
   const MAX_DOCUMENT_BYTES = 5 * 1024 * 1024;
-  const ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$/;
+  const ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,80}(?![\s\S])/;
   const CURRENCY = /^[A-Z]{3}$/;
 
   function requireValue(condition, message) {

@@ -26,7 +26,7 @@ MAGIC_TTL = 15 * 60
 SESSION_TTL = 90 * 24 * 3600
 MAX_BODY = 32 * 1024 * 1024
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,80}$")
+SLUG_RE = daily.ID
 BLOB_RE = re.compile(r"^[a-f0-9]{32}\.(webm|ogg|m4a|wav|mp3)$")
 MIME = {
     ".html": "text/html; charset=utf-8",
@@ -313,7 +313,7 @@ def replace_observations(c, bid, uid, observations, dog_ids=None):
                    c.execute("SELECT id, slug FROM dog WHERE business_id=?", (bid,))}
     for slug in observations or {}:
         if slug not in dog_ids:
-            if not SLUG_RE.match(slug):
+            if not SLUG_RE.fullmatch(slug):
                 continue
             c.execute(
                 "INSERT INTO dog(business_id, slug, name, created) VALUES(?,?,?,?)",
@@ -569,6 +569,8 @@ class Handler(BaseHTTPRequestHandler):
         try:
             with _lock, connection() as c:
                 c.execute("BEGIN IMMEDIATE")
+                if self._advance_revision(c, user) is None:
+                    return
                 current = daily.load(c, user["business_id"])
                 if uploading:
                     blob = daily.upload(payload, current)
@@ -578,8 +580,6 @@ class Handler(BaseHTTPRequestHandler):
                     current["documents"].append(document)
                 else:
                     current = daily.validate(payload.get("daily"), current)
-                if self._advance_revision(c, user) is None:
-                    return
                 if uploading:
                     c.execute("INSERT INTO daily_document(business_id,id,mime,contents) VALUES(?,?,?,?)",
                               (user["business_id"], ident, payload["type"], blob))
@@ -736,9 +736,9 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/import":
             return self._write_care(u, payload, importing=True)
         if path == "/api/dogs":
-            slug = str(payload.get("slug") or "").strip().lower()
+            slug = str(payload.get("slug") or "").strip()
             name = str(payload.get("name") or slug).strip()[:80]
-            if not SLUG_RE.match(slug):
+            if not SLUG_RE.fullmatch(slug):
                 return self._send({"ok": False, "error": "bad slug"}, 400)
             try:
                 with _lock, connection() as c:

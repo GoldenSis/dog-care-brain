@@ -1481,7 +1481,6 @@ function saveInvites(invites = state.invites) {
   return true;
 }
 async function persistChange(save, button) {
-  if (!window.DogCareAPI) return save();
   if (savePending) return false;
   const shell = document.querySelector('.app-shell');
   const focused = document.activeElement;
@@ -1523,6 +1522,11 @@ function translateTag(tag) {
 function setHeader(kicker, heading) { eyebrow.textContent=t(kicker); eyebrow.hidden=!kicker; title.textContent=t(heading); }
 function localizeContent() { const walker=document.createTreeWalker(content, NodeFilter.SHOW_TEXT), nodes=[]; while(walker.nextNode()) nodes.push(walker.currentNode); nodes.forEach(node=>{const source=node.nodeValue.trim();if(source && translations[state.language]?.[source]) node.nodeValue=node.nodeValue.replace(source,t(source));}); document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=t(el.dataset.i18n)); document.documentElement.lang=state.language; }
 function tagsHtml(tags) { return `<div class="mini-tags">${tags.map(tag=>`<span>${escapeHtml(translateTag(tag))}</span>`).join('')}</div>`; }
+function sampleObservations(key) { return Object.hasOwn(baseObservations,key) ? baseObservations[key] : []; }
+function isSampleObservation(key, observation) {
+  return !observation.audio && sampleObservations(key).some(sample =>
+    Object.entries(sample).every(([field, value]) => JSON.stringify(observation[field]) === JSON.stringify(value)));
+}
 function formatDuration(seconds) { const value=Math.max(0,Math.floor(seconds)); return `${String(Math.floor(value/60)).padStart(2,'0')}:${String(value%60).padStart(2,'0')}`; }
 function recordingUrl(value) {
   if (typeof value !== 'string') return '';
@@ -1645,9 +1649,9 @@ const views = {
     const key=state.dog,d=dogs[key], obs=state.observations[key];
     setHeader('DOG PROFILE', d.name);
     return `<div class="page-title-row"><div><h2>${t('Care record')}</h2><p>${escapeHtml(tf('Everything that helps {name} feel understood.', {name:d.name.split(' ')[0]}))}</p></div><button class="primary" data-go="capture">${t('＋ Add observation')}</button></div><div class="grid page-grid"><div>
-      <section class="card profile-hero">${dogAvatar(key)}<div><h2>${escapeHtml(d.name)}</h2><p>${t(d.breed)} · ${t(d.age)} · ${t('Owner:')} ${escapeHtml(d.owner)}</p>${tagsHtml(['Checked in','Consent on file'])}</div></section>
+      <section class="card profile-hero">${dogAvatar(key)}<div><h2>${escapeHtml(d.name)}</h2><p>${t(d.breed)} · ${t(d.age)} · ${t('Owner:')} ${escapeHtml(d.owner)}</p></div></section>
       ${DailyUI.documents(key)}<section class="card" style="margin-top:20px"><div class="section-head" style="margin-top:0"><div><h2>${t('Needs & lifestyle')}</h2><p>${t('Personalise these with the owner — not breed stereotypes.')}</p></div></div><div class="facts"><div class="fact"><small>${t('Energy')}</small><strong>${t(d.needs.energy)}</strong></div><div class="fact"><small>${t('Movement')}</small><strong>${t(d.needs.movement)}</strong></div><div class="fact"><small>${t('Enrichment')}</small><strong>${t(d.needs.enrichment)}</strong></div><div class="fact"><small>${t('Sensitivities')}</small><strong>${t(d.needs.sensitivities)}</strong></div></div></section>
-      <div class="section-head"><div><h2>${t('Care timeline')}</h2><p>${tf('{count} recorded moments', {count:obs.length})}</p></div><button class="link-button" data-go="handoff">${t('View daily handoff')}</button></div><div class="timeline">${obs.map(o=>`<article class="card timeline-card" id="observation-${o.id}"><div class="timeline-top"><h4>${escapeHtml(t(o.title))}</h4><time>${escapeHtml(o.time)} · ${escapeHtml(observationDateLabel(o))}</time></div><p>${escapeHtml(t(o.text))}</p>${audioHtml(o.audio, tf('{title} voice note', {title:t(o.title)}))}${tagsHtml(o.tags)}${shareControls(o,`share-${o.id}`)}</article>`).join('')}</div>
+      <div class="section-head"><div><h2>${t('Care timeline')}</h2><p>${tf('{count} recorded moments', {count:obs.length})}</p></div><button class="link-button" data-go="handoff">${t('View daily handoff')}</button></div><div class="timeline">${obs.map(o=>`<article class="card timeline-card" id="observation-${o.id}"><div class="timeline-top"><h4>${escapeHtml(t(o.title))}</h4><time>${escapeHtml(o.time)} · ${escapeHtml(observationDateLabel(o))}</time></div><p>${escapeHtml(t(o.text))}</p>${audioHtml(o.audio, tf('{title} voice note', {title:t(o.title)}))}${isSampleObservation(key,o)?`<p class="sample-note">${DailyUI.text('sampleNote')}</p>`:''}${tagsHtml(o.tags)}${shareControls(o,`share-${o.id}`)}</article>`).join('')}</div>
     </div><aside><section class="card"><div class="section-head" style="margin-top:0"><div><h2>${t('Care insight')}</h2><p>${t('Evidence-based prompt · never a diagnosis')}</p></div></div><div class="context ${careInsight(key).level==='review'?'behaviour':''}"><strong>${careInsight(key).title}</strong><p>${careInsight(key).text}</p></div></section><section class="card" style="margin-top:20px"><div class="section-head" style="margin-top:0"><div><h2>${t('Care context')}</h2><p>${t('Quick reference for every handover')}</p></div></div><div class="context-list"><div class="context"><strong>${t('HEALTH')}</strong><p>${t(d.health)}</p></div><div class="context behaviour"><strong>${t('BEHAVIOUR')}</strong><p>${t(d.behaviour)}</p></div><div class="context vet"><strong>${t('VET & EMERGENCY')}</strong><p>${t(d.vet)}</p></div></div><div class="facts"><div class="fact"><small>${t('Food')}</small><strong>${t('Set with owner')}</strong></div><div class="fact"><small>${t('Walk')}</small><strong>${t('Set with owner')}</strong></div><div class="fact"><small>${t('Pickup')}</small><strong>${t('Set with owner')}</strong></div></div></section><section class="card" style="margin-top:20px"><div class="section-head" style="margin-top:0"><div><h2>${t('Vet access')}</h2><p>${t('Preview only · no clinic is contacted')}</p></div></div><p style="font-size:12px;color:var(--muted);line-height:1.5">${t(d.vet)}</p><p class="daily-help">${DailyUI.text('clinicUnavailable')}</p></section><section class="card" style="margin-top:20px"><h3 style="font:400 20px Georgia,serif">${t('Switch dog')}</h3><div class="dog-picker">${Object.entries(dogs).map(([k,x])=>`<button class="dog-pick ${k===key?'active':''}" data-dog="${k}">${dogAvatar(k)}<div><strong>${escapeHtml(x.name.split(' ')[0])}</strong><small>${t(x.age)}</small></div></button>`).join('')}</div></section></aside></div>`;
   },
   capture() {
@@ -1905,7 +1909,12 @@ function bindView() {
   const preview=document.querySelector('#whatsapp-preview'); if(preview)preview.onclick=()=>showToast(t('WhatsApp preview only — nothing was sent'));
   document.querySelectorAll('.social-access').forEach(button=>button.onclick=()=>showToast(tf('{platform} access preview — no account connected or content posted', {platform:button.dataset.platform})));
   const reset=document.querySelector('#reset-demo'); if(reset)reset.onclick=async()=>{
-    const observations=structuredClone(baseObservations);
+    const observations={...state.observations};
+    for(const key of Object.keys(dogs)){
+      const retained=(state.observations[key] || []).filter(observation=>!isSampleObservation(key,observation));
+      const occupied=new Set(retained.map(observation=>observation.id));
+      observations[key]=[...retained,...structuredClone(sampleObservations(key).filter(sample=>!occupied.has(sample.id)))];
+    }
     if(!await persistChange(()=>saveObservations(observations),reset))return;
     state.observations=observations;
     showToast(t('Demo observations reset'));
