@@ -1,7 +1,7 @@
 /* Daily work: views and explicit saves shared by static and account mode. */
 (function (w) {
   'use strict';
-  const M = w.DailyModel, KEY = 'dogcare-daily-v1';
+  const M = w.DailyModel, KEY = 'dogcare-daily-v1', CREATE_DOG = ':new';
   let daily = M.empty(), loadError = false, month = localDate().slice(0, 7), editing = null;
   const text = key => (w.DailyCopy[state.language] || w.DailyCopy.en)[key] || w.DailyCopy.en[key] || key;
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -67,7 +67,7 @@
   function bookingForm() {
     const old=editing && daily.bookings.find(b=>b.id===editing), b=old || {dogId:state.dog,service:'day',start:localDate(),end:localDate()};
     const dog=daily.dogs.find(d=>d.id===b.dogId);
-    return `<form id="booking-form" class="card daily-form" ${loadError?'inert':''}><h2 tabindex="-1">${esc(text(old?'editBooking':'newBooking'))}</h2><div class="daily-fields">${label('dog',`<select name="dogId" required>${dogOptions(b.dogId)}<option value="new">${esc(text('newDog'))}</option></select>`)}${label('client',`${input('client','text',dog?client(dog):dogs[b.dogId]?.owner || '','required maxlength="120" list="known-clients"')}<datalist id="known-clients">${daily.clients.map(c=>`<option value="${esc(c.name)}"></option>`).join('')}</datalist>`)}<label class="daily-field" id="new-dog-field" hidden>${esc(text('dogName'))}${input('dogName','text','','maxlength="120"')}</label>${label('service',`<select name="service">${['walk','day','night'].map(s=>`<option value="${s}" ${s===b.service?'selected':''}>${esc(text(s))}</option>`).join('')}</select>`)}${label('start',input('start','date',b.start,'required min="2000-01-01" max="2199-12-31"'))}${label('end',input('end','date',b.end,'required min="2000-01-01" max="2199-12-31"'))}${label('agreedRate',input('unitMinor','text',old ? (old.unitMinor===null?'':(old.unitMinor/100).toFixed(2)) : (daily.rates[b.service]===null?'':(daily.rates[b.service]/100).toFixed(2)),'inputmode="decimal" maxlength="12"'))}</div><p class="daily-help">${esc(text('fillUnknownRateHint'))}</p><p class="daily-help" id="unit-explanation"></p><div class="daily-quote" id="booking-quote" aria-live="polite"></div><p class="daily-help">${esc(text('agreementHelp'))}</p>${errorBox()}<div class="daily-actions"><button class="primary" type="submit">${esc(text('saveBooking'))}</button><button class="ghost" type="button" id="cancel-booking">${esc(text('cancel'))}</button></div></form>`;
+    return `<form id="booking-form" class="card daily-form" ${loadError?'inert':''}><h2 tabindex="-1">${esc(text(old?'editBooking':'newBooking'))}</h2><div class="daily-fields">${label('dog',`<select name="dogId" required>${dogOptions(b.dogId)}<option value="${CREATE_DOG}">${esc(text('newDog'))}</option></select>`)}${label('client',`${input('client','text',dog?client(dog):dogs[b.dogId]?.owner || '','required maxlength="120" list="known-clients"')}<datalist id="known-clients">${daily.clients.map(c=>`<option value="${esc(c.name)}"></option>`).join('')}</datalist>`)}<label class="daily-field" id="new-dog-field" hidden>${esc(text('dogName'))}${input('dogName','text','','maxlength="120"')}</label>${label('service',`<select name="service">${['walk','day','night'].map(s=>`<option value="${s}" ${s===b.service?'selected':''}>${esc(text(s))}</option>`).join('')}</select>`)}${label('start',input('start','date',b.start,'required min="2000-01-01" max="2199-12-31"'))}${label('end',input('end','date',b.end,'required min="2000-01-01" max="2199-12-31"'))}${label('agreedRate',input('unitMinor','text',old ? (old.unitMinor===null?'':(old.unitMinor/100).toFixed(2)) : (daily.rates[b.service]===null?'':(daily.rates[b.service]/100).toFixed(2)),'inputmode="decimal" maxlength="12"'))}</div><p class="daily-help">${esc(text('fillUnknownRateHint'))}</p><p class="daily-help" id="unit-explanation"></p><div class="daily-quote" id="booking-quote" aria-live="polite"></div><p class="daily-help">${esc(text('agreementHelp'))}</p>${errorBox()}<div class="daily-actions"><button class="primary" type="submit">${esc(text('saveBooking'))}</button><button class="ghost" type="button" id="cancel-booking">${esc(text('cancel'))}</button></div></form>`;
   }
   function schedule() {
     const visible=daily.bookings.filter(b=>M.serviceDates(b).some(d=>d.startsWith(month))).sort((a,b)=>a.start.localeCompare(b.start));
@@ -103,7 +103,7 @@
     document.querySelector('.daily-toolbar').hidden=true;
     const editor=document.querySelector('#booking-editor');editor.innerHTML=bookingForm();
     const form=document.querySelector('#booking-form');
-    function selectDog(){const choice=form.elements.dogId.value, registered=daily.dogs.find(d=>d.id===choice);form.querySelector('#new-dog-field').hidden=choice!=='new';form.elements.dogName.required=choice==='new';form.elements.client.value=registered?client(registered):dogs[choice]?.owner || '';form.elements.client.readOnly=!!registered;}
+    function selectDog(){const choice=form.elements.dogId.value, registered=daily.dogs.find(d=>d.id===choice);form.querySelector('#new-dog-field').hidden=choice!==CREATE_DOG;form.elements.dogName.required=choice===CREATE_DOG;form.elements.client.value=registered?client(registered):dogs[choice]?.owner || '';form.elements.client.readOnly=!!registered;}
     form.elements.dogId.onchange=selectDog;selectDog();
     const old=editing && daily.bookings.find(b=>b.id===editing);
     function selectService(){const same=old && old.service===form.elements.service.value, amount=same?old.unitMinor:daily.rates[form.elements.service.value];form.elements.unitMinor.value=amount===null?'':(amount/100).toFixed(2);form.elements.unitMinor.readOnly=!!(same&&old.unitMinor!==null);}
@@ -113,7 +113,7 @@
     form.onsubmit=async e=>{
       e.preventDefault();const button=form.querySelector('[type="submit"]');
       try {
-        const b=quote(form), next=structuredClone(daily), newDog=form.elements.dogId.value==='new';
+        const b=quote(form), next=structuredClone(daily), newDog=form.elements.dogId.value===CREATE_DOG;
         const dog=ensureDog(next,newDog?null:b.dogId,newDog?form.elements.dogName.value:dogs[b.dogId].name,form.elements.client.value);
         b.dogId=dog.id;M.units(b);
         const at=next.bookings.findIndex(x=>x.id===b.id);if(at<0)next.bookings.push(b);else next.bookings[at]=b;

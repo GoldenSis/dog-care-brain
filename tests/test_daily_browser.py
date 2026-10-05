@@ -26,7 +26,7 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
         await self.page.click('#new-booking')
         self.assertFalse(await self.page.locator('#new-booking').is_visible())
         if new_dog:
-            await self.page.select_option('#booking-form [name="dogId"]', 'new')
+            await self.page.select_option('#booking-form [name="dogId"]', label='Add a dog')
             await self.page.fill('#booking-form [name="dogName"]', 'Fixture Pup')
         await self.page.fill('#booking-form [name="client"]', 'Fixture Client')
         await self.page.select_option('#booking-form [name="service"]', service)
@@ -50,6 +50,96 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
         await self.page.fill('#document-form [name="renewal"]', '2027-10-05')
         await self.page.set_input_files('#document-form [name="file"]', {
             'name': 'proof.pdf', 'mimeType': 'application/pdf', 'buffer': b'%PDF-1.7\nfixture'})
+
+    async def test_literal_new_dog_id_preserves_booking_and_note_relationships(self):
+        dog = {'id': 'new', 'name': 'Existing Pup', 'clientId': 'existing-client'}
+        client = {'id': 'existing-client', 'name': 'Fixture Client'}
+        if self.api_mode:
+            status, _, _ = _http(self.port, 'POST', '/api/dogs',
+                                {'slug': dog['id'], 'name': dog['name']}, self.sid)
+            self.assertEqual(status, 200)
+        else:
+            await self.page.evaluate('''({dog, client}) => {
+                const daily = DailyModel.empty();
+                daily.dogs.push(dog);
+                daily.clients.push(client);
+                DailyModel.validateDaily(daily);
+                localStorage.setItem('dogcare-daily-v1', JSON.stringify(daily));
+            }''', {'dog': dog, 'client': client})
+        await self.page.reload()
+        await self.wait_ready()
+        await self.route('capture')
+        await self.page.click('[data-capture-dog="new"]')
+        await self.page.fill('#observation', 'Existing pup rested after the walk.')
+        await self.page.click('#save-observation')
+        await self.page.wait_for_selector('.timeline-card')
+        await self.page.reload()
+        await self.wait_ready()
+        notes = await self.page.evaluate('state.observations')
+
+        await self.route('dogs')
+        await self.page.click('[data-dog="billie"]')
+        await self.new_booking()
+        await self.page.select_option('#booking-form [name="dogId"]', 'billie')
+        await self.page.select_option('#booking-form [name="dogId"]', 'new')
+        self.assertFalse(await self.page.locator('#new-dog-field').is_visible())
+        self.assertFalse(await self.page.locator('[name="dogName"]').evaluate('el => el.required'))
+        if self.api_mode:
+            await self.page.fill('#booking-form [name="client"]', client['name'])
+        else:
+            self.assertEqual(await self.page.input_value('#booking-form [name="client"]'), client['name'])
+            self.assertTrue(await self.page.locator('[name="client"]').evaluate('el => el.readOnly'))
+        await self.submit_booking()
+        first = await self.snapshot()
+        self.assertEqual(len(first['dogs']), 1)
+        self.assertEqual(first['dogs'][0], {**dog, 'clientId': first['clients'][0]['id']})
+        self.assertEqual(first['clients'], [{**client, 'id': first['dogs'][0]['clientId']}])
+        self.assertEqual(first['bookings'][0]['dogId'], 'new')
+        if not self.api_mode:
+            self.assertEqual(first['dogs'], [dog])
+            self.assertEqual(first['clients'], [client])
+
+        await self.new_booking(new_dog=True)
+        self.assertTrue(await self.page.locator('#new-dog-field').is_visible())
+        self.assertTrue(await self.page.locator('[name="dogName"]').evaluate('el => el.required'))
+        self.assertTrue(await self.page.evaluate('''() => {
+            const daily = DailyModel.empty();
+            daily.clients.push({id: 'client', name: 'Client'});
+            daily.dogs.push({id: document.querySelector('[name="dogId"]').value,
+                name: 'Dog', clientId: 'client'});
+            try { DailyModel.validateDaily(daily); return false; } catch { return true; }
+        }'''))
+        await self.submit_booking()
+        created = await self.snapshot()
+        self.assertEqual(len(created['dogs']), 2)
+        self.assertEqual(created['dogs'][0], first['dogs'][0])
+        self.assertNotEqual(created['dogs'][1]['id'], 'new')
+        self.assertEqual(created['bookings'][0], first['bookings'][0])
+        self.assertEqual(created['bookings'][1]['dogId'], created['dogs'][1]['id'])
+        self.assertEqual(created['clients'], first['clients'])
+
+        await self.page.reload()
+        await self.wait_ready()
+        self.assertEqual(await self.snapshot(), created)
+        await self.route('schedule')
+        await self.page.fill('#daily-month', '2026-10')
+        await self.page.locator('#daily-month').dispatch_event('change')
+        await self.page.click(f'[data-edit-booking="{first["bookings"][0]["id"]}"]')
+        self.assertEqual(await self.page.input_value('#booking-form [name="dogId"]'), 'new')
+        self.assertFalse(await self.page.locator('#new-dog-field').is_visible())
+        self.assertEqual(await self.page.input_value('#booking-form [name="client"]'), client['name'])
+        await self.page.fill('#booking-form [name="end"]', '2026-11-03')
+        self.assertLessEqual(await self.page.evaluate('document.documentElement.scrollWidth'), 390)
+        await self.capture_evidence(f'daily-literal-new-dog-{self.api_mode}.png')
+        await self.submit_booking()
+        await self.page.reload()
+        await self.wait_ready()
+        created['bookings'][0]['end'] = '2026-11-03'
+        self.assertEqual(await self.snapshot(), created)
+        saved_notes = await self.page.evaluate('state.observations')
+        self.assertEqual({key: saved_notes[key] for key in notes}, notes)
+        self.assertEqual(saved_notes[created['dogs'][1]['id']], [])
+        self.assertEqual(self.console_errors, [])
 
     async def test_document_read_locks_navigation_and_snapshots_owner_and_form(self):
         await self.prepare_document()
