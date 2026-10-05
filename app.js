@@ -22,6 +22,7 @@ const dogs = {
 const translations = {
   en: {},
   fr: {
+    "Care & wellbeing": "Maison de la Santé",
     // Account loading and recovery
     "ACCOUNT":"COMPTE",
     "Loading your care records…":"Chargement de votre carnet de bord…",
@@ -222,6 +223,7 @@ const translations = {
     'Saved for this session, but browser storage is full':'Enregistré pour cette session, mais le stockage du navigateur est plein'
   },
   it: {
+    "Care & wellbeing": "Casa della salute",
     // Account loading and recovery
     "ACCOUNT":"ACCOUNT",
     "Loading your care records…":"Caricamento del diario…",
@@ -405,6 +407,7 @@ const translations = {
     'Saved for this session, but browser storage is full':'Salvato per questa sessione, ma la memoria del browser è piena'
   },
   de: {
+    "Care & wellbeing": "Haus der Gesundheit",
     // Account loading and recovery
     "ACCOUNT":"KONTO",
     "Loading your care records…":"Dein Betreuungsbuch wird geladen…",
@@ -588,6 +591,7 @@ const translations = {
     'Saved for this session, but browser storage is full':'Für diese Sitzung gespeichert, aber der Browserspeicher ist voll'
   },
   es: {
+    "Care & wellbeing": "Casa de la salud",
     // Account loading and recovery
     "ACCOUNT":"CUENTA",
     "Loading your care records…":"Cargando tu diario de cuidados…",
@@ -1708,6 +1712,7 @@ const views = {
   },
   story() { const d=dogs[state.dog], latest=state.observations[state.dog][0]; if(!latest){setHeader('OWNER UPDATE · DRAFT','Daily story');return `<section class="card"><p>${t('No observations captured today yet. Add a care moment before handoff.')}</p><button class="primary" data-go="capture">${t('Capture update')}</button></section>`;} setHeader('OWNER UPDATE · DRAFT','A lovely day, ready to share'); return `<div class="grid page-grid"><div class="story-phone"><div class="story-image">${dogAvatar(state.dog)}${state.dog==='billie'?`<span class="story-photo-note">${t('Profile photograph from the archive')}</span>`:''}</div><div class="story-body"><p class="story-date">${t('Daily story · Sample layout')}</p><h3>${escapeHtml(tf('{name}’s day', {name:d.name}))}</h3><p class="story-copy">${escapeHtml(t(latest.text))} ${escapeHtml(tf('{name} enjoyed plenty of calm attention and is heading home happy and settled.', {name:d.name.split(' ')[0]}))}</p><div class="story-stats"><div><strong>${state.dog==='billie'?'42 min':'25 min'}</strong><small>${t('outside')}</small></div><div><strong>${t('All eaten')}</strong><small>${t('meals')}</small></div><div><strong>${t('Calm')}</strong><small>${t('mood')}</small></div></div></div></div><aside><section class="card"><h2 style="font:400 24px Georgia,serif">${t('Owner-ready, not auto-sent')}</h2><p style="font-size:12px;color:var(--muted);line-height:1.6">${t('Review this draft, then share it with the app you choose.')}</p><div class="label">${t('Preview for')}</div><div class="dog-picker">${Object.entries(dogs).map(([k,x])=>`<button class="dog-pick ${k===state.dog?'active':''}" data-story-dog="${k}">${dogAvatar(k)}<div><strong>${escapeHtml(x.name)}</strong><small>${escapeHtml(x.owner)}</small></div></button>`).join('')}</div><button class="ghost" data-go="handoff" style="width:100%;margin:20px 0 10px">${t('Review daily handoff')}</button>${shareControls(latest,'story-share')}</section></aside></div>`; },
   invite() { setHeader('INVITE PREVIEW','Share care context safely'); return `<div class="page-title-row"><div><h2>${t('Prepare an invite')}</h2><p>${t('Build a local pending invite preview for an owner or trusted carer. Nothing is sent.')}</p></div></div><div class="grid page-grid invite-grid"><section class="card invite-card"><div class="form-row"><div class="label">${t('Invite role')}</div><div class="role-choice" role="radiogroup" aria-label="${t('Invite role')}"><label><input type="radio" name="invite-role" value="owner" checked><span><strong>${t('Owner')}</strong><small>${t('Family member who receives updates')}</small></span></label><label><input type="radio" name="invite-role" value="trusted-carer"><span><strong>${t('Trusted carer')}</strong><small>${t('Backup helper with limited context')}</small></span></label></div></div><div class="form-split"><label class="field-label" for="invite-name">${t('Name')}<input id="invite-name" autocomplete="name" placeholder="${t('e.g. Camille Martin')}"></label><label class="field-label" for="invite-email">${t('Email')}<input id="invite-email" type="email" autocomplete="email" placeholder="camille@example.com"></label></div><div class="label">${t('Can preview')}</div><div class="permission-list"><label><input type="checkbox" name="invite-permission" value="stories" checked><span><strong>${t('Daily stories')}</strong><small>${t('Owner-ready recaps and media placeholders')}</small></span></label><label><input type="checkbox" name="invite-permission" value="timeline" checked><span><strong>${t('Care timeline')}</strong><small>${t('Structured observations and handover notes')}</small></span></label><label><input type="checkbox" name="invite-permission" value="health"><span><strong>${t('Health notes')}</strong><small>${t('Factual medication and watch items, never diagnoses')}</small></span></label></div><div class="local-boundary"><strong>${t('Local preview only')}</strong><span>${t('This prototype will not send email, WhatsApp, SMS, or notifications.')}</span></div><div class="composer-actions"><small>${storageCopy('Demo data only · the invite is stored in this browser as pending.', ACCOUNT_INVITE)}</small><button class="primary" id="create-invite">${t('Create pending invite preview →')}</button></div></section><aside><section class="card summary-card"><div class="section-head" style="margin-top:0"><div><h2>${t('Invite-ready summary')}</h2><p>${t('Updates as you choose role and permissions')}</p></div></div><div id="invite-summary" class="invite-summary"></div></section><section class="card" style="margin-top:20px"><div class="section-head" style="margin-top:0"><div><h2>${t('Pending invites')}</h2><p>${t('Local preview queue')}</p></div></div><div id="pending-invites" class="pending-list">${pendingInvitesHtml()}</div></section></aside></div>`; },
+  health() { setHeader('', KnowledgeUI.text('title')); return KnowledgeUI.view(); },
   schedule() { setHeader('', t('Schedule')); return DailyUI.schedule(); },
   business() { setHeader('', DailyUI.text('monthly')); return DailyUI.business(); },
   settings() { setHeader('SETTINGS','Your calm corner'); return `<section class="card empty"><div class="big">⚙️</div><h2>${t('Demo settings')}</h2><p>${t('External integrations are intentionally unavailable in this local prototype.')}</p><button class="ghost" id="reset-demo">${t('Reset demo observations')}</button></section>`; }
@@ -1882,9 +1887,10 @@ function revealActiveNavigation() {
     });
   }
 }
-function navigate(page) { if(savePending)return; if(!appReady)return; if(state.page==='capture'){stopActiveRecording();stopTranscription(true);rememberCaptureDraft();} state.page=page; if(page==='capture')audioDraft=captureDrafts[state.dog]?.audio || null; document.querySelectorAll('.nav-item').forEach(n=>{const active=n.dataset.page===page;n.classList.toggle('active',active);if(active)n.setAttribute('aria-current','page');else n.removeAttribute('aria-current');}); content.innerHTML=views[page](); localizeContent(); bindView(); window.scrollTo({top:0}); revealActiveNavigation(); }
+function navigate(page) { if(savePending)return; if(!appReady)return; if(state.page==='health')KnowledgeUI.rememberDraft(); if(state.page==='capture'){stopActiveRecording();stopTranscription(true);rememberCaptureDraft();} state.page=page; if(page==='capture')audioDraft=captureDrafts[state.dog]?.audio || null; document.querySelectorAll('.nav-item').forEach(n=>{const active=n.dataset.page===page;n.classList.toggle('active',active);if(active)n.setAttribute('aria-current','page');else n.removeAttribute('aria-current');}); content.innerHTML=views[page](); localizeContent(); bindView(); window.scrollTo({top:0}); revealActiveNavigation(); }
 function bindView() {
   DailyUI.bind();
+  if(state.page==='health')KnowledgeUI.bind();
   document.querySelectorAll('[data-go]').forEach(el=>el.onclick=()=>navigate(el.dataset.go));
   document.querySelectorAll('[data-assistant-action]').forEach(el=>el.onclick=()=>navigate(el.dataset.assistantAction));
   document.querySelectorAll('[data-assistant-prompt]').forEach(el=>el.onclick=()=>{const prompt=el.textContent.trim(),response=addAssistantExchange(prompt,el.dataset.assistantPrompt);appendAssistantExchange(prompt,response);document.querySelector('#assistant-question').focus();});
@@ -2000,6 +2006,7 @@ function boot() {
     state.invites = loadInvites();
   }
   DailyUI.load();
+  KnowledgeUI.load();
   languagePicker.value = state.language;
   languagePicker.disabled = false;
   appReady = true;

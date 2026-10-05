@@ -152,7 +152,7 @@ class BrowserAcceptanceTest(BrowserFixture):
     async def test_all_destinations_are_direct_and_keep_selection(self):
         await self.page.select_option('#language-picker', 'fr')
         routes = ('dashboard', 'dogs', 'capture', 'handoff', 'gallery',
-                  'assistant', 'story', 'invite', 'schedule', 'business', 'settings')
+                  'assistant', 'story', 'invite', 'schedule', 'business', 'settings', 'health')
         for width, height in ((1440, 900), (1024, 768), (390, 844)):
             await self.page.set_viewport_size({'width': width, 'height': height})
             await self.page.click('#main-nav [data-page="dashboard"]')

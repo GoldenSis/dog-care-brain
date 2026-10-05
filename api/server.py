@@ -18,6 +18,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlparse
 
 import daily
+import knowledge
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT_DEFAULT = os.path.dirname(HERE)
@@ -461,7 +462,8 @@ def state_of(user, c=None):
             "revision": business["revision"],
             "email": user["email"], "role": user["role"],
             "language": lang, "dogs": dogs, "observations": obs, "invites": inv,
-            "daily": daily.load(c, user["business_id"])}
+            "daily": daily.load(c, user["business_id"]),
+            "knowledge": knowledge.load(c, user["business_id"])}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -563,6 +565,21 @@ class Handler(BaseHTTPRequestHandler):
             return self._send({"ok": False, "error": "care data could not be saved"}, 500)
         if importing:
             out["skipped"] = skipped
+        return self._send(out)
+
+    def _write_knowledge(self, user, payload):
+        try:
+            with _lock, connection() as c:
+                c.execute("BEGIN IMMEDIATE")
+                if self._advance_revision(c, user) is None:
+                    return
+                value = knowledge.validate(payload.get("knowledge"))
+                knowledge.save(c, user["business_id"], value)
+                out = state_of(user, c)
+        except ValueError as error:
+            return self._send({"ok": False, "error": str(error)}, 400)
+        except sqlite3.Error:
+            return self._send({"ok": False, "error": "experience could not be saved"}, 500)
         return self._send(out)
 
     def _write_daily(self, user, payload, uploading=False):
@@ -800,6 +817,8 @@ class Handler(BaseHTTPRequestHandler):
         u = self._need_mutation_user()
         if not u:
             return
+        if path == "/api/knowledge":
+            return self._write_knowledge(u, payload)
         if path == "/api/daily":
             return self._write_daily(u, payload)
         key = {"/api/observations": "observations", "/api/invites": "invites",

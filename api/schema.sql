@@ -98,3 +98,9 @@ CREATE TABLE IF NOT EXISTS daily_document (
   contents BLOB NOT NULL,
   PRIMARY KEY (business_id, id)
 );
+
+-- User-entered experience remains private and separate from sourced education.
+CREATE TABLE IF NOT EXISTS business_knowledge (
+  business_id INTEGER PRIMARY KEY REFERENCES business(id),
+  snapshot TEXT NOT NULL
+);

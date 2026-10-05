@@ -16,6 +16,7 @@
     invites: [],
     language: "fr",
     daily: null,
+    knowledge: null,
   };
 
   function url(path) {
@@ -139,6 +140,7 @@
     cache.invites = data.invites;
     cache.language = data.language || "en";
     cache.daily = data.daily || {version:1,clients:[],dogs:[],bookings:[],rates:{currency:"CHF",walk:null,day:null,night:null},documents:[]};
+    cache.knowledge = data.knowledge || {version:1,experiences:[]};
     return true;
   }
 
@@ -200,6 +202,14 @@
     },
     getLanguage() {
       return cache.language || "en";
+    },
+    getKnowledge() { return JSON.parse(JSON.stringify(cache.knowledge)); },
+    saveKnowledge(knowledge) {
+      const snapshot = JSON.parse(JSON.stringify(knowledge));
+      return enqueue(async () => {
+        const result = await putJson("/knowledge", {knowledge: snapshot});
+        return result.ok && acceptState(result.data);
+      });
     },
     getDaily() { return JSON.parse(JSON.stringify(cache.daily)); },
     saveDaily(daily) {
