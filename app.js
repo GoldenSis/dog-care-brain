@@ -1832,7 +1832,20 @@ function updateInviteSummary() {
   const permissionLabels = formatPermissions(invite.permissions);
   summary.innerHTML = `<div class="summary-person"><span>${invite.role === 'trusted-carer' ? '🤝' : '🏡'}</span><div><strong>${escapeHtml(firstName)}</strong><small>${escapeHtml(invite.email || t('Email needed before preview'))}</small></div></div><div class="summary-line"><b>${t('Role')}</b><span>${inviteRoleLabel(invite.role)}</span></div><div class="summary-line"><b>${t('Shared care context')}</b><span>${permissionLabels.length ? permissionLabels.map(label => escapeHtml(t(label))).join(', ') : t('Choose at least one area')}</span></div><div class="notice compact"><strong>${t('Ready as a pending preview')}</strong>${t('No delivery will happen from this demo. Review the summary with the sitter before copying anything elsewhere.')}</div>`;
 }
-function navigate(page) { if(savePending)return; if(!appReady)return; if(state.page==='capture'){stopActiveRecording();stopTranscription(true);rememberCaptureDraft();} state.page=page; if(page==='capture')audioDraft=captureDrafts[state.dog]?.audio || null; document.querySelectorAll('.nav-item').forEach(n=>{const active=n.dataset.page===page;n.classList.toggle('active',active);if(active)n.setAttribute('aria-current','page');else n.removeAttribute('aria-current');}); content.innerHTML=views[page](); localizeContent(); bindView(); window.scrollTo({top:0}); document.querySelector('.nav-item.active')?.scrollIntoView({block:'nearest',inline:'nearest'}); }
+function revealActiveNavigation() {
+  const active = document.querySelector('#main-nav .nav-item.active');
+  if (!active) return;
+  for (const scroller of [active.closest('nav'), active.closest('.sidebar')]) {
+    const bounds = scroller.getBoundingClientRect(), item = active.getBoundingClientRect();
+    const left = bounds.left + scroller.clientLeft, top = bounds.top + scroller.clientTop;
+    scroller.scrollBy({
+      left: scroller.scrollWidth > scroller.clientWidth ? (item.left < left ? Math.floor(item.left - left) : Math.max(0, Math.ceil(item.right - left - scroller.clientWidth))) : 0,
+      top: scroller.scrollHeight > scroller.clientHeight ? (item.top < top ? Math.floor(item.top - top) : Math.max(0, Math.ceil(item.bottom - top - scroller.clientHeight))) : 0,
+      behavior: 'instant'
+    });
+  }
+}
+function navigate(page) { if(savePending)return; if(!appReady)return; if(state.page==='capture'){stopActiveRecording();stopTranscription(true);rememberCaptureDraft();} state.page=page; if(page==='capture')audioDraft=captureDrafts[state.dog]?.audio || null; document.querySelectorAll('.nav-item').forEach(n=>{const active=n.dataset.page===page;n.classList.toggle('active',active);if(active)n.setAttribute('aria-current','page');else n.removeAttribute('aria-current');}); content.innerHTML=views[page](); localizeContent(); bindView(); window.scrollTo({top:0}); revealActiveNavigation(); }
 function bindView() {
   document.querySelectorAll('[data-go]').forEach(el=>el.onclick=()=>navigate(el.dataset.go));
   document.querySelectorAll('[data-assistant-action]').forEach(el=>el.onclick=()=>navigate(el.dataset.assistantAction));

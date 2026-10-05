@@ -101,6 +101,54 @@ class BrowserFixture(unittest.IsolatedAsyncioTestCase, ApiServerTestCase):
 
 
 class BrowserAcceptanceTest(BrowserFixture):
+    async def test_navigation_from_scrolled_content_starts_at_heading(self):
+        for width, height in ((390, 844), (1024, 768), (1440, 900)):
+            with self.subTest(width=width):
+                await self.page.set_viewport_size({'width': width, 'height': height})
+                await self.page.click('#main-nav [data-page="dogs"]')
+                for route in ('dashboard', 'dogs'):
+                    await self.page.evaluate("window.scrollTo({top: 700, behavior: 'instant'})")
+                    self.assertGreater(await self.page.evaluate('scrollY'), 0)
+                    await self.page.click(f'#main-nav [data-page="{route}"]')
+                    await self.page.wait_for_function('scrollY === 0', timeout=2000)
+                    heading = await self.page.locator('#page-title').bounding_box()
+                    header = await self.page.locator('.sidebar' if width < 700 else '.utility-bar').bounding_box()
+                    self.assertGreaterEqual(heading['y'], header['y'] + header['height'])
+                    self.assertLessEqual(heading['y'] + heading['height'], height)
+                    self.assertEqual(await self.page.evaluate('state.page'), route)
+                    self.assertLessEqual(await self.page.evaluate('document.documentElement.scrollWidth'), width)
+                await self.capture_evidence(f'nav-scrolled-heading-{width}-{self.api_mode}.png', full_page=False)
+        self.assertEqual(self.console_errors, [])
+
+    async def test_content_navigation_reveals_active_button_in_its_scroller(self):
+        await self.page.select_option('#language-picker', 'fr')
+        await self.page.wait_for_function("document.documentElement.lang === 'fr' && !savePending")
+        for width, height in ((390, 844), (1024, 400)):
+            with self.subTest(width=width):
+                await self.page.set_viewport_size({'width': width, 'height': height})
+                await self.page.click('#main-nav [data-page="handoff"]')
+                scroller = self.page.locator('#main-nav' if width < 700 else '.sidebar')
+                await scroller.evaluate("el => el.scrollTo({left: 0, top: 0, behavior: 'instant'})")
+                button = self.page.locator('#main-nav [data-page="gallery"]')
+                box = await button.bounding_box()
+                bounds = await scroller.bounding_box()
+                self.assertTrue(box['x'] + box['width'] > bounds['x'] + bounds['width']
+                                or box['y'] + box['height'] > bounds['y'] + bounds['height'])
+                await self.page.click('#app-content [data-go="gallery"]')
+                await self.page.wait_for_function('scrollY === 0', timeout=2000)
+                for route in ('gallery', 'dashboard'):
+                    if route == 'dashboard':
+                        await self.page.click('.utility-brand')
+                    button = self.page.locator(f'#main-nav [data-page="{route}"]')
+                    self.assertEqual(await button.get_attribute('aria-current'), 'page')
+                    box = await button.bounding_box()
+                    bounds = await scroller.bounding_box()
+                    self.assertGreaterEqual(box['x'], bounds['x'])
+                    self.assertGreaterEqual(box['y'], bounds['y'])
+                    self.assertLessEqual(box['x'] + box['width'], bounds['x'] + bounds['width'])
+                    self.assertLessEqual(box['y'] + box['height'], bounds['y'] + bounds['height'])
+        self.assertEqual(self.console_errors, [])
+
     async def test_all_destinations_are_direct_and_keep_selection(self):
         await self.page.select_option('#language-picker', 'fr')
         routes = ('dashboard', 'dogs', 'capture', 'handoff', 'gallery',
