@@ -51,6 +51,60 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
         await self.page.set_input_files('#document-form [name="file"]', {
             'name': 'proof.pdf', 'mimeType': 'application/pdf', 'buffer': b'%PDF-1.7\nfixture'})
 
+    async def test_rates_confirmation_clears_on_edits(self):
+        await self.rates('25.00')
+        await self.page.fill('#rates-form [name="night"]', '30.00')
+        self.assertEqual(await self.page.locator('#rates-saved').inner_text(), '')
+        self.assertEqual((await self.snapshot())['rates']['night'], 2500)
+        await self.page.click('#rates-form button')
+        await self.page.wait_for_function("document.querySelector('#rates-saved').textContent === 'Saved' && !savePending")
+        await self.page.select_option('#rates-form [name="currency"]', 'EUR')
+        self.assertEqual(await self.page.locator('#rates-saved').inner_text(), '')
+        self.assertEqual((await self.snapshot())['rates']['currency'], 'CHF')
+        self.assertEqual(self.console_errors, [])
+
+    async def test_rates_confirmation_clears_before_failed_submission(self):
+        await self.rates('25.00')
+        saved = await self.snapshot()
+        await self.page.evaluate('''() => {
+            if (window.DogCareAPI) {
+                DogCareAPI.saveDaily = () => new Promise(resolve => { window.failSave = () => resolve(false); });
+            } else {
+                const original = Storage.prototype.setItem;
+                Storage.prototype.setItem = function(key, value) {
+                    if (key === 'dogcare-daily-v1') {
+                        window.confirmationAtWrite = document.querySelector('#rates-saved').textContent;
+                        throw new DOMException('Full', 'QuotaExceededError');
+                    }
+                    return original.call(this, key, value);
+                };
+            }
+        }''')
+        await self.page.click('#rates-form button')
+        if self.api_mode:
+            await self.page.wait_for_function('!!window.failSave')
+            self.assertEqual(await self.page.locator('#rates-saved').inner_text(), '')
+            await self.page.evaluate('window.failSave()')
+        else:
+            await self.page.wait_for_selector('#rates-form .daily-error:not([hidden])')
+            self.assertEqual(await self.page.evaluate('window.confirmationAtWrite'), '')
+        await self.page.wait_for_selector('#rates-form .daily-error:not([hidden])')
+        self.assertEqual(await self.page.locator('#rates-saved').inner_text(), '')
+        self.assertEqual(await self.page.input_value('#rates-form [name="night"]'), '25.00')
+        self.assertEqual(await self.snapshot(), saved)
+        self.assertEqual(self.console_errors, [])
+
+    async def test_rates_confirmation_clears_before_validation_failure(self):
+        await self.rates('25.00')
+        saved = await self.snapshot()
+        await self.page.evaluate("document.querySelector('#rates-form').elements.night.value = 'invalid'")
+        await self.page.click('#rates-form button')
+        await self.page.wait_for_selector('#rates-form .daily-error:not([hidden])')
+        self.assertEqual(await self.page.locator('#rates-saved').inner_text(), '')
+        self.assertEqual(await self.page.input_value('#rates-form [name="night"]'), 'invalid')
+        self.assertEqual(await self.snapshot(), saved)
+        self.assertEqual(self.console_errors, [])
+
     async def test_literal_new_dog_id_preserves_booking_and_note_relationships(self):
         dog = {'id': 'new', 'name': 'Existing Pup', 'clientId': 'existing-client'}
         client = {'id': 'existing-client', 'name': 'Fixture Client'}
@@ -658,6 +712,170 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
 
 class StaticDailyBrowserAcceptanceTest(DailyBrowserAcceptanceTest):
     api_mode = False
+
+    async def open_tab(self, route):
+        page = await self.context.new_page()
+        page.set_default_timeout(10000)
+        page.on('pageerror', lambda error: self.page_errors.append(str(error)))
+        page.on('console', lambda message: self.console_errors.append(message.text) if message.type == 'error' else None)
+        await page.goto(self.url)
+        await page.wait_for_function("document.querySelector('#app-content')?.dataset.ready === 'true'")
+        await page.click(f'#main-nav [data-page="{route}"]')
+        return page
+
+    async def assert_stale_rates_preserve_records(self, record):
+        await self.rates('25.00')
+        other = await self.open_tab('business')
+        await other.fill('#rates-form [name="day"]', '42.00')
+        if record == 'booking':
+            await self.new_booking(new_dog=True)
+            await self.submit_booking()
+        else:
+            await self.prepare_document()
+            await self.page.click('#document-form button')
+            await self.page.wait_for_selector('[data-open-document]')
+        saved = await self.snapshot()
+        for _ in range(2):
+            await other.click('#rates-form button')
+            await other.wait_for_function('!savePending')
+            self.assertEqual(await self.snapshot(), saved)
+            self.assertTrue(await other.locator('#rates-form .daily-error').is_visible())
+            self.assertIn('reload', (await other.locator('#rates-form .daily-error').inner_text()).lower())
+            self.assertEqual(await other.input_value('#rates-form [name="day"]'), '42.00')
+            self.assertEqual(await other.locator('#rates-saved').inner_text(), '')
+        await other.reload()
+        await other.wait_for_function("document.querySelector('#app-content')?.dataset.ready === 'true'")
+        await other.click('#main-nav [data-page="business"]')
+        await other.fill('#rates-form [name="day"]', '42.00')
+        await other.click('#rates-form button')
+        await other.wait_for_function("document.querySelector('#rates-saved').textContent === 'Saved' && !savePending")
+        saved['rates']['day'] = 4200
+        self.assertEqual(await self.snapshot(), saved)
+        self.assertEqual(self.console_errors, [])
+
+    async def test_stale_rates_preserve_other_tabs_booking(self):
+        await self.assert_stale_rates_preserve_records('booking')
+
+    async def test_stale_rates_preserve_other_tabs_document(self):
+        await self.assert_stale_rates_preserve_records('document')
+
+    async def save_other_tabs_rates(self):
+        other = await self.open_tab('business')
+        await other.fill('#rates-form [name="day"]', '42.00')
+        await other.click('#rates-form button')
+        await other.wait_for_function("document.querySelector('#rates-saved').textContent === 'Saved' && !savePending")
+        return await self.snapshot()
+
+    async def assert_conflict_preserves_form(self, form, saved, values):
+        await self.page.wait_for_selector(f'{form} .daily-error:not([hidden])')
+        await self.page.wait_for_function('!savePending')
+        self.assertEqual(await self.snapshot(), saved)
+        self.assertIn('reload', (await self.page.locator(f'{form} .daily-error').inner_text()).lower())
+        for name, value in values.items():
+            self.assertEqual(await self.page.input_value(f'{form} [name="{name}"]'), value)
+        self.assertFalse(await self.page.locator(f'{form} button').first.is_disabled())
+        self.assertFalse(await self.page.evaluate('document.querySelector(".app-shell").inert'))
+        self.assertEqual(self.console_errors, [])
+
+    async def test_stale_booking_preserves_other_tabs_rates_and_draft(self):
+        await self.new_booking(new_dog=True)
+        saved = await self.save_other_tabs_rates()
+        await self.page.click('#booking-form [type="submit"]')
+        await self.assert_conflict_preserves_form('#booking-form', saved, {
+            'dogName': 'Fixture Pup', 'client': 'Fixture Client',
+            'start': '2026-10-30', 'end': '2026-11-02',
+        })
+
+    async def test_document_checks_for_conflicts_after_reading_file(self):
+        await self.prepare_document()
+        await self.page.evaluate('''() => {
+            const original = File.prototype.arrayBuffer;
+            File.prototype.arrayBuffer = function() {
+                return new Promise(resolve => { window.finishRead = () => resolve(original.call(this)); });
+            };
+        }''')
+        await self.page.click('#document-form button')
+        await self.page.wait_for_function('!!window.finishRead && savePending')
+        saved = await self.save_other_tabs_rates()
+        await self.page.evaluate('window.finishRead()')
+        await self.assert_conflict_preserves_form('#document-form', saved, {
+            'label': 'Original proof', 'renewal': '2027-10-05',
+        })
+        self.assertEqual(await self.page.locator('#document-form [name="file"]').evaluate('el => el.files[0].name'), 'proof.pdf')
+
+    async def test_stale_renewal_preserves_other_tabs_rates_and_draft(self):
+        await self.prepare_document()
+        await self.page.click('#document-form button')
+        await self.page.wait_for_selector('[data-open-document]')
+        await self.page.click('.daily-document summary')
+        await self.page.fill('[data-renewal] [name="renewal"]', '2029-01-01')
+        saved = await self.save_other_tabs_rates()
+        await self.page.click('[data-renewal] button')
+        await self.assert_conflict_preserves_form('[data-renewal]', saved, {'renewal': '2029-01-01'})
+
+    async def test_simultaneous_booking_and_rates_saves_reject_one_snapshot(self):
+        await self.new_booking(new_dog=True)
+        other = await self.open_tab('business')
+        await other.fill('#rates-form [name="day"]', '42.00')
+        await other.evaluate('''() => {
+            navigator.locks.request('dogcare-daily-v1', () => new Promise(resolve => {
+                window.releaseWrite = resolve;
+            }));
+        }''')
+        await other.wait_for_function('!!window.releaseWrite')
+        await self.page.evaluate("document.querySelector('#booking-form').requestSubmit()")
+        await other.evaluate("document.querySelector('#rates-form').requestSubmit()")
+        self.assertTrue(await self.page.evaluate('savePending'))
+        self.assertTrue(await other.evaluate('savePending'))
+        self.assertIsNone(await self.snapshot())
+        await other.evaluate('window.releaseWrite()')
+        await self.page.wait_for_function('!savePending')
+        await other.wait_for_function('!savePending')
+        saved = await self.snapshot()
+        self.assertEqual(len(saved['bookings']), 1)
+        self.assertIsNone(saved['rates']['day'])
+        self.assertEqual(await self.page.locator('#booking-form').count(), 0)
+        self.assertTrue(await other.locator('#rates-form .daily-error').is_visible())
+        self.assertEqual(await other.locator('#rates-saved').inner_text(), '')
+        self.assertEqual(await other.input_value('#rates-form [name="day"]'), '42.00')
+        await self.page.reload()
+        await self.wait_ready()
+        self.assertEqual(await self.snapshot(), saved)
+        self.assertEqual(self.console_errors, [])
+
+    async def test_missing_browser_lock_support_retains_records_and_draft(self):
+        await self.rates('25.00')
+        saved = await self.snapshot()
+        await self.page.evaluate("Object.defineProperty(navigator, 'locks', {value: undefined})")
+        await self.page.fill('#rates-form [name="night"]', '30.00')
+        await self.page.click('#rates-form button')
+        await self.page.wait_for_selector('#rates-form .daily-error:not([hidden])')
+        self.assertEqual(await self.snapshot(), saved)
+        self.assertEqual(await self.page.input_value('#rates-form [name="night"]'), '30.00')
+        self.assertEqual(await self.page.locator('#rates-saved').inner_text(), '')
+        self.assertIn('HTTPS', await self.page.locator('#rates-form .daily-error').inner_text())
+        self.assertEqual(self.console_errors, [])
+
+    async def test_stale_save_recovery_is_localized_without_overflow(self):
+        saved = await self.save_other_tabs_rates()
+        for width, height in ((390, 844), (1024, 768), (1440, 900)):
+            await self.page.set_viewport_size({'width': width, 'height': height})
+            for locale, prefix in (('fr', 'Non enregistré.'), ('en', 'Not saved.'),
+                                   ('it', 'Non salvato.'), ('de', 'Nicht gespeichert.'),
+                                   ('es', 'No guardado.')):
+                await self.page.select_option('#language-picker', locale)
+                await self.route('business')
+                await self.page.fill('#rates-form [name="day"]', '31.00')
+                await self.page.click('#rates-form button')
+                await self.page.wait_for_selector('#rates-form .daily-error:not([hidden])')
+                self.assertTrue((await self.page.locator('#rates-form .daily-error').inner_text()).startswith(prefix))
+                self.assertEqual(await self.page.input_value('#rates-form [name="day"]'), '31.00')
+                self.assertEqual(await self.page.locator('#rates-saved').inner_text(), '')
+                self.assertEqual(await self.snapshot(), saved)
+                self.assertLessEqual(await self.page.evaluate('document.documentElement.scrollWidth'), width)
+                if locale == 'fr':
+                    await self.capture_evidence(f'daily-stale-rates-fr-{width}.png')
+        self.assertEqual(self.console_errors, [])
 
     async def test_registered_dog_notes_survive_static_to_account_import(self):
         await self.new_booking(new_dog=True)

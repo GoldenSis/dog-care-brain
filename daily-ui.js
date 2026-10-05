@@ -3,6 +3,7 @@
   'use strict';
   const M = w.DailyModel, KEY = 'dogcare-daily-v1', CREATE_DOG = ':new';
   let daily = M.empty(), loadError = false, month = localDate().slice(0, 7), editing = null;
+  let localSnapshot = null, localStale = false;
   const text = key => (w.DailyCopy[state.language] || w.DailyCopy.en)[key] || w.DailyCopy.en[key] || key;
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   function localDate() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
@@ -15,7 +16,10 @@
   const errorBox = () => `<p class="daily-error" role="alert" hidden></p>`;
   const storage = () => w.DogCareAPI ? '' : `<p class="daily-storage">${esc(text('browserOnly'))}</p>`;
   function unavailable() { return loadError ? `<p class="daily-error" role="alert">${esc(text('loadError'))}</p>` : ''; }
-  function setError(form, key='saveError') { const e=form.querySelector('.daily-error'); e.hidden=false;e.textContent=text(key);e.scrollIntoView({block:'nearest'}); }
+  function setError(form, key='saveError') {
+    if(key==='saveError' && !w.DogCareAPI)key=localStale?'staleSave':!w.navigator.locks?'storageUnavailable':key;
+    const e=form.querySelector('.daily-error');e.hidden=false;e.textContent=text(key);e.scrollIntoView({block:'nearest'});
+  }
   function syncDogs() {
     const profiles=new Map((w.DogCareAPI?.getDogs() || []).map(dog=>[dog.slug,{id:dog.slug,name:dog.name}]));
     for (const dog of daily.dogs) profiles.set(dog.id,{...dog,owner:client(dog)});
@@ -27,7 +31,8 @@
   }
   function load() {
     try {
-      const raw=w.DogCareAPI ? w.DogCareAPI.getDaily() : JSON.parse(localStorage.getItem(KEY) || 'null');
+      if(!w.DogCareAPI)localSnapshot=localStorage.getItem(KEY);
+      const raw=w.DogCareAPI ? w.DogCareAPI.getDaily() : JSON.parse(localSnapshot || 'null');
       const candidate=raw || M.empty(); M.validateDaily(candidate); daily=candidate;
     } catch { loadError=true; }
     syncDogs();
@@ -37,7 +42,16 @@
     try { M.validateDaily(next); } catch { return false; }
     const ok=await (async()=>{
       if(w.DogCareAPI)return w.DogCareAPI.saveDaily(next);
-      try {localStorage.setItem(KEY,JSON.stringify(next));return true;} catch {return false;}
+      if(localStale || !w.navigator.locks)return false;
+      try {
+        return await w.navigator.locks.request(KEY,()=>{
+          if(localStorage.getItem(KEY)!==localSnapshot){localStale=true;return false;}
+          const serialized=JSON.stringify(next);
+          localStorage.setItem(KEY,serialized);
+          localSnapshot=serialized;
+          return true;
+        });
+      } catch {return false;}
     })();
     if(ok) { daily=w.DogCareAPI ? structuredClone(w.DogCareAPI.getDaily()) : next; syncDogs(); }
     return ok;
@@ -144,7 +158,11 @@
     document.querySelectorAll('[data-document-dog]').forEach(b=>b.onclick=()=>{state.dog=b.dataset.documentDog;navigate('dogs');document.querySelector('#dog-documents')?.scrollIntoView({block:'start'});});
     document.querySelectorAll('[data-month-step]').forEach(b=>b.onclick=()=>{const [y,m]=month.split('-').map(Number), d=new Date(Date.UTC(y,m-1+Number(b.dataset.monthStep),1));const value=d.toISOString().slice(0,7);if(value>='2000-01'&&value<='2199-12'){month=value;navigate(state.page);document.querySelector('#daily-month')?.focus();}});
     document.querySelector('#daily-month')?.addEventListener('change',e=>{if(/^20\d\d-\d\d$|^21\d\d-\d\d$/.test(e.target.value)){month=e.target.value;navigate(state.page);}});
-    const rates=document.querySelector('#rates-form');if(rates)rates.onsubmit=async e=>{e.preventDefault();try{const next=structuredClone(daily);next.rates={currency:rates.elements.currency.value,...Object.fromEntries(['walk','day','night'].map(s=>[s,M.parseMinor(rates.elements[s].value)]))};if(!await save(next,rates.querySelector('button'))){setError(rates);return;}rates.querySelector('.daily-error').hidden=true;document.querySelector('#rates-saved').textContent=text('saved');}catch{setError(rates,'invalidRate');}};
+    const rates=document.querySelector('#rates-form');if(rates){
+      const clearSaved=()=>{rates.querySelector('#rates-saved').textContent='';};
+      rates.addEventListener('input',clearSaved);rates.addEventListener('change',clearSaved);
+      rates.onsubmit=async e=>{e.preventDefault();clearSaved();try{const next=structuredClone(daily);next.rates={currency:rates.elements.currency.value,...Object.fromEntries(['walk','day','night'].map(s=>[s,M.parseMinor(rates.elements[s].value)]))};if(!await save(next,rates.querySelector('button'))){setError(rates);return;}rates.querySelector('.daily-error').hidden=true;rates.querySelector('#rates-saved').textContent=text('saved');}catch{setError(rates,'invalidRate');}};
+    }
     document.querySelectorAll('[data-open-document]').forEach(b=>b.onclick=()=>openDocument(daily.documents.find(d=>d.id===b.dataset.openDocument),b));
     document.querySelectorAll('[data-renewal]').forEach(form=>form.onsubmit=async e=>{e.preventDefault();const next=structuredClone(daily);next.documents.find(d=>d.id===form.dataset.renewal).renewal=form.elements.renewal.value;if(!await save(next,form.querySelector('button'))){setError(form);return;}navigate('dogs');document.querySelector('#dog-documents').scrollIntoView({block:'start'});});
     const form=document.querySelector('#document-form'), dogId=state.dog;if(form)form.onsubmit=async e=>{
