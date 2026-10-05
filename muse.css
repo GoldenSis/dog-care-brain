@@ -163,7 +163,7 @@ main { width: 100%; min-width: 0; }
 .mic-button, .stop-audio { border-radius: 4px; background: var(--ink); box-shadow: none; font-size: 12px; }
 .mic-button.recording { background: #c94f33; }
 .detected { border-color: #c5b8a3; border-radius: 4px; }
-label.label, .dictate-hint { font-size: 12px; }
+.label, .dictate-hint { font-size: 12px; }
 .composer-actions small { font-size: 11px; line-height: 1.6; }
 .capture-composer > .label:first-child { margin-top: 0; }
 .capture-composer .voice-meta p:empty { display: none; }
