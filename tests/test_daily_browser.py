@@ -75,6 +75,89 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
         await self.seed_daily(daily)
         return daily
 
+    async def test_saved_locales_keep_daily_and_knowledge_views_readable(self):
+        daily = await self.page.evaluate('DailyModel.empty()')
+        daily['clients'] = [{'id': 'locale-client', 'name': 'Fixture Client'}]
+        daily['dogs'] = [{'id': 'billie', 'name': 'Fixture Pup', 'clientId': 'locale-client'}]
+        daily['rates']['day'] = 1250
+        daily['bookings'] = [{'id': 'locale-booking', 'dogId': 'billie', 'service': 'day',
+                              'start': '2026-10-05', 'end': '2026-10-06',
+                              'unitMinor': 1250, 'currency': 'CHF'}]
+        await self.seed_daily(daily)
+        await self.prepare_document()
+        await self.page.fill('#document-form [name="renewal"]', '2026-01-01')
+        await self.page.click('#document-form button')
+        await self.page.wait_for_selector('[data-document-id]')
+        await self.page.wait_for_function('!savePending')
+        saved = await self.snapshot()
+        writes = []
+        self.page.on('request', lambda request: writes.append(request.url)
+                     if request.method in ('POST', 'PUT', 'DELETE', 'PATCH') else None)
+        for preference, locale in (('en_US', 'en'), ('zz', 'en'), ('fr', 'fr'), ('en', 'en'),
+                                   ('it', 'it'), ('de', 'de'), ('es', 'es'), ('de-CH', 'de-CH')):
+            with self.subTest(preference=preference):
+                self.assertTrue(await self.page.evaluate('''async language => {
+                    if (window.DogCareAPI) return DogCareAPI.saveLanguage(language);
+                    localStorage.setItem('dogcare-language', language);
+                    return true;
+                }''', preference))
+                writes.clear()
+                await self.page.reload()
+                await self.wait_ready()
+                expected = await self.page.evaluate('''locale => {
+                    const date = value => new Intl.DateTimeFormat(locale,
+                        {dateStyle:'medium',timeZone:'UTC'}).format(new Date(value+'T12:00:00Z'));
+                    const money = value => new Intl.NumberFormat(locale, {style:'currency',
+                        currency:'CHF',currencyDisplay:'code',minimumFractionDigits:2,
+                        maximumFractionDigits:2}).format(value);
+                    const language = code => new Intl.DisplayNames([locale],{type:'language'}).of(code);
+                    const guide = KnowledgeContent.guides.find(g=>g.id==='dents');
+                    return {due:date('2026-01-01'),start:date('2026-10-05'),end:date('2026-10-06'),
+                        unit:money(12.5),total:money(25),extension:money(37.5),
+                        checked:date(KnowledgeContent.checked),
+                        sources:guide.sources.map(id=>language(KnowledgeContent.sources.find(s=>s.id===id).language)),
+                        videos:KnowledgeContent.videos.map(v=>`${v.provider} · ${language(v.language)} · ${v.duration}`)};
+                }''', locale)
+                due = self.page.locator('[data-document-dog="billie"]')
+                self.assertIn(expected['due'], await due.inner_text())
+                await due.click()
+                self.assertIn(expected['due'], await self.page.locator('.daily-document').inner_text())
+                await self.route('schedule')
+                await self.page.fill('#daily-month', '2026-10')
+                await self.page.locator('#daily-month').dispatch_event('change')
+                card = self.page.locator('[data-booking-id="locale-booking"]')
+                for value in ('start', 'end', 'total'):
+                    self.assertIn(expected[value], await card.text_content())
+                await card.locator('[data-edit-booking]').click()
+                for value in ('unit', 'total'):
+                    self.assertIn(expected[value], await self.page.locator('#booking-quote').text_content())
+                await self.page.fill('#booking-form [name="end"]', '2026-10-07')
+                self.assertIn(expected['extension'], await self.page.locator('#booking-quote').text_content())
+                await self.route('business')
+                self.assertIn(expected['total'], await self.page.locator('.daily-summary').text_content())
+                self.assertIn(expected['total'], await self.page.locator('.daily-total').text_content())
+                self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+                await self.route('health')
+                await self.page.click('[data-guide="dents"]')
+                self.assertIn(expected['checked'], await self.page.locator('.knowledge-detail > .daily-help').text_content())
+                self.assertEqual(await self.page.locator('.knowledge-sources small').all_text_contents(), expected['sources'])
+                self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+                await self.page.click('#knowledge-back')
+                await self.page.click('[data-knowledge-filter="videos"]')
+                self.assertEqual(await self.page.locator('.knowledge-video p').all_text_contents(), expected['videos'])
+                self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+                self.assertEqual(await self.snapshot(), saved)
+                self.assertEqual(await self.page.evaluate('state.language'), preference)
+                if self.api_mode:
+                    status, snapshot, _ = _http(self.port, 'GET', '/api/state', cookie=self.sid)
+                    self.assertEqual(status, 200)
+                    self.assertEqual(snapshot['language'], preference)
+                else:
+                    self.assertEqual(await self.page.evaluate("localStorage.getItem('dogcare-language')"), preference)
+                self.assertEqual(writes, [])
+                self.assertEqual(self.console_errors, [])
+                self.assertEqual(self.page_errors, [])
+
     async def test_invalid_registration_name_does_not_block_existing_dog_booking(self):
         daily = await self.page.evaluate('DailyModel.empty()')
         daily['clients'] = [{'id': 'existing-client', 'name': 'Fixture Client'}]

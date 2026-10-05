@@ -8,8 +8,8 @@
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   function localDate() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
   const id = () => crypto.randomUUID();
-  const money = (minor, currency) => minor === null ? `${text('unknown')} (${currency})` : new Intl.NumberFormat(state.language,{style:'currency',currency,currencyDisplay:'code',minimumFractionDigits:2,maximumFractionDigits:2}).format(minor / 100);
-  const date = value => value ? new Intl.DateTimeFormat(state.language,{dateStyle:'medium',timeZone:'UTC'}).format(new Date(`${value}T12:00:00Z`)) : text('noDate');
+  const money = (minor, currency) => minor === null ? `${text('unknown')} (${currency})` : new Intl.NumberFormat(formatLocale(Intl.NumberFormat),{style:'currency',currency,currencyDisplay:'code',minimumFractionDigits:2,maximumFractionDigits:2}).format(minor / 100);
+  const date = value => value ? new Intl.DateTimeFormat(formatLocale(Intl.DateTimeFormat),{dateStyle:'medium',timeZone:'UTC'}).format(new Date(`${value}T12:00:00Z`)) : text('noDate');
   const client = dog => daily.clients.find(c => c.id === dog?.clientId)?.name || '';
   const label = (key, input) => `<label class="daily-field">${esc(text(key))}${input}</label>`;
   const input = (name, type='text', value='', extra='') => `<input name="${name}" type="${type}" value="${esc(value)}" ${extra}>`;

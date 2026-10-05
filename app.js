@@ -1554,6 +1554,10 @@ function escapeHtml(value) { return String(value).replace(/[&<>'"]/g, c => ({'&'
 function showToast(message) { const toast=document.querySelector('#toast'); toast.textContent=message; toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'),2500); }
 function dogAvatar(key) { const d=dogs[key]; return `<div class="dog-avatar ${d.colour}">${key==='billie'?`<img src="assets/photos/billie-pines.jpg" alt="Billie Blue" width="960" height="1280">`:`<span class="dog-initials" aria-hidden="true">${escapeHtml(d.name.split(/\s+/).slice(0,2).map(part=>part[0] || '').join('').toUpperCase())}</span><small>${t('Photo to add')}</small>`}</div>`; }
 function t(text) { return translations[state.language]?.[text] || text; }
+function formatLocale(formatter) {
+  try { return formatter.supportedLocalesOf(state.language)[0] || 'en'; }
+  catch { return 'en'; }
+}
 function tf(text, params) { let out = t(text); for (const key in params) out = out.split('{' + key + '}').join(params[key]); return out; }
 function translateTag(tag) {
   if (translations[state.language]?.[tag]) return t(tag);
