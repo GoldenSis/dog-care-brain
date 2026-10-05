@@ -22,6 +22,15 @@ const dogs = {
 const translations = {
   en: {},
   fr: {
+    // Account loading and recovery
+    "ACCOUNT":"COMPTE",
+    "Loading your care records…":"Chargement de votre carnet de bord…",
+    "Your account is not ready":"Votre compte n’est pas ouvert",
+    "Reload account":"Recharger le compte",
+    "Open your sign-in link in this browser to access your account. If the link has expired or was already used, request a new one from the person who gave you access.":"Ouvrez votre lien de connexion dans ce navigateur pour accéder à votre compte. Si le lien a expiré ou a déjà été utilisé, demandez-en un nouveau à la personne qui vous a donné accès.",
+    "Could not load your account. Check your connection and reload.":"Impossible de charger votre compte. Vérifiez votre connexion, puis rechargez la page.",
+    "Your browser records could not be imported. They are still here; reload to retry.":"Les notes de ce navigateur n’ont pas pu être importées. Elles sont toujours ici ; rechargez la page pour réessayer.",
+    "Recording import paused. Your browser records are still here; reload to continue.":"L’importation des enregistrements est en pause. Les notes de ce navigateur sont toujours ici ; rechargez la page pour continuer.",
     // Navigation & chrome
     Today:'Aujourd’hui', Dogs:'Chiens', Capture:'Saisir', Gallery:'Galerie', 'Daily story':'Récit du jour', Schedule:'Planning', Business:'Activité', Settings:'Réglages', Invite:'Inviter',
     'All systems calm':'Tout est calme', 'Capture update':'Ajouter une note',
@@ -213,6 +222,15 @@ const translations = {
     'Saved for this session, but browser storage is full':'Enregistré pour cette session, mais le stockage du navigateur est plein'
   },
   it: {
+    // Account loading and recovery
+    "ACCOUNT":"ACCOUNT",
+    "Loading your care records…":"Caricamento del diario…",
+    "Your account is not ready":"Il tuo account non è aperto",
+    "Reload account":"Ricarica l’account",
+    "Open your sign-in link in this browser to access your account. If the link has expired or was already used, request a new one from the person who gave you access.":"Apri il tuo link di accesso in questo browser per accedere al tuo account. Se il link è scaduto o è già stato usato, richiedine uno nuovo alla persona che ti ha dato accesso.",
+    "Could not load your account. Check your connection and reload.":"Impossibile caricare il tuo account. Controlla la connessione e ricarica la pagina.",
+    "Your browser records could not be imported. They are still here; reload to retry.":"Non è stato possibile importare le note di questo browser. Sono ancora qui; ricarica la pagina per riprovare.",
+    "Recording import paused. Your browser records are still here; reload to continue.":"Importazione delle registrazioni in pausa. Le note di questo browser sono ancora qui; ricarica la pagina per continuare.",
     Today:'Oggi', Dogs:'Cani', Capture:'Registra', Gallery:'Galleria', 'Daily story':'Racconto del giorno', Schedule:'Agenda', Business:'Attività', Settings:'Impostazioni', Invite:'Invita',
     'All systems calm':'Tutto è tranquillo', 'Capture update':'Aggiungi nota',
     'SUNDAY · 12 JULY':'DOMENICA · 12 LUGLIO', 'Good morning, Adine-Sophie':'Buongiorno, Adine-Sophie',
@@ -387,6 +405,15 @@ const translations = {
     'Saved for this session, but browser storage is full':'Salvato per questa sessione, ma la memoria del browser è piena'
   },
   de: {
+    // Account loading and recovery
+    "ACCOUNT":"KONTO",
+    "Loading your care records…":"Dein Betreuungsbuch wird geladen…",
+    "Your account is not ready":"Dein Konto ist nicht geöffnet",
+    "Reload account":"Konto neu laden",
+    "Open your sign-in link in this browser to access your account. If the link has expired or was already used, request a new one from the person who gave you access.":"Öffne deinen Anmeldelink in diesem Browser, um auf dein Konto zuzugreifen. Wenn der Link abgelaufen ist oder bereits verwendet wurde, bitte die Person, die dir Zugang gegeben hat, um einen neuen Link.",
+    "Could not load your account. Check your connection and reload.":"Dein Konto konnte nicht geladen werden. Prüfe deine Verbindung und lade die Seite neu.",
+    "Your browser records could not be imported. They are still here; reload to retry.":"Die Notizen aus diesem Browser konnten nicht importiert werden. Sie sind noch hier; lade die Seite neu, um es erneut zu versuchen.",
+    "Recording import paused. Your browser records are still here; reload to continue.":"Der Import der Aufnahmen wurde angehalten. Die Notizen aus diesem Browser sind noch hier; lade die Seite neu, um fortzufahren.",
     Today:'Heute', Dogs:'Hunde', Capture:'Erfassen', Gallery:'Galerie', 'Daily story':'Tagesbericht', Schedule:'Planung', Business:'Betrieb', Settings:'Einstellungen', Invite:'Einladen',
     'All systems calm':'Alles im grünen Bereich', 'Capture update':'Notiz erfassen',
     'SUNDAY · 12 JULY':'SONNTAG · 12. JULI', 'Good morning, Adine-Sophie':'Guten Morgen, Adine-Sophie',
@@ -561,6 +588,15 @@ const translations = {
     'Saved for this session, but browser storage is full':'Für diese Sitzung gespeichert, aber der Browserspeicher ist voll'
   },
   es: {
+    // Account loading and recovery
+    "ACCOUNT":"CUENTA",
+    "Loading your care records…":"Cargando tu diario de cuidados…",
+    "Your account is not ready":"Tu cuenta no está abierta",
+    "Reload account":"Recargar la cuenta",
+    "Open your sign-in link in this browser to access your account. If the link has expired or was already used, request a new one from the person who gave you access.":"Abre tu enlace de acceso en este navegador para acceder a tu cuenta. Si el enlace ha caducado o ya se ha utilizado, pide uno nuevo a la persona que te dio acceso.",
+    "Could not load your account. Check your connection and reload.":"No se ha podido cargar tu cuenta. Comprueba tu conexión y recarga la página.",
+    "Your browser records could not be imported. They are still here; reload to retry.":"No se han podido importar las notas de este navegador. Siguen aquí; recarga la página para intentarlo de nuevo.",
+    "Recording import paused. Your browser records are still here; reload to continue.":"La importación de las grabaciones está en pausa. Las notas de este navegador siguen aquí; recarga la página para continuar.",
     Today:'Hoy', Dogs:'Perros', Capture:'Registrar', Gallery:'Galería', 'Daily story':'Historia del día', Schedule:'Agenda', Business:'Negocio', Settings:'Ajustes', Invite:'Invitar',
     'All systems calm':'Todo está en calma', 'Capture update':'Añadir nota',
     'SUNDAY · 12 JULY':'DOMINGO · 12 DE JULIO', 'Good morning, Adine-Sophie':'Buenos días, Adine-Sophie',
@@ -1925,7 +1961,22 @@ function bindView() {
 document.querySelectorAll('.nav-item[data-page]').forEach(el=>el.onclick=()=>navigate(el.dataset.page));
 document.querySelectorAll('[data-route]').forEach(el=>el.onclick=e=>{e.preventDefault();navigate(el.dataset.route)});
 const languagePicker=document.querySelector('#language-picker');
+let accountUnavailable=false;
+function renderAccountRecovery() {
+  setHeader('ACCOUNT', 'Your account is not ready');
+  content.innerHTML = `<section class="card"><p role="alert">${escapeHtml(t(window.DogCareAPI.getLoadError()))}</p><button class="primary" id="retry-account">${t('Reload account')}</button></section>`;
+  document.querySelector('#retry-account').onclick = () => location.reload();
+  languagePicker.value = state.language;
+  languagePicker.disabled = false;
+  localizeContent();
+}
 languagePicker.onchange=async()=>{
+  if(accountUnavailable){
+    // Recovery language is temporary: no account or browser settings are written.
+    state.language=languagePicker.value;
+    renderAccountRecovery();
+    return;
+  }
   if(!appReady)return;
   const language=languagePicker.value;
   if (window.DogCareAPI) {
@@ -1960,8 +2011,7 @@ if (window.DogCareAPI) {
   setHeader('ACCOUNT', 'Loading your care records…');
   window.DogCareAPI.ready.then(ready => {
     if (ready) { boot(); return; }
-    setHeader('ACCOUNT', 'Your account is not ready');
-    content.innerHTML = `<section class="card"><p role="alert">${escapeHtml(window.DogCareAPI.getLoadError())}</p><button class="primary" id="retry-account">Reload account</button></section>`;
-    document.querySelector('#retry-account').onclick = () => location.reload();
+    accountUnavailable=true;
+    renderAccountRecovery();
   });
 } else boot();

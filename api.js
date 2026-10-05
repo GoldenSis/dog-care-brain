@@ -145,7 +145,7 @@
   const ready = (async function hydrate() {
     const state = await req("/state");
     if (state.status === 401) {
-      loadError = "Sign in using your magic link, then reload to open your account.";
+      loadError = "Open your sign-in link in this browser to access your account. If the link has expired or was already used, request a new one from the person who gave you access.";
       return false;
     }
     if (!state.ok || !acceptState(state.data)) return false;

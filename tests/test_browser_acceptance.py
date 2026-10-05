@@ -707,6 +707,38 @@ class StaticBrowserAcceptanceTest(BrowserAcceptanceTest):
 
 
 class AccountRecoveryTest(BrowserFixture):
+    async def test_account_recovery_copy_is_localized_without_writes(self):
+        # An anonymous context matches a link opened in a different browser profile.
+        await self.context.clear_cookies()
+        stored = await self.page.evaluate('JSON.stringify(localStorage)')
+        writes = []
+        self.page.on('request', lambda request: writes.append(request.url)
+                     if request.method not in ('GET', 'HEAD') else None)
+        await self.page.reload()
+        await self.page.wait_for_selector('#retry-account')
+        self.assertIn('compte', (await self.page.locator('#page-title').inner_text()).lower())
+        self.assertNotIn('Your account', await self.page.locator('#app-content').inner_text())
+        for width, height in ((1440, 900), (1024, 768), (390, 844)):
+            await self.page.set_viewport_size({'width': width, 'height': height})
+            self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+            self.assertGreaterEqual((await self.page.locator('#retry-account').bounding_box())['height'], 44)
+            await self.capture_evidence(f'account-recovery-fr-{width}.png')
+        for language, retry, explanation in (
+            ('fr', 'Recharger le compte', 'dans ce navigateur'),
+            ('en', 'Reload account', 'in this browser'),
+            ('it', 'Ricarica l’account', 'in questo browser'),
+            ('de', 'Konto neu laden', 'in diesem Browser'),
+            ('es', 'Recargar la cuenta', 'en este navegador'),
+        ):
+            await self.page.select_option('#language-picker', language)
+            self.assertEqual(await self.page.get_attribute('html', 'lang'), language)
+            self.assertEqual(await self.page.locator('#retry-account').inner_text(), retry)
+            self.assertIn(explanation, await self.page.locator('[role="alert"]').inner_text())
+        self.assertEqual(writes, [])
+        self.assertEqual(await self.page.evaluate('JSON.stringify(localStorage)'), stored)
+        self.assertEqual(await self.page.locator('.timeline-card').count(), 0)
+        self.assertEqual(self.console_errors, ['Failed to load resource: the server responded with a status of 401 (Unauthorized)'])
+
     async def test_sharing_recording_rejects_expired_and_switched_sessions(self):
         status, body, _ = _http(self.port, 'POST', '/api/blobs',
                                {'type': 'audio/webm', 'data': 'YQ=='}, cookie=self.sid)
