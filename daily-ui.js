@@ -17,17 +17,20 @@
   function unavailable() { return loadError ? `<p class="daily-error" role="alert">${esc(text('loadError'))}</p>` : ''; }
   function setError(form, key='saveError') { const e=form.querySelector('.daily-error'); e.hidden=false;e.textContent=text(key);e.scrollIntoView({block:'nearest'}); }
   function syncDogs() {
-    for (const dog of daily.dogs) {
+    const profiles=new Map((w.DogCareAPI?.getDogs() || []).map(dog=>[dog.slug,{id:dog.slug,name:dog.name}]));
+    for (const dog of daily.dogs) profiles.set(dog.id,{...dog,owner:client(dog)});
+    for (const dog of profiles.values()) {
       const existing=Object.hasOwn(dogs,dog.id) ? dogs[dog.id] : null;
-      dogs[dog.id]={...(existing || {emoji:'🐕',age:'Profile to complete',breed:'Breed to confirm',last:'',health:'Add current health and medication instructions.',behaviour:'Add routine, triggers and favourite rewards.',vet:'Add preferred vet and emergency contact',vets:[],needs:{energy:'Confirm with owner',movement:'Set a daily movement target',enrichment:'Add favourite enrichment',sensitivities:'Add sensitivities and recovery needs'},colour:''}),name:dog.name,owner:client(dog)};
+      dogs[dog.id]={...(existing || {emoji:'🐕',age:'Profile to complete',breed:'Breed to confirm',last:'',health:'Add current health and medication instructions.',behaviour:'Add routine, triggers and favourite rewards.',vet:'Add preferred vet and emergency contact',vets:[],needs:{energy:'Confirm with owner',movement:'Set a daily movement target',enrichment:'Add favourite enrichment',sensitivities:'Add sensitivities and recovery needs'},colour:''}),name:dog.name,owner:dog.owner ?? existing?.owner ?? ''};
       if (!Object.hasOwn(state.observations,dog.id)) state.observations[dog.id]=[];
     }
   }
   function load() {
     try {
       const raw=w.DogCareAPI ? w.DogCareAPI.getDaily() : JSON.parse(localStorage.getItem(KEY) || 'null');
-      const candidate=raw || M.empty(); M.validateDaily(candidate); daily=candidate; syncDogs();
+      const candidate=raw || M.empty(); M.validateDaily(candidate); daily=candidate;
     } catch { loadError=true; }
+    syncDogs();
   }
   async function commitDaily(next) {
     if(loadError)return false;

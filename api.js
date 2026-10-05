@@ -11,6 +11,7 @@
 
   const cache = {
     observations: null,
+    dogs: [],
     invites: [],
     language: "fr",
     daily: null,
@@ -133,6 +134,7 @@
     businessId = data.business_id;
     revision = data.revision;
     cache.observations = data.observations;
+    cache.dogs = data.dogs || [];
     cache.invites = data.invites;
     cache.language = data.language || "en";
     cache.daily = data.daily || {version:1,clients:[],dogs:[],bookings:[],rates:{currency:"CHF",walk:null,day:null,night:null},documents:[]};
@@ -191,6 +193,7 @@
     getObservations() {
       return cache.observations || {};
     },
+    getDogs() { return JSON.parse(JSON.stringify(cache.dogs)); },
     getInvites() {
       return cache.invites || [];
     },

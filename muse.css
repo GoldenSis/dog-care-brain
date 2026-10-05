@@ -39,11 +39,13 @@ main { width: 100%; min-width: 0; }
 .nav-item.active::before { display: none; }
 .nav-item:focus-visible { outline-offset: -3px; }
 .topbar { max-width: 1600px; height: auto; min-height: 84px; margin: auto; padding: 16px 28px; border: 0; gap: 22px; background: transparent; }
+.topbar, .content { overflow-wrap: anywhere; }
+.topbar > div:first-child { min-width: 0; }
 .topbar h1 { font: 600 32px/1.1 var(--display); margin: 4px 0 0; letter-spacing: -.3px; }
 .eyebrow { font: 500 9px/1.6 var(--mono); letter-spacing: 1.15px; text-transform: uppercase; color: var(--muted); }
 .topbar .eyebrow { font-size: 8px; }
 .topbar .eyebrow[hidden] { display: none; }
-.top-actions { display: flex; gap: 13px; }
+.top-actions { display: flex; gap: 13px; flex-shrink: 0; }
 .top-actions select { padding: 7px; min-height: 44px; background: transparent; border: 1px solid var(--line); border-radius: 4px; font-size: 12px; color: var(--ink); }
 .top-actions .primary.compact { font-size: 12px; padding: 11px 15px; min-height: 44px; border-radius: 4px; }
 .content { max-width: 1600px; margin: auto; padding: 0 28px 35px; }
@@ -85,7 +87,7 @@ main { width: 100%; min-width: 0; }
 .section-head p { color: var(--muted); font-size: 13px; margin-top: 8px; }
 .club-care-grid .section-head { margin-top: 0; }
 .club-care-grid .section-head h2 { text-transform: uppercase; }
-.dog-row { display: grid; grid-template-columns: 1fr 1fr; gap: 19px; }
+.dog-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 19px; }
 .dog-card { border: 0; background: transparent; padding: 8px 0; display: flex; align-items: center; gap: 14px; border-radius: 0; text-align: left; min-width: 0; box-shadow: none; }
 .dog-card:hover { transform: none; }
 .dog-card:hover .dog-name { color: var(--text-orange); }
@@ -129,6 +131,8 @@ main { width: 100%; min-width: 0; }
 /* The same controls and hierarchy continue through the working screens. */
 .card { padding: 25px; border: 1px solid var(--line); border-radius: 5px; background: var(--paper); box-shadow: none; }
 .page-title-row { margin-bottom: 24px; gap: 20px; }
+.page-title-row > div, .handoff-card-head > div { min-width: 0; }
+.page-title-row > button { flex-shrink: 0; }
 .page-title-row h2 { font: 700 38px/1 var(--display); }
 .page-title-row p { font-size: 14px; line-height: 1.6; }
 .page-grid, .handoff-grid { gap: 25px; }
@@ -173,7 +177,7 @@ main { width: 100%; min-width: 0; }
 .capture-help p { margin: 8px 0 12px; line-height: 1.6; }
 .capture-save { display: flex; flex-direction: column; align-items: stretch; gap: 10px; margin-top: 8px; }
 .capture-save .preview-note { margin: 0; }
-.capture-save .primary { align-self: end; }
+.capture-save .primary { align-self: end; max-width: 100%; }
 
 .assistant-layout { gap: 25px; }
 .assistant-panel, .assistant-actions { background: var(--paper); border: 1px solid var(--line); border-radius: 5px; box-shadow: none; }

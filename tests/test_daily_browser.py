@@ -235,6 +235,117 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
                 await self.capture_evidence(f'daily-dog-pickers-{route}-{width}-{self.api_mode}.png')
         self.assertEqual(self.console_errors, [])
 
+    async def test_long_dog_and_client_names_wrap_across_care_routes(self):
+        dog_name, client_name = 'W' * 120, 'M' * 120
+        await self.new_booking(new_dog=True)
+        await self.page.fill('#booking-form [name="dogName"]', dog_name)
+        await self.page.fill('#booking-form [name="client"]', client_name)
+        await self.submit_booking()
+        saved = await self.snapshot()
+        dog_id = saved['dogs'][0]['id']
+        await self.route('capture')
+        await self.page.click(f'[data-capture-dog="{dog_id}"]')
+        await self.page.fill('#observation', 'Rested after the walk.')
+        await self.page.click('#save-observation')
+        await self.page.wait_for_selector('.timeline-card')
+        await self.page.reload()
+        await self.wait_ready()
+        await self.route('dogs')
+        await self.page.click(f'[data-dog="{dog_id}"]')
+        self.assertEqual(await self.page.locator('.profile-hero h2').inner_text(), dog_name)
+        self.assertIn(client_name, await self.page.locator('.profile-hero p').inner_text())
+        failures = []
+        for width, height in ((390, 844), (768, 1024), (1024, 768), (1440, 900)):
+            await self.page.set_viewport_size({'width': width, 'height': height})
+            for locale in ('fr', 'en', 'it', 'de', 'es'):
+                await self.page.select_option('#language-picker', locale)
+                await self.page.wait_for_function('!savePending')
+                for route in ('dashboard', 'dogs', 'capture', 'handoff', 'story', 'schedule', 'business'):
+                    await self.route(route)
+                    await self.page.evaluate('document.fonts.ready')
+                    overflow = await self.page.evaluate('''() => {
+                        const selectors = '#page-title, .dog-meta, .profile-hero, .page-title-row, '
+                            + '.handoff-card-head, .story-body, #save-observation, .daily-record';
+                        return [...document.querySelectorAll(selectors)].filter(el => {
+                            const box = el.getBoundingClientRect();
+                            return box.left < 0 || box.right > innerWidth + 1 || el.scrollWidth > el.clientWidth + 1;
+                        }).map(el => el.id || el.className);
+                    }''')
+                    if await self.page.evaluate('document.documentElement.scrollWidth') > width:
+                        overflow.append('page')
+                    if overflow:
+                        failures.append((width, locale, route, overflow))
+                    if locale == 'fr' and width in (390, 1024) and route in ('dashboard', 'dogs', 'handoff', 'story'):
+                        await self.capture_evidence(f'daily-long-names-{route}-{width}-{self.api_mode}.png')
+                    active = self.page.locator(f'#main-nav [data-page="{route}"]')
+                    self.assertEqual(await active.get_attribute('aria-current'), 'page')
+                    self.assertGreaterEqual((await active.bounding_box())['height'], 44)
+                    if route == 'capture':
+                        button = self.page.locator('#save-observation')
+                        self.assertIn(dog_name, await button.inner_text())
+                        self.assertGreaterEqual((await button.bounding_box())['height'], 44)
+                        await button.focus()
+                        self.assertTrue(await button.evaluate('el => el === document.activeElement'))
+        self.assertEqual(await self.snapshot(), saved)
+        self.assertEqual(failures, [])
+        self.assertEqual(self.console_errors, [])
+
+    async def assert_recovered_care_profile(self, dog_id, name, note):
+        await self.route('dashboard')
+        card = self.page.locator(f'.dog-card[data-dog="{dog_id}"]')
+        self.assertEqual(await card.count(), 1)
+        self.assertEqual(await card.locator('.dog-name').inner_text(), name)
+        await card.click()
+        self.assertEqual(await self.page.locator('#page-title').inner_text(), name)
+        self.assertIn(note['text'], await self.page.locator('.timeline').inner_text())
+        profile = await self.page.evaluate('(id) => dogs[id]', dog_id)
+        self.assertEqual(profile['owner'], '')
+        self.assertEqual(profile['health'], 'Add current health and medication instructions.')
+        self.assertEqual(profile['vets'], [])
+        self.assertEqual(await self.page.locator('.profile-hero .mini-tags').count(), 0)
+        for route, attribute in (('dogs', 'dog'), ('capture', 'capture-dog'),
+                                 ('handoff', 'handoff-dog'), ('story', 'story-dog')):
+            await self.route(route)
+            await self.page.click(f'[data-{attribute}="billie"]')
+            await self.page.click(f'[data-{attribute}="{dog_id}"]')
+            self.assertEqual(await self.page.evaluate('state.dog'), dog_id)
+            if route == 'handoff':
+                await self.page.click(f'[data-evidence-id="{note["id"]}"]')
+                self.assertIn(note['text'], await self.page.locator(f'#observation-{note["id"]}').inner_text())
+            if route == 'story':
+                self.assertIn(note['text'], await self.page.locator('.story-copy').inner_text())
+
+    async def test_account_dog_identities_remain_selectable_without_daily_records(self):
+        if not self.api_mode:
+            self.skipTest('Account dog identities')
+        dog_id, name = 'Dog_1', 'Account Pup'
+        status, _, _ = _http(self.port, 'POST', '/api/dogs', {'slug': dog_id, 'name': name}, self.sid)
+        self.assertEqual(status, 200)
+        await self.page.reload()
+        await self.wait_ready()
+        await self.route('capture')
+        self.assertEqual(await self.page.locator(f'[data-capture-dog="{dog_id}"]').count(), 1)
+        await self.page.click(f'[data-capture-dog="{dog_id}"]')
+        await self.page.fill('#observation', 'Account dog rested calmly.')
+        await self.page.click('#save-observation')
+        await self.page.wait_for_selector('.timeline-card')
+        note = await self.page.evaluate('(id) => state.observations[id][0]', dog_id)
+        await self.page.reload()
+        await self.wait_ready()
+        await self.assert_recovered_care_profile(dog_id, name, note)
+        self.assertEqual((await self.snapshot())['dogs'], [])
+        async def corrupt_daily(route):
+            response = await route.fetch()
+            payload = await response.json()
+            payload['daily'] = {'version': 99}
+            await route.fulfill(response=response, json=payload)
+        await self.page.route('**/api/state', corrupt_daily)
+        await self.page.reload()
+        await self.wait_ready()
+        self.assertTrue(await self.page.locator('.daily-error').is_visible())
+        await self.assert_recovered_care_profile(dog_id, name, note)
+        self.assertEqual(self.console_errors, [])
+
     async def test_stale_document_snapshot_requires_reload_and_retains_draft(self):
         if not self.api_mode:
             self.skipTest('Account revision recovery')
@@ -457,6 +568,58 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
 
 class StaticDailyBrowserAcceptanceTest(DailyBrowserAcceptanceTest):
     api_mode = False
+
+    async def test_registered_dog_notes_survive_static_to_account_import(self):
+        await self.new_booking(new_dog=True)
+        await self.submit_booking()
+        dog_id = (await self.snapshot())['dogs'][0]['id']
+        await self.route('capture')
+        await self.page.click(f'[data-capture-dog="{dog_id}"]')
+        await self.page.fill('#observation', 'Imported pup drank water after the walk.')
+        await self.page.click('#save-observation')
+        await self.page.wait_for_selector('.timeline-card')
+        note = await self.page.evaluate('(id) => state.observations[id][0]', dog_id)
+        self.assertIsNone(note.pop('audio'))
+        await self.prepare_document()
+        await self.page.click('#document-form button')
+        await self.page.wait_for_selector('[data-open-document]')
+        local = await self.page.evaluate('Object.fromEntries(Object.entries(localStorage))')
+        self.static_httpd.RequestHandlerClass = self.server_mod.Handler
+        self.addCleanup(setattr, self.static_httpd, 'RequestHandlerClass',
+                        partial(QuietStaticHandler, directory=str(ROOT)))
+        self.api_mode = True
+        self.sid = self.login('registered-import@example.com')
+        await self.context.add_cookies([{'name': 'dc_s', 'value': self.sid, 'url': self.url, 'httpOnly': True}])
+        await self.page.reload()
+        await self.wait_ready()
+        imported = _http(self.port, 'GET', '/api/state', cookie=self.sid)[1]
+        self.assertTrue(imported['imported'])
+        self.assertEqual(imported['observations'][dog_id], [note])
+        self.assertEqual(imported['daily'], await self.page.evaluate('DailyModel.empty()'))
+        identity = next(dog for dog in imported['dogs'] if dog['slug'] == dog_id)
+        await self.assert_recovered_care_profile(dog_id, identity['name'], note)
+        await self.route('capture')
+        await self.page.fill('#observation', 'Account follow-up for the imported pup.')
+        await self.page.click('#save-observation')
+        await self.page.wait_for_selector('.timeline-card')
+        saved = _http(self.port, 'GET', '/api/state', cookie=self.sid)[1]
+        self.assertEqual(saved['observations'][dog_id][1:], [note])
+        self.assertEqual(saved['dogs'], imported['dogs'])
+        self.assertEqual(saved['daily'], imported['daily'])
+        for key, value in local.items():
+            self.assertEqual(await self.page.evaluate('key => localStorage.getItem(key)', key), value)
+        fresh = await self.browser.new_context(viewport={'width': 390, 'height': 844}, timezone_id='Europe/Paris')
+        self.addAsyncCleanup(fresh.close)
+        await fresh.add_cookies([{'name': 'dc_s', 'value': self.sid, 'url': self.url, 'httpOnly': True}])
+        self.page = await fresh.new_page()
+        self.page.on('pageerror', lambda error: self.page_errors.append(str(error)))
+        self.page.on('console', lambda message: self.console_errors.append(message.text) if message.type == 'error' else None)
+        await self.page.goto(self.url)
+        await self.wait_ready()
+        await self.assert_recovered_care_profile(dog_id, identity['name'], saved['observations'][dog_id][0])
+        self.assertEqual(await self.page.evaluate('localStorage.length'), 0)
+        self.assertEqual(await self.page.evaluate('(id) => state.observations[id]', dog_id), saved['observations'][dog_id])
+        self.assertEqual(self.console_errors, [])
 
     @classmethod
     def setUpClass(cls):

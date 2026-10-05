@@ -31,6 +31,8 @@ Saved documents can be downloaded after reload. Renewal dates can be edited. Dat
 
 Existing `dogcare-observations`, `dogcare-invites` and `dogcare-language` keys remain intact. The legacy import still imports only those three keys; **daily browser records and documents are not automatically imported into an account**. Switching modes does not copy daily records or update the original browser copy. Keep the original browser records until an explicitly supported transfer is available.
 
+Dogs with imported notes remain selectable in profiles, capture, handoff and stories using their account identities. Their note identifiers and history stay intact. A recovered profile uses the account's recorded name; daily-only names and client details stay in the original browser records. Recovery does not infer health, arrival or consent.
+
 API initialization creates the new tables additively and reads an empty daily state for older businesses without changing their notes. Daily writes and document uploads require the current business and revision headers, increment the revision, and close legacy import eligibility. Documents and their metadata commit atomically. A failed or stale save retains the form; copy it before reloading to reconcile another tab's changes. Tabs do not refresh one another automatically.
 
 Account documents never use public static file paths. Downloads use authenticated `/api/documents/<id>` routes with no-store, attachment, nosniff and sandbox headers. Files belong to a business, including when their contents are identical. There is no document deletion or automatic retention cleanup in this version. The existing recording store and its import rules are unchanged.
