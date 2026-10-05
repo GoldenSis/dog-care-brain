@@ -51,6 +51,58 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
         await self.page.set_input_files('#document-form [name="file"]', {
             'name': 'proof.pdf', 'mimeType': 'application/pdf', 'buffer': b'%PDF-1.7\nfixture'})
 
+    async def test_loaded_currency_survives_rate_edit_reload_and_new_booking(self):
+        seeded = await self.page.evaluate('DailyModel.empty()')
+        seeded['rates'] = {'currency': 'CAD', 'walk': None, 'day': 0, 'night': 2500}
+        seeded['clients'] = [{'id': 'currency-client', 'name': 'Existing Client'}]
+        seeded['dogs'] = [{'id': 'currency-dog', 'name': 'Existing Pup', 'clientId': 'currency-client'}]
+        seeded['bookings'] = [{'id': 'currency-booking', 'dogId': 'currency-dog', 'service': 'night',
+                               'start': '2026-10-30', 'end': '2026-11-02',
+                               'unitMinor': 1800, 'currency': 'CHF'}]
+        self.assertTrue(await self.page.evaluate('''async daily => {
+            DailyModel.validateDaily(daily);
+            if (window.DogCareAPI) return DogCareAPI.saveDaily(daily);
+            localStorage.setItem('dogcare-daily-v1', JSON.stringify(daily));
+            return true;
+        }''', seeded))
+        await self.page.reload()
+        await self.wait_ready()
+        self.assertEqual(await self.snapshot(), seeded)
+        await self.route('business')
+        self.assertEqual(await self.page.input_value('#rates-form [name="currency"]'), 'CAD')
+        self.assertEqual(await self.page.locator('#rates-form [name="currency"] option').all_text_contents(),
+                         ['CHF', 'EUR', 'GBP', 'USD', 'CAD'])
+        for service, value in (('walk', ''), ('day', '0.00'), ('night', '25.00')):
+            self.assertEqual(await self.page.input_value(f'#rates-form [name="{service}"]'), value)
+        await self.page.fill('#rates-form [name="night"]', '31.25')
+        await self.page.click('#rates-form button')
+        await self.page.wait_for_function("document.querySelector('#rates-saved').textContent === 'Saved' && !savePending")
+        seeded['rates']['night'] = 3125
+        self.assertEqual(await self.snapshot(), seeded)
+        await self.page.reload()
+        await self.wait_ready()
+        self.assertEqual(await self.snapshot(), seeded)
+        await self.route('business')
+        self.assertEqual(await self.page.input_value('#rates-form [name="currency"]'), 'CAD')
+        self.assertEqual(await self.page.input_value('#rates-form [name="night"]'), '31.25')
+        self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+        await self.capture_evidence(f'daily-loaded-currency-{self.api_mode}.png')
+        await self.new_booking(new_dog=True)
+        self.assertEqual(await self.page.input_value('#booking-form [name="unitMinor"]'), '31.25')
+        self.assertIn('CAD', await self.page.locator('#booking-quote').inner_text())
+        await self.submit_booking()
+        saved = await self.snapshot()
+        self.assertEqual(saved['rates'], seeded['rates'])
+        self.assertEqual(saved['bookings'][0], seeded['bookings'][0])
+        self.assertEqual(len(saved['bookings']), 2)
+        self.assertEqual(saved['bookings'][1]['currency'], 'CAD')
+        self.assertEqual(saved['bookings'][1]['unitMinor'], 3125)
+        await self.page.reload()
+        await self.wait_ready()
+        self.assertEqual(await self.snapshot(), saved)
+        self.assertEqual(self.console_errors, [])
+        self.assertEqual(self.page_errors, [])
+
     async def test_rates_confirmation_clears_on_edits(self):
         await self.rates('25.00')
         await self.page.fill('#rates-form [name="night"]', '30.00')
