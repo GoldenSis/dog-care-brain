@@ -14,7 +14,7 @@ Then open [http://localhost:4173](http://localhost:4173).
 
 No install or build step is required. The four operational workflows—bookings, base rates/stay extensions, dog documents/follow-up and monthly summaries—are described in [Daily workflows](docs/daily-workflows.md). They persist in this browser in static mode and in the private SQLite database in account mode.
 
-Static mode stores observations, pending invite previews, and language in the browser's `localStorage` (`dogcare-observations`, `dogcare-invites`, and `dogcare-language`), with operational records and documents in `dogcare-daily-v1`. Browser quota limits apply; no cloud synchronization is implied. **Reset demo observations** in Settings replaces only the observations with the original demo data; invites and language are retained.
+Static mode stores observations, pending invite previews, and language in the browser's `localStorage` (`dogcare-observations`, `dogcare-invites`, and `dogcare-language`), with operational records and documents in `dogcare-daily-v1`. Browser quota limits apply; no cloud synchronization is implied. **Reset demo observations** in Settings restores sample observations while retaining saved notes, registered dogs, daily records, invites and language.
 
 Slice 1 (accounts, SQLite, still zero pip deps) — local only, no email keys:
 
@@ -58,7 +58,7 @@ All configuration is through environment variables read by `api/server.py`:
 | `DC_PORT` | `8787` | HTTP listen port. |
 | `DC_ROOT` | Repository root | Static document root; the API server injects `window.DOGCARE_API="/api"` into HTML. |
 | `DC_DATA_DIR` | `~/.local/share/dogcare-brain` | Base directory for private runtime files. |
-| `DC_DB` | `<DC_DATA_DIR>/dogcare.db` | SQLite database, using WAL mode. |
+| `DC_DB` | `<DC_DATA_DIR>/dogcare.db` | SQLite database, including daily records and document bytes, using WAL mode. |
 | `DC_OUTBOX` | `<DC_DATA_DIR>/.dev-outbox` | Local magic-link JSON files. |
 | `DC_BLOBS` | `<DC_DATA_DIR>/blobs` | Audio files, under a directory per business ID. |
 | `DC_INSECURE_COOKIE` | `1` | `1` uses HTTP magic links and omits `Secure` on the cookie; any other value uses HTTPS links and a `Secure` cookie. |
@@ -73,13 +73,13 @@ The default launcher binds to loopback HTTP. The `dc_s` session cookie is HttpOn
 
 Account mode loads server state before enabling navigation and capture; a failed load shows **Reload account** and does not fall back to browser/demo history. Account saves complete before the app clears a draft or reports success. While saving, navigation and other controls are disabled. Each adapter API request has a 15-second deadline, including reading the response; a timeout restores interaction and keeps the draft available to edit, copy, or retry. Failed writes show a toast. If another tab changes accounts or saves newer care data, the stale tab cannot overwrite it: copy any unsaved draft, reload, then reapply it to the current records. Tabs do not automatically refresh each other's changes. A lost response may follow a committed write, so check the reloaded state before reapplying a draft.
 
-Empty account history remains empty on reload. **Reset demo observations** also writes to the server in account mode: it replaces the business's entire observation history with demo observations, while retaining dogs, invites, and language. Reset does not reopen import eligibility or delete uploaded audio files. Slice 1 has no blob cleanup or account-deletion endpoint; removing an attachment from a snapshot does not remove its stored file.
+Empty account history remains empty on reload. **Reset demo observations** also writes to the server in account mode: it refreshes exact sample entries and restores missing samples without replacing saved notes or their attachments. A saved note with a sample's ID takes precedence. Dogs, daily records, documents, invites and language are retained. Reset does not reopen import eligibility or delete uploaded audio files. Slice 1 has no blob cleanup or account-deletion endpoint; removing an attachment from a snapshot does not remove its stored file.
 
 When loading older account history, unsupported recording references are omitted while care text and supported account recordings are retained, so later notes can still be saved.
 
 ## Slice 1 API
 
-The local API uses JSON objects and a `dc_s` session cookie. JSON responses and protected recordings use `Cache-Control: no-store`. All POST/PUT requests require `Content-Type: application/json`. If an `Origin` header is present it must match the server's scheme and `Host`; CLI requests without `Origin` remain supported. Request bodies are capped at 32 MiB, measured in bytes, including UTF-8 text and base64 overhead.
+The local API uses JSON objects and a `dc_s` session cookie. JSON responses, protected recordings and documents use `Cache-Control: no-store`. All POST/PUT requests require `Content-Type: application/json`. If an `Origin` header is present it must match the server's scheme and `Host`; CLI requests without `Origin` remain supported. Request bodies are capped at 32 MiB, measured in bytes, including UTF-8 text and base64 overhead.
 
 | Method and path | Request / result |
 | --- | --- |
@@ -89,12 +89,12 @@ The local API uses JSON objects and a `dc_s` session cookie. JSON responses and 
 | `GET /api/auth/me` | Returns `{ "ok": true, "email": "…", "role": "owner" }` when signed in, otherwise `{ "ok": false }` with HTTP 200. |
 | `POST /api/auth/logout` | Send `{}` and the business header below; deletes the current session and clears its cookie. No revision required. |
 | `GET /api/state` | Full snapshot: `ok`, `business_id`, `imported`, `revision`, `email`, `role`, `language`, `dogs`, `observations`, `invites`, `daily`. |
-| `PUT /api/daily` | `{ "daily": <snapshot> }`; validates and saves operational records, returning full account state. |
+| `PUT /api/daily` | `{ "daily": <snapshot> }`; replaces the full operational snapshot, preserving uploaded document identities. Returns full account state; see the [daily contract](docs/daily-workflows.md#api-contract). |
 | `POST /api/documents` | Dog, label, optional renewal, filename, supported MIME type and base64 file; returns full state. See [daily contract](docs/daily-workflows.md#api-contract). |
 | `GET /api/documents/<id>` | Business-scoped private document attachment; session required. |
 | `GET /api/dogs` | `{ "ok": true, "dogs": [{ "id": 1, "slug": "billie", "name": "Billie Blue" }, …] }`. |
 | `GET /api/dogs/<id>` | `{ "ok": true, "dog": { "id": …, "slug": "…", "name": "…" } }`; numeric ID, scoped to the signed-in business. |
-| `POST /api/dogs` | `{ "slug": "new-dog", "name": "New Dog" }`; creates a dog and returns `ok`, `business_id`, `revision`, and `dog`. Name is optional, defaults to the slug, and is trimmed to 80 characters. |
+| `POST /api/dogs` | `{ "slug": "new-dog", "name": "New Dog" }`; creates a care-note dog and returns `ok`, `business_id`, `revision`, and `dog`. Slugs are trimmed but preserve case; see identifier rules below. Name is optional, defaults to the slug, and is trimmed to 80 characters. This does not register a daily client/dog relationship. |
 | `GET /api/observations` | `{ "ok": true, "observations": { "billie": […], "charlie": […] } }`. |
 | `PUT /api/observations` | `{ "observations": { "billie": […], "charlie": […] } }`; replaces all observations for the business. |
 | `GET /api/invites` | `{ "ok": true, "invites": […] }`. |
@@ -112,7 +112,7 @@ First read `/api/state` with your session cookie. Include `X-DogCare-Business: <
 
 Observation/invite PUTs are **full replacements, not appends or per-dog updates**. Preserve all records you want to keep in the submitted snapshot. Omitting a dog removes its observations, but keeps the dog row; unknown valid slugs create dogs. `{ "observations": {} }` clears all observations, and `{ "invites": [] }` clears all invites. Import leaves absent top-level collections unchanged. Validation or database-constraint failures roll back the whole care write, including its revision. Successful care PUTs return the full state, read in the same transaction as the write. Language belongs to a user, even though changing it advances the business revision.
 
-The browser adapter in [api.js](api.js) loads these records before [app.js](app.js) renders them. `DogCareAPI.ready` resolves to a boolean; `false` means reload/sign-in/import recovery is needed before saving. The getters read its in-memory cache. `saveObservations`, `saveInvites`, `saveLanguage`, `saveDaily`, and `saveDocument` serialize writes and resolve to success booleans; `whenSaved()` waits for writes already queued. Account saves do not mirror data back into the three browser keys.
+The browser adapter in [api.js](api.js) loads these records before [app.js](app.js) renders them. `DogCareAPI.ready` resolves to a boolean; `false` means reload/sign-in/import recovery is needed before saving. The getters read its in-memory cache; `getDogs()` and `getDaily()` return copies. `saveObservations`, `saveInvites`, `saveLanguage`, `saveDaily`, and `saveDocument` serialize writes and resolve to success booleans; `whenSaved()` waits for writes already queued. `getDocument(id)` fetches the private file with the session cookie and resolves to a `Blob`, or `null` when unavailable; it accepts server-issued 32-character lowercase hexadecimal IDs. Account saves do not mirror data back into any browser storage key, including `dogcare-daily-v1`.
 
 ### Care payloads and recording references
 
@@ -125,7 +125,7 @@ Audio uploads use strict base64 and count toward the JSON body limit, so the max
 
 ### Errors
 
-API errors generally return `{ "ok": false, "error": "…" }`. Invalid JSON or care fields return 400; missing/expired sessions return 401; cross-origin writes return 403; unknown or other-business dogs/recordings return 404; conflicting data or stale business/revision headers return 409; oversized bodies return 413; a non-JSON content type returns 415; and missing business/revision headers return 428. Business/revision precondition failures also include `reload_required: true`. Copy the draft, reload current state, and reconcile it before another write. The adapter blocks further writes after that signal or an authenticated write's 401. Other write failures leave the draft available for retry.
+API errors generally return `{ "ok": false, "error": "…" }`. Invalid JSON or care/daily/document fields return 400; missing/expired sessions return 401; cross-origin writes return 403; unknown or other-business dogs/recordings/documents return 404; conflicting data or stale business/revision headers return 409; oversized bodies return 413; a non-JSON content type returns 415; and missing business/revision headers return 428. Daily-record or document database failures return 500 and roll back that write. Business/revision precondition failures also include `reload_required: true`. Copy the draft, reload current state, and reconcile it before another write. The adapter blocks further writes after that signal or an authenticated write's 401. Other write failures leave the draft available for retry.
 
 ## Navigate the workspace
 
@@ -133,8 +133,8 @@ The shell keeps one compact **Le Bus des Toutous** brand and the dashboard greet
 
 | Group | Destinations (English labels) |
 | --- | --- |
-| Today | Home (dashboard), Dogs, Capture, Handoff, Muse assistant, Daily story |
-| Share & organise | Gallery, Invite, Schedule, Business, Settings |
+| Today | Home (dashboard), Schedule, Dogs, Capture, Handoff, Muse assistant, Daily story |
+| Share & organise | Gallery, Invite, Business, Settings |
 
 Above 700px, the groups appear in a slim sidebar that can scroll vertically in short windows. At 700px and below, the same buttons form two rows beneath the brand bar. Scroll this strip sideways to reach later destinations, including Invite and Settings; the page itself stays within the viewport. The navigation remains available while scrolling content.
 

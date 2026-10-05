@@ -1,5 +1,10 @@
 # Muse compact navigation
 
+Historical review of the navigation-only stage on 5 October 2026, before the
+[daily workflows](../../daily-workflows.md) were added. The screenshots,
+measurements and test counts below describe that earlier stage. Current behavior
+and acceptance commands are in the [README](../../../README.md).
+
 One compact business brand and persistent, labelled navigation give direct access
 to all 11 destinations. Desktop and tablet use a grouped sidebar; phones use two
 rows that scroll horizontally. The dashboard greeting, orange and cream palette,
@@ -13,13 +18,14 @@ for the destination groups and keyboard controls.
 
 Five non-field captions in Capture, Daily story, and Invite use styled `div`
 elements instead of unassociated form labels; actual input labels remain
-associated with their fields. This change adds no AI, authentication, billing,
-or scheduling features and changes no storage format. Existing
+associated with their fields. That navigation-only stage added no AI,
+authentication, billing or scheduling features and changed no storage format.
+The later daily-workflow changes add bookings and operational storage. Existing
 [prototype boundaries](../../../README.md#product-boundaries) still apply.
 
 The comparison baseline is main at
 `52d40482b5c595f6d65d75cc98f2cd0bb4b4b356`. The after images show the compact
-navigation with the scrolling correction in this change. Dashboard comparisons
+navigation with the scrolling correction from that stage. Dashboard comparisons
 use isolated static fixtures, French, Chromium, and device scale 1; no live account
 data is used. All images here capture only the viewport, not the full page.
 The `False` suffix on generated filenames means static mode; account-mode test
@@ -47,7 +53,7 @@ capturing these English fixture screenshots:
 - [1024 × 768 after switching from scrolled content](nav-scrolled-heading-1024-False.png)
 - [1440 × 900 after switching from scrolled content](nav-scrolled-heading-1440-False.png)
 
-Validation on 2026-10-05: **101 Python tests passed**, with no failures or skips,
+Recorded validation for the navigation-only stage on 2026-10-05: **101 Python tests passed**, with no failures or skips,
 including API, tenant isolation, crawler, and static/account browser checks.
 **17 JavaScript adapter tests passed**, with no failures or skips. JavaScript
 syntax and whitespace checks passed.
@@ -65,10 +71,11 @@ sizes, active state, keyboard activation, no horizontal page overflow, capture
 drafts, simulated dictation, editing, saving, reload persistence, and handoff
 source links. Navigation checks assert no console errors or page errors.
 
-To refresh the after and heading screenshots:
+To capture the current layout at the same viewports (write to a separate evidence
+directory to retain the historical comparisons):
 
 ```sh
-DOGCARE_EVIDENCE_DIR=docs/review/muse-compact-navigation \
+DOGCARE_EVIDENCE_DIR=/path/to/allowed/evidence \
   uv run --offline --python 3.12 --with playwright==1.61.0 python -m unittest \
   tests.test_browser_acceptance.StaticBrowserAcceptanceTest.test_all_destinations_are_direct_and_keep_selection \
   tests.test_browser_acceptance.StaticBrowserAcceptanceTest.test_navigation_from_scrolled_content_starts_at_heading -v

@@ -10,7 +10,7 @@
 >
 > Fais comme cela te paraît naturel. Dis ce que tu cherches et ce qui te fait hésiter. N’envoie rien au propriétaire pendant cet essai.
 
-Utiliser un exemple inventé. Les notes du pilote restent dans ce navigateur, sur cet appareil. Un brouillon non enregistré ne survit pas à la fermeture de la page. La dictée dépend du navigateur ; l’écriture reste possible.
+Utiliser un exemple inventé et le mode statique (`python3 -m http.server`, sans API) : les notes du pilote restent dans ce navigateur, sur cet appareil. Le mode compte enregistre les notes sur le serveur ; il n’est pas utilisé pour cet exercice. Un brouillon non enregistré ne survit pas à la fermeture de la page. La dictée dépend du navigateur ; l’écriture reste possible.
 
 ## Observer sans guider
 
