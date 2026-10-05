@@ -1560,7 +1560,19 @@ function translateTag(tag) {
   return String(tag).split(' · ').map(part => t(part)).join(' · ');
 }
 function setHeader(kicker, heading) { eyebrow.textContent=t(kicker); eyebrow.hidden=!kicker; title.textContent=t(heading); }
-function localizeContent() { const walker=document.createTreeWalker(content, NodeFilter.SHOW_TEXT), nodes=[]; while(walker.nextNode()) nodes.push(walker.currentNode); nodes.forEach(node=>{const source=node.nodeValue.trim();if(source && translations[state.language]?.[source]) node.nodeValue=node.nodeValue.replace(source,t(source));}); document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=t(el.dataset.i18n)); document.documentElement.lang=state.language; }
+function localizeContent() {
+  const walker=document.createTreeWalker(content, NodeFilter.SHOW_TEXT), nodes=[];
+  while(walker.nextNode()) nodes.push(walker.currentNode);
+  nodes.forEach(node=>{
+    if(node.parentElement.closest('[translate="no"]'))return;
+    const source=node.nodeValue.trim();
+    if(source && translations[state.language]?.[source]) node.nodeValue=node.nodeValue.replace(source,t(source));
+  });
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    if(!el.closest('[translate="no"]'))el.textContent=t(el.dataset.i18n);
+  });
+  document.documentElement.lang=state.language;
+}
 function tagsHtml(tags) { return `<div class="mini-tags">${tags.map(tag=>`<span>${escapeHtml(translateTag(tag))}</span>`).join('')}</div>`; }
 function sampleObservations(key) { return Object.hasOwn(baseObservations,key) ? baseObservations[key] : []; }
 function isSampleObservation(key, observation) {

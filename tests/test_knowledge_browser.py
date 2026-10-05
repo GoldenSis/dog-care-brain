@@ -28,6 +28,97 @@ class KnowledgeBrowserTest(BrowserFixture):
         await self.page.click('#experience-form [type="submit"]')
         await self.page.wait_for_function('!savePending')
 
+    async def assert_experience_fields(self, values):
+        for name, value in values.items():
+            self.assertEqual(await self.page.input_value(f'#experience-form [name="{name}"]'), value)
+
+    async def assert_experience_display(self, values):
+        card = self.page.locator('[data-private-experience]')
+        self.assertEqual(await card.locator('h2').text_content(), values['title'])
+        self.assertEqual(await card.locator('p').text_content(), values['body'])
+        self.assertEqual(await card.locator('[data-private-open]').get_attribute('aria-label'), values['title'])
+        await self.page.click('[data-private-open]')
+        detail = self.page.locator('.knowledge-detail')
+        self.assertEqual(await detail.locator('h2').text_content(), values['title'])
+        self.assertEqual(await detail.locator('.knowledge-experience-body').text_content(), values['body'])
+        self.assertEqual(await detail.locator('.knowledge-experience-body + p').text_content(), values['author'])
+
+    async def test_unsaved_experience_keeps_literal_text_across_locales_and_navigation(self):
+        values = {'title': 'Day care', 'body': 'All good', 'author': 'Settled'}
+        await self.fill_experience()
+        for name, value in values.items():
+            await self.page.fill(f'#experience-form [name="{name}"]', value)
+        for locale in ('fr', 'it', 'de', 'es', 'en'):
+            with self.subTest(locale=locale):
+                await self.page.select_option('#language-picker', locale)
+                await self.page.wait_for_function('!savePending')
+                await self.assert_experience_fields(values)
+                await self.page.click('#main-nav [data-page="dashboard"]')
+                await self.open_health()
+                await self.assert_experience_fields(values)
+        await self.submit()
+        await self.page.wait_for_selector('#experience-form', state='detached')
+        await self.page.reload()
+        await self.wait_ready()
+        await self.open_health()
+        await self.assert_experience_display(values)
+        self.assertEqual(self.console_errors, [])
+        self.assertEqual(self.page_errors, [])
+
+    async def test_saved_experience_keeps_literal_text_when_displayed_edited_and_reloaded(self):
+        values = {'title': 'Day care', 'body': 'All good', 'author': 'Settled'}
+        await self.fill_experience()
+        for name, value in values.items():
+            await self.page.fill(f'#experience-form [name="{name}"]', value)
+        await self.submit()
+        await self.page.wait_for_selector('#experience-form', state='detached')
+        for locale in ('fr', 'it', 'de', 'es', 'en'):
+            with self.subTest(locale=locale):
+                await self.page.select_option('#language-picker', locale)
+                await self.page.wait_for_function('!savePending')
+                await self.assert_experience_display(values)
+                await self.page.click('[data-edit-experience]')
+                await self.assert_experience_fields(values)
+                await self.submit()
+                await self.page.wait_for_selector('#experience-form', state='detached')
+                await self.page.reload()
+                await self.wait_ready()
+                await self.open_health()
+                await self.assert_experience_display(values)
+                await self.page.click('#knowledge-back')
+        self.assertEqual(self.console_errors, [])
+        self.assertEqual(self.page_errors, [])
+
+    async def test_experience_form_explains_unsaved_changes_in_every_locale(self):
+        guidance = {
+            'fr': 'Enregistrez avant de fermer ou de recharger la page : les modifications non enregistrées seront perdues.',
+            'en': 'Save before closing or reloading the page: unsaved changes will be lost.',
+            'it': 'Salvate prima di chiudere o ricaricare la pagina: le modifiche non salvate andranno perse.',
+            'de': 'Speichert vor dem Schließen oder Neuladen der Seite: Nicht gespeicherte Änderungen gehen verloren.',
+            'es': 'Guardad antes de cerrar o recargar la página: se perderán los cambios sin guardar.',
+        }
+        await self.fill_experience()
+        for locale, message in guidance.items():
+            with self.subTest(locale=locale):
+                await self.page.select_option('#language-picker', locale)
+                await self.page.wait_for_function('!savePending')
+                help_text = self.page.get_by_text(message, exact=True)
+                self.assertTrue(await help_text.is_visible())
+                self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+                await self.capture_evidence(f'health-unsaved-guidance-{locale}-{self.api_mode}.png')
+        await self.submit()
+        await self.page.wait_for_selector('#experience-form', state='detached')
+        await self.page.click('[data-edit-experience]')
+        self.assertTrue(await self.page.get_by_text(guidance['es'], exact=True).is_visible())
+        await self.page.fill('#experience-form [name="title"]', 'Unsaved edit')
+        await self.page.reload()
+        await self.wait_ready()
+        await self.open_health()
+        await self.page.click('[data-edit-experience]')
+        self.assertEqual(await self.page.input_value('[name="title"]'), 'Quiet greeting')
+        self.assertEqual(self.console_errors, [])
+        self.assertEqual(self.page_errors, [])
+
     async def test_search_guides_videos_locales_and_responsive_navigation(self):
         await self.page.select_option('#language-picker', 'fr')
         for width, height in ((1440, 900), (1024, 768), (390, 844)):
