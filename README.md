@@ -61,6 +61,8 @@ All configuration is through environment variables read by `api/server.py`:
 
 Use absolute paths for overrides. `DC_DATA_DIR` expands `~`; the individual path overrides do not expand it themselves. `DC_DB`, `DC_OUTBOX`, and `DC_BLOBS` take precedence over the base directory. Every private runtime path must resolve outside `DC_ROOT`; startup rejects paths or symlinks that resolve inside it. If you ran an earlier version, stop it and move `api/dogcare.db` together with any `-wal`/`-shm` files, `.dev-outbox/`, and `api/blobs/` into the configured private locations before using either launcher. API startup refuses legacy private locations still present in the document root; the generic static server has no such check.
 
+The root `.private/` Git ignore rule does not change this storage boundary or prevent static serving of files inside that directory.
+
 The default launcher binds to loopback HTTP. The `dc_s` session cookie is HttpOnly, SameSite=Lax, and scoped to `/`. `DC_INSECURE_COOKIE=0` is available for an HTTPS reverse proxy; the stdlib listener itself still serves HTTP. Magic-link hosts come from the request's `Host` header. Static mode never injects the API flag; leave it unset when serving with `python3 -m http.server`.
 
 ### Saving and recovery
@@ -118,6 +120,21 @@ Audio uploads use strict base64 and count toward the JSON body limit, so the max
 
 API errors generally return `{ "ok": false, "error": "…" }`. Invalid JSON or care fields return 400; missing/expired sessions return 401; cross-origin writes return 403; unknown or other-business dogs/recordings return 404; conflicting data or stale business/revision headers return 409; oversized bodies return 413; a non-JSON content type returns 415; and missing business/revision headers return 428. Business/revision precondition failures also include `reload_required: true`. Copy the draft, reload current state, and reconcile it before another write. The adapter blocks further writes after that signal or an authenticated write's 401. Other write failures leave the draft available for retry.
 
+## Navigate the workspace
+
+The shell keeps one compact **Le Bus des Toutous** brand and the dashboard greeting **Bonjour, Adine-Sophie.** All 11 destinations have labelled buttons in persistent navigation; there is no hamburger or **All sections / Tout l’espace** menu to open.
+
+| Group | Destinations (English labels) |
+| --- | --- |
+| Today | Home (dashboard), Dogs, Capture, Handoff, Muse assistant, Daily story |
+| Share & organise | Gallery, Invite, Schedule, Business, Settings |
+
+Above 700px, the groups appear in a slim sidebar that can scroll vertically in short windows. At 700px and below, the same buttons form two rows beneath the brand bar. Scroll this strip sideways to reach later destinations, including Invite and Settings; the page itself stays within the viewport. The navigation remains available while scrolling content.
+
+Buttons have at least 44px targets, visible keyboard focus, and an active state exposed as `aria-current="page"`. Use Tab to reach a destination and Enter or Space to activate it. Selecting a destination returns the page to its heading and reveals the selected button within the navigation's own scroll container. Handoff evidence links still open the source note in the dog's timeline.
+
+Navigation is shared by static and account modes and supports French, English, Italian, German, and Spanish. The language picker and capture shortcut remain beside the page heading. See the [compact-navigation review](docs/review/muse-compact-navigation/README.md) for before/after images and regression coverage.
+
 ## Try the core flow
 
 1. Open **Muse assistant** and ask for today’s briefing, recorded items needing attention, or an owner handoff. Muse answers from deterministic information already held in the browser; it is not connected to a remote AI service.
@@ -135,7 +152,7 @@ New observations store their local calendar date as `YYYY-MM-DD`. Today's handof
 
 ## Try the invite preview flow
 
-1. Open **Invite** from the sidebar or top bar.
+1. Open **Invite** (**Inviter** in French) from the sidebar or, on phones, scroll the two-row navigation strip sideways to it.
 2. Choose **Owner** or **Trusted carer**, add a demo name and email, and select share areas.
 3. Review the invite-ready summary and create a **pending invite preview**.
 4. The pending invite is saved in this browser in static mode or in the business account in account mode. No email, WhatsApp, SMS, or notification is sent, and no account access is granted.
@@ -190,6 +207,10 @@ uv run --python 3.12 --with playwright==1.61.0 python -m playwright install chro
 uv run --python 3.12 --with playwright==1.61.0 python -m unittest discover -s tests -v
 ```
 
-The suite starts its own local servers and temporary account storage. It covers both static and account modes, authentication, tenant isolation, safe migration and replacement writes, stale-tab/timeout recovery, protected recordings, robots/origin/output boundaries, the Muse briefing-to-handoff journey, dictated text editing, and mobile overflow. Speech recognition is simulated; these tests do not verify a real microphone or browser-provider transcription service. Browser tests skip with an installation hint if the Playwright Python package is absent; if the package is installed but Chromium is missing, browser launch fails until the install step above completes. Pure API/crawler tests always run with the standard library, and the Node adapter tests run separately.
+The suite starts its own local servers and temporary account storage. It covers both static and account modes, authentication, tenant isolation, safe migration and replacement writes, stale-tab/timeout recovery, protected recordings, robots/origin/output boundaries, the Muse briefing-to-handoff journey, dictated text editing, and mobile overflow.
+
+Navigation checks cover all 11 destinations and five locales at 1440 × 900, 1024 × 768, and 390 × 844, keyboard activation, active state, 44px targets, a single business brand, and heading visibility after switching from scrolled content. Separate checks verify active-button reveal within the phone strip and a short desktop sidebar.
+
+Speech recognition is simulated; these tests do not verify a real microphone or browser-provider transcription service. Browser tests skip with an installation hint if the Playwright Python package is absent; if the package is installed but Chromium is missing, browser launch fails until the install step above completes. Pure API/crawler tests always run with the standard library, and the Node adapter tests run separately.
 
 Set `DOGCARE_EVIDENCE_DIR` to an allowed evidence directory to retain the browser suite's selected screenshots and migration-state JSON; when unset it does not write those evidence files. Browser checks await `#app-content[data-ready="true"]` and rendered content, since adapter hydration alone does not establish that the UI is ready.

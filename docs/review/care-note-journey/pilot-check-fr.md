@@ -1,4 +1,4 @@
-# Essai du carnet de soin
+# Essai du carnet de bord
 
 À utiliser avec la version corrigée, après validation de sa mise en ligne. Aucun essai avec une personne réelle n’a encore été réalisé dans ce contrôle.
 

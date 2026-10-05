@@ -5,10 +5,25 @@ to all 11 destinations. Desktop and tablet use a grouped sidebar; phones use two
 rows that scroll horizontally. The dashboard greeting, orange and cream palette,
 original photographs, source links, and French carnet de bord wording remain.
 
+The large duplicate masthead, top-bar owner name, and decorative business-name
+repeats on the dashboard and assistant are removed. The sidebar is used above
+700px; at 700px and below, the two-row strip replaces it without a hamburger or
+All sections menu. See [workspace navigation](../../../README.md#navigate-the-workspace)
+for the destination groups and keyboard controls.
+
+Five non-field captions in Capture, Daily story, and Invite use styled `div`
+elements instead of unassociated form labels; actual input labels remain
+associated with their fields. This change adds no AI, authentication, billing,
+or scheduling features and changes no storage format. Existing
+[prototype boundaries](../../../README.md#product-boundaries) still apply.
+
 The comparison baseline is main at
 `52d40482b5c595f6d65d75cc98f2cd0bb4b4b356`. The after images show the compact
-navigation with the scrolling correction in this change. Screenshots use isolated
-static fixtures, French, Chromium, and device scale 1; no live account data is used.
+navigation with the scrolling correction in this change. Dashboard comparisons
+use isolated static fixtures, French, Chromium, and device scale 1; no live account
+data is used. All images here capture only the viewport, not the full page.
+The `False` suffix on generated filenames means static mode; account-mode test
+captures use `True`. Heading screenshots below use English.
 
 | Viewport | Before | After |
 | --- | --- | --- |

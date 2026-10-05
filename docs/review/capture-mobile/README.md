@@ -1,5 +1,7 @@
 # Care-note capture on mobile
 
+Historical capture review from 16 September 2026. The screenshots and coordinates below predate the [compact navigation](../muse-compact-navigation/README.md), which changes the space above the form; they are measurements of that earlier layout, not the current one.
+
 The Save button previously began 1000 px below the top of a 390 × 844 viewport. The revised form retains the existing visual identity and dog context, removes the repeated introductory heading and keeps Save within reach.
 
 | View | Before | After |
