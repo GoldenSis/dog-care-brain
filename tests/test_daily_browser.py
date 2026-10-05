@@ -51,6 +51,148 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
         await self.page.set_input_files('#document-form [name="file"]', {
             'name': 'proof.pdf', 'mimeType': 'application/pdf', 'buffer': b'%PDF-1.7\nfixture'})
 
+    async def seed_daily(self, daily):
+        self.assertTrue(await self.page.evaluate('''async daily => {
+            DailyModel.validateDaily(daily);
+            if (window.DogCareAPI) return DogCareAPI.saveDaily(daily);
+            localStorage.setItem('dogcare-daily-v1', JSON.stringify(daily));
+            return true;
+        }''', daily))
+        await self.page.reload()
+        await self.wait_ready()
+        self.assertEqual(await self.snapshot(), daily)
+
+    async def seed_same_named_clients(self):
+        daily = await self.page.evaluate('DailyModel.empty()')
+        daily['clients'] = [{'id': 'client-first', 'name': 'Fixture Client'},
+                            {'id': 'client-second', 'name': 'Fixture Client'}]
+        daily['dogs'] = [{'id': 'dog-first', 'name': 'First Pup', 'clientId': 'client-first'},
+                         {'id': 'dog-second', 'name': 'Second Pup', 'clientId': 'client-second'}]
+        daily['bookings'] = [{'id': 'first-booking', 'dogId': 'dog-first', 'service': 'day',
+                              'start': '2026-10-30', 'end': '2026-10-30',
+                              'unitMinor': 1800, 'currency': 'CHF'}]
+        await self.seed_daily(daily)
+        return daily
+
+    async def test_currency_hundredths_in_quotes_extensions_bookings_and_summaries(self):
+        seeded = await self.page.evaluate('DailyModel.empty()')
+        seeded['rates'] = {'currency': 'JPY', 'walk': None, 'day': 0, 'night': 1250}
+        seeded['clients'] = [{'id': 'currency-client', 'name': 'Existing Client'}]
+        seeded['dogs'] = [{'id': 'currency-dog', 'name': 'Existing Pup', 'clientId': 'currency-client'}]
+        seeded['bookings'] = [{'id': 'kwd-booking', 'dogId': 'currency-dog', 'service': 'day',
+                               'start': '2026-10-30', 'end': '2026-10-30',
+                               'unitMinor': 1250, 'currency': 'KWD'}]
+        await self.seed_daily(seeded)
+        await self.new_booking(start='2026-10-30', end='2026-11-01')
+        await self.page.select_option('#booking-form [name="dogId"]', 'currency-dog')
+        self.assertEqual(await self.page.input_value('#booking-form [name="unitMinor"]'), '12.50')
+        self.assertRegex(await self.page.locator('#booking-quote > strong').inner_text(), r'JPY\s+25\.00(?!\d)')
+        self.assertRegex(await self.page.locator('#booking-quote > p').inner_text(), r'JPY\s+12\.50(?!\d)')
+        await self.submit_booking()
+        saved = await self.snapshot()
+        booking = saved['bookings'][1]
+        self.assertEqual(booking['unitMinor'], 1250)
+        self.assertEqual(booking['currency'], 'JPY')
+        self.assertEqual(saved['bookings'][0], seeded['bookings'][0])
+        await self.page.reload()
+        await self.wait_ready()
+        self.assertEqual(await self.snapshot(), saved)
+        await self.route('schedule')
+        await self.page.fill('#daily-month', '2026-10')
+        await self.page.locator('#daily-month').dispatch_event('change')
+        card = self.page.locator(f'[data-booking-id="{booking["id"]}"]')
+        self.assertRegex(await card.inner_text(), r'JPY\s+25\.00(?!\d)')
+        await card.locator('[data-edit-booking]').click()
+        await self.page.fill('#booking-form [name="end"]', '2026-11-02')
+        extension = await self.page.locator('#booking-quote > p').nth(1).inner_text()
+        self.assertRegex(extension, r'\+1 units.*JPY\s+12\.50(?!\d)')
+        self.assertRegex(extension, r'JPY\s+37\.50(?!\d)')
+        self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+        await self.capture_evidence(f'daily-currency-hundredths-{self.api_mode}.png')
+        await self.submit_booking()
+        saved['bookings'][1]['end'] = '2026-11-02'
+        self.assertEqual(await self.snapshot(), saved)
+        await self.page.reload()
+        await self.wait_ready()
+        self.assertEqual(await self.snapshot(), saved)
+        await self.route('business')
+        await self.page.fill('#daily-month', '2026-10')
+        await self.page.locator('#daily-month').dispatch_event('change')
+        for locale in ('fr', 'en', 'it', 'de', 'es'):
+            with self.subTest(locale=locale):
+                await self.page.select_option('#language-picker', locale)
+                await self.page.wait_for_function('!savePending')
+                for currency, amount in (('JPY', '25[.,]00'), ('KWD', '12[.,]50')):
+                    row = self.page.locator('.daily-summary article').filter(has_text=currency)
+                    self.assertRegex(await row.inner_text(), rf'{amount}(?!\d)')
+                    total = self.page.locator('.daily-total').filter(has_text=currency)
+                    self.assertRegex(await total.inner_text(), rf'{amount}(?!\d)')
+                self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+        await self.page.select_option('#language-picker', 'en')
+        await self.page.wait_for_function('!savePending')
+        await self.page.fill('#daily-month', '2026-11')
+        await self.page.locator('#daily-month').dispatch_event('change')
+        self.assertRegex(await self.page.locator('.daily-summary').inner_text(), r'JPY\s+12\.50(?!\d)')
+        self.assertRegex(await self.page.locator('.daily-total').inner_text(), r'JPY\s+12\.50(?!\d)')
+        self.assertEqual(await self.snapshot(), saved)
+        self.assertEqual(self.console_errors, [])
+
+    async def test_same_named_clients_preserve_registered_dog_booking_relationship(self):
+        seeded = await self.seed_same_named_clients()
+        await self.new_booking()
+        await self.page.select_option('#booking-form [name="dogId"]', 'dog-second')
+        self.assertEqual(await self.page.input_value('#booking-form [name="client"]'), 'Fixture Client')
+        self.assertTrue(await self.page.locator('#booking-form [name="client"]').evaluate('el => el.readOnly'))
+        await self.submit_booking()
+        saved = await self.snapshot()
+        self.assertEqual(saved['clients'], seeded['clients'])
+        self.assertEqual(saved['dogs'], seeded['dogs'])
+        self.assertEqual(saved['bookings'][0], seeded['bookings'][0])
+        self.assertEqual(len(saved['bookings']), 2)
+        booking = saved['bookings'][1]
+        self.assertEqual(booking['dogId'], 'dog-second')
+        await self.page.reload()
+        await self.wait_ready()
+        self.assertEqual(await self.snapshot(), saved)
+        await self.route('schedule')
+        await self.page.fill('#daily-month', '2026-10')
+        await self.page.locator('#daily-month').dispatch_event('change')
+        await self.page.click(f'[data-edit-booking="{booking["id"]}"]')
+        await self.page.fill('#booking-form [name="end"]', '2026-11-03')
+        await self.submit_booking()
+        booking['end'] = '2026-11-03'
+        await self.page.reload()
+        await self.wait_ready()
+        self.assertEqual(await self.snapshot(), saved)
+        self.assertEqual(self.console_errors, [])
+
+    async def test_same_named_clients_preserve_registered_dog_document_relationship(self):
+        seeded = await self.seed_same_named_clients()
+        await self.route('dogs')
+        await self.page.click('[data-dog="dog-second"]')
+        await self.prepare_document()
+        await self.page.click('#document-form button')
+        await self.page.wait_for_selector('[data-open-document]')
+        saved = await self.snapshot()
+        self.assertEqual({**saved, 'documents': []}, seeded)
+        self.assertEqual(len(saved['documents']), 1)
+        self.assertEqual(saved['documents'][0]['dogId'], 'dog-second')
+        await self.page.reload()
+        await self.wait_ready()
+        self.assertEqual(await self.snapshot(), saved)
+        await self.route('dogs')
+        await self.page.click('[data-dog="dog-first"]')
+        self.assertEqual(await self.page.locator('[data-open-document]').count(), 0)
+        await self.page.click('[data-dog="dog-second"]')
+        self.assertIn('Original proof', await self.page.locator('.daily-document').inner_text())
+        async with self.page.expect_download() as download_event:
+            await self.page.click('[data-open-document]')
+        download = await download_event.value
+        self.assertEqual(Path(await download.path()).read_bytes(), b'%PDF-1.7\nfixture')
+        self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+        await self.capture_evidence(f'daily-same-named-clients-{self.api_mode}.png', full_page=False)
+        self.assertEqual(self.console_errors, [])
+
     async def test_loaded_currency_survives_rate_edit_reload_and_new_booking(self):
         seeded = await self.page.evaluate('DailyModel.empty()')
         seeded['rates'] = {'currency': 'CAD', 'walk': None, 'day': 0, 'night': 2500}
