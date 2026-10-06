@@ -14,6 +14,30 @@ def draft(kind='purchase'):
 
 
 class FinanceApiTest(ApiServerTestCase):
+    def test_paid_records_preserve_currency_and_direction(self):
+        sid = self.login('finance-payment-context@example.test')
+        value = self.state(sid)['finance']
+        for kind in ('purchase', 'expense', 'extra'):
+            entry = draft(kind)
+            entry.update(id=kind, status='confirmed', date='2026-10-06', party='Fixture', currency='CHF')
+            entry['lines'][0].update(description='Fixture line', unitMinor=1050)
+            entry['payments'] = [{'id': 'payment', 'date': entry['date'], 'amountMinor': 100, 'note': ''}]
+            value['entries'].append(entry)
+        self.assertEqual(self.save(sid, value)[0], 200)
+        before = self.state(sid)
+        for index, entry in enumerate(value['entries']):
+            for patch in ({'currency': 'EUR'}, {'kind': 'expense' if entry['kind'] == 'extra' else 'extra'}):
+                with self.subTest(kind=entry['kind'], patch=patch):
+                    changed = copy.deepcopy(value)
+                    changed['entries'][index].update(patch)
+                    self.assertEqual(self.save(sid, changed)[0], 400)
+                    self.assertEqual(self.state(sid), before)
+        value['entries'][0]['kind'] = 'expense'
+        value['entries'][0]['note'] = 'Corrected classification'
+        value['entries'][0]['payments'].append({'id': 'payment-2', 'date': '2026-10-06', 'amountMinor': 200, 'note': ''})
+        self.assertEqual(self.save(sid, value)[0], 200)
+        self.assertEqual(self.state(sid)['finance'], value)
+
     def state(self, sid):
         status, data, _ = _http(self.port, 'GET', '/api/state', cookie=sid)
         self.assertEqual(status, 200)

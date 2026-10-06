@@ -14,6 +14,235 @@ from tests.test_browser_acceptance import BrowserFixture, QuietStaticHandler, RO
 
 
 class FinanceBrowserTest(BrowserFixture):
+    async def seed_finance(self, entries):
+        self.assertTrue(await self.page.evaluate('''entries => {
+          const next=FinanceStore.snapshot();next.entries.push(...entries);return FinanceStore.save(next);
+        }''', entries))
+        await self.page.click('[data-page="dashboard"]')
+        await self.page.click('[data-page="business"]')
+
+    async def test_paid_editor_preserves_payment_currency_and_direction(self):
+        entry = await self.page.evaluate('''() => {
+          const e=FinanceModel.draft('paid-expense','expense');Object.assign(e,{status:'confirmed',date:'2026-10-06',party:'Fixture',currency:'CHF'});
+          e.lines[0]={description:'Receipt',quantity:1,unitMinor:1050,bookingId:''};
+          e.payments=[{id:'p1',date:e.date,amountMinor:500,note:'Original payment'}];return e;
+        }''')
+        await self.seed_finance([entry])
+        await self.page.click('[data-finance-edit]')
+        self.assertTrue(await self.page.locator('#finance-form [name="currency"]').is_disabled())
+        self.assertTrue(await self.page.locator('#finance-form [name="kind"] option[value="extra"]').evaluate('(option)=>option.disabled'))
+        await self.page.select_option('#finance-form [name="kind"]', 'purchase')
+        await self.page.fill('#finance-form [name="note"]', 'Corrected note')
+        await self.save_entry('confirmed')
+        await self.page.reload()
+        await self.wait_ready()
+        saved = (await self.snapshot())['entries'][0]
+        self.assertEqual(saved['currency'], 'CHF')
+        self.assertEqual(saved['kind'], 'purchase')
+        self.assertEqual(saved['payments'], entry['payments'])
+
+    async def test_hundredths_and_unknown_print_lines_in_every_locale(self):
+        entries = await self.page.evaluate('''() => {
+          const e=FinanceModel.draft('invoice-jpy','sale');Object.assign(e,{status:'confirmed',number:'JPY-1',date:'2026-10-06',party:'Client',address:'Address',issuer:'Business',issuerAddress:'Address',currency:'JPY'});
+          e.lines[0]={description:'Literal line',quantity:1,unitMinor:1050,bookingId:''};e.payments=[{id:'p',date:e.date,amountMinor:250,note:''}];
+          const unknown=FinanceModel.draft('unknown','sale');Object.assign(unknown,{status:'cancelled',currency:'JPY',cancelReason:'Unpriced draft'});return [e,unknown];
+        }''')
+        await self.seed_finance(entries)
+        await self.page.evaluate('''() => {
+          const append=document.body.append;document.body.append=function(...nodes){for(const n of nodes)if(n.matches?.('.finance-print-frame'))n.onload=()=>{};return append.apply(this,nodes);};
+        }''')
+        for locale in ('fr', 'en', 'it', 'de', 'es'):
+            await self.page.select_option('#language-picker', locale)
+            await self.page.wait_for_function('!savePending')
+            expected = await self.page.evaluate("() => new Intl.NumberFormat(formatLocale(Intl.NumberFormat),{style:'currency',currency:'JPY',minimumFractionDigits:2,maximumFractionDigits:2}).format(10.5)")
+            await self.page.click('[data-finance-tab="journal"]')
+            self.assertIn(expected, await self.page.inner_text('[data-finance-entry="invoice-jpy"]'))
+            await self.page.click('[data-finance-edit="invoice-jpy"]')
+            await self.page.click('#finance-print')
+            frame = self.page.frame_locator('.finance-print-frame').last
+            self.assertEqual(await frame.locator('table tr:nth-child(2) td:nth-child(4)').inner_text(), expected)
+            await self.page.locator('.finance-print-frame').evaluate_all('(frames)=>frames.forEach(f=>f.remove())')
+            await self.page.click('#finance-back')
+            await self.page.click('[data-finance-edit="unknown"]')
+            await self.page.click('#finance-print')
+            unknown = await self.page.evaluate("FinanceUI.text('unknown')")
+            frame = self.page.frame_locator('.finance-print-frame').last
+            self.assertEqual(await frame.locator('table tr:nth-child(2) td:nth-child(4)').inner_text(), unknown)
+            await self.page.locator('.finance-print-frame').evaluate_all('(frames)=>frames.forEach(f=>f.remove())')
+            await self.page.click('#finance-back')
+        self.assertEqual(self.console_errors, [])
+
+    async def test_internal_navigation_preserves_editor_until_explicit_discard(self):
+        entries = await self.page.evaluate("[FinanceModel.draft('existing-a'),FinanceModel.draft('existing-b')]")
+        await self.seed_finance(entries)
+        await self.page.click('#finance-new-sale')
+        await self.page.fill('[name="party"]', 'Unsaved client')
+        await self.page.fill('[name="unit-0"]', '12,unfinished')
+        await self.page.click('#finance-add-line')
+        await self.page.fill('[name="description-1"]', 'Unsaved extra')
+        for locale in ('fr', 'en', 'it', 'de', 'es'):
+            await self.page.select_option('#language-picker', locale)
+            await self.page.wait_for_function('!savePending')
+            for tab in ('rates', 'review', 'invoices', 'expenses', 'journal'):
+                await self.page.click(f'[data-finance-tab="{tab}"]')
+                self.assertEqual(await self.page.locator('#finance-form').count(), 0)
+                await self.page.click('#finance-resume')
+                self.assertEqual(await self.page.input_value('[name="party"]'), 'Unsaved client')
+                self.assertEqual(await self.page.input_value('[name="unit-0"]'), '12,unfinished')
+                self.assertEqual(await self.page.input_value('[name="description-1"]'), 'Unsaved extra')
+        await self.page.click('#finance-back')
+        await self.page.click('[data-finance-edit="existing-a"]')
+        await self.page.click('#finance-resume')
+        self.assertEqual(await self.page.input_value('[name="party"]'), 'Unsaved client')
+        await self.page.click('#finance-back')
+        await self.page.click('#finance-new-expense')
+        await self.page.click('#finance-resume')
+        self.assertEqual(await self.page.input_value('[name="party"]'), 'Unsaved client')
+        await self.page.click('[data-page="dashboard"]')
+        await self.page.click('[data-finance-rates]')
+        self.assertTrue(await self.page.locator('#rates-form').is_visible())
+        await self.page.click('#finance-resume')
+        self.assertEqual(await self.page.input_value('[name="party"]'), 'Unsaved client')
+        await self.page.click('#finance-back')
+        await self.page.click('#finance-discard')
+        await self.page.click('#finance-new-expense')
+        self.assertEqual(await self.page.input_value('[name="party"]'), '')
+        self.assertEqual((await self.snapshot())['entries'], entries)
+        self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth>innerWidth'))
+        self.assertEqual(self.console_errors, [])
+
+    async def test_failed_finance_hydration_blocks_export_and_recovers(self):
+        await self.page.click('#finance-new-expense')
+        await self.page.fill('[name="party"]', 'Stored record')
+        await self.save_entry()
+        saved = await self.snapshot()
+        if self.api_mode:
+            async def bad_finance(route):
+                response = await route.fetch()
+                body = await response.json()
+                body.pop('finance')
+                await route.fulfill(response=response, json=body)
+            await self.page.route('**/api/state', bad_finance)
+        else:
+            await self.page.add_init_script('''
+              const original=IDBObjectStore.prototype.get;
+              IDBObjectStore.prototype.get=function(...args){if(this.name==='state'&&!window.allowFinanceRead)throw Error('Read unavailable');return original.apply(this,args);};
+            ''')
+        await self.page.reload()
+        await self.wait_ready()
+        await self.page.click('[data-page="business"]')
+        self.assertEqual(await self.page.locator('.finance-table').count(), 0)
+        self.assertTrue(await self.page.locator('#finance-export').is_disabled())
+        self.assertFalse(await self.page.evaluate('FinanceStore.save(FinanceModel.empty())'))
+        await self.page.click('[data-page="capture"]')
+        self.assertTrue(await self.page.locator('#observation').is_visible())
+        await self.page.click('[data-page="business"]')
+        if self.api_mode:
+            await self.page.unroute('**/api/state')
+        else:
+            await self.page.evaluate('window.allowFinanceRead=true')
+        await self.page.click('#finance-retry')
+        await self.page.wait_for_function('!savePending')
+        self.assertEqual(await self.snapshot(), saved)
+        self.assertTrue(await self.page.locator('#finance-export').is_enabled())
+        self.assertEqual(await self.page.locator('[data-finance-entry]').count(), 1)
+
+    async def test_unreadable_pdf_retains_original_for_manual_review(self):
+        original = b'%PDF-1.4\nreader failure fixture\n%%EOF'
+        await self.page.click('#finance-import')
+        await self.page.set_input_files('#finance-files', {'name': 'unreadable.pdf', 'mimeType': 'application/pdf', 'buffer': original})
+        await self.page.wait_for_function('!savePending')
+        self.assertTrue(await self.page.locator('#finance-manual-import').is_visible())
+        self.assertTrue(await self.page.locator('#finance-recognize').is_disabled())
+        await self.page.click('#finance-manual-import')
+        await self.page.wait_for_function('!savePending')
+        saved = await self.snapshot()
+        self.assertEqual(len(saved['documents']), 1)
+        self.assertEqual(len(saved['entries']), 1)
+        self.assertIsNone(saved['entries'][0]['region'])
+        self.assertIsNone(saved['entries'][0]['lines'][0]['unitMinor'])
+        await self.page.click('[data-finance-edit]')
+        await self.page.fill('[name="party"]', 'Manual supplier')
+        await self.save_entry()
+        await self.page.reload()
+        await self.wait_ready()
+        data = await self.snapshot()
+        self.assertEqual(data['entries'][0]['party'], 'Manual supplier')
+        blob = await self.page.evaluate('''async id => Array.from(new Uint8Array(await (await FinanceStore.document(id)).arrayBuffer()))''', data['documents'][0]['id'])
+        self.assertEqual(bytes(blob), original)
+
+    async def test_payment_inputs_stay_with_record_and_wait_for_saved_edits(self):
+        entries = await self.page.evaluate('''() => ['a','b'].map(id=>{
+          const e=FinanceModel.draft(id,'expense');Object.assign(e,{status:'confirmed',date:'2026-10-06',party:id,currency:'CHF'});
+          e.lines[0]={description:'Expense',quantity:1,unitMinor:1050,bookingId:''};return e;
+        })''')
+        await self.seed_finance(entries)
+        await self.page.click('[data-finance-edit="a"]')
+        await self.page.fill('#finance-payment [name="amount"]', '2.50')
+        await self.page.fill('#finance-payment [name="note"]', 'Pending payment A')
+        await self.page.click('#finance-back')
+        await self.page.click('[data-finance-edit="b"]')
+        await self.page.click('#finance-resume')
+        self.assertEqual(await self.page.input_value('#finance-form [name="party"]'), 'a')
+        self.assertEqual(await self.page.input_value('#finance-payment [name="note"]'), 'Pending payment A')
+        await self.page.fill('#finance-form [name="currency"]', 'EUR')
+        await self.page.select_option('#finance-form [name="kind"]', 'extra')
+        self.assertTrue(await self.page.locator('#finance-payment button').is_disabled())
+        await self.page.locator('#finance-payment').evaluate("form=>form.dispatchEvent(new Event('submit',{cancelable:true,bubbles:true}))")
+        self.assertEqual(await self.snapshot(), {'version': 1, 'profile': {'name': '', 'address': '', 'taxId': ''}, 'entries': entries, 'documents': []})
+        await self.save_entry('confirmed')
+        self.assertEqual(await self.page.input_value('#finance-payment [name="note"]'), 'Pending payment A')
+        await self.page.click('[data-finance-tab="rates"]')
+        await self.page.click('#finance-resume')
+        await self.page.click('#finance-payment button')
+        await self.page.wait_for_function('!savePending')
+        record = (await self.snapshot())['entries'][0]
+        self.assertEqual(record['currency'], 'EUR')
+        self.assertEqual(record['kind'], 'extra')
+        self.assertEqual(record['payments'][0]['amountMinor'], 250)
+        self.assertEqual(await self.page.input_value('#finance-payment [name="amount"]'), '')
+        await self.page.click('#finance-back')
+        await self.page.click('[data-finance-tab="journal"]')
+        await self.page.click('[data-finance-edit="b"]')
+        self.assertEqual(await self.page.input_value('#finance-payment [name="note"]'), '')
+        self.assertEqual(self.console_errors, [])
+
+    async def test_pdf_reader_failures_fall_back_but_limits_still_reject(self):
+        original = b'%PDF-1.4\nreader fixture\n%%EOF'
+        for failure in ('module', 'worker', 'render', 'pages'):
+            with self.subTest(failure=failure):
+                module = {
+                    'module': "throw Error('Reader missing');",
+                    'worker': "export const GlobalWorkerOptions={};export const getDocument=()=>({promise:Promise.reject(Error('Worker unavailable')),destroy:async()=>{}});",
+                    'render': "export const GlobalWorkerOptions={};export const getDocument=()=>({promise:Promise.resolve({numPages:2,getPage:async()=>({getViewport:()=>({width:50,height:70}),render:()=>({promise:Promise.reject(Error('Rendering failed'))})})}),destroy:async()=>{}});",
+                    'pages': "export const GlobalWorkerOptions={};export const getDocument=()=>({promise:Promise.resolve({numPages:21}),destroy:async()=>{}});",
+                }[failure]
+                await self.page.route('**/pdfjs-dist/pdf.mjs', lambda route: route.fulfill(content_type='text/javascript', body=module))
+                await self.page.reload()
+                await self.wait_ready()
+                await self.page.click('[data-page="business"]')
+                await self.page.click('#finance-import')
+                await self.page.set_input_files('#finance-files', {'name': 'reader.pdf', 'mimeType': 'application/pdf', 'buffer': original})
+                await self.page.wait_for_function('!savePending')
+                if failure == 'pages':
+                    self.assertTrue(await self.page.locator('#finance-error').is_visible())
+                    self.assertEqual(await self.page.locator('#finance-manual-import').count(), 0)
+                else:
+                    self.assertTrue(await self.page.locator('#finance-manual-import').is_visible())
+                    self.assertEqual(await self.page.locator('[data-finance-canvas]').count(), 0)
+                    await self.page.click('[data-finance-tab="rates"]')
+                    await self.page.click('#finance-resume-intake')
+                    self.assertTrue(await self.page.locator('#finance-manual-import').is_visible())
+                    await self.page.click('#finance-discard-intake')
+                self.assertEqual((await self.snapshot())['documents'], [])
+                await self.page.unroute('**/pdfjs-dist/pdf.mjs')
+        for name, blob in [('unsupported.txt', b'not a document'), ('large.pdf', b'%PDF-'+bytes(5*1024*1024))]:
+            await self.page.set_input_files('#finance-files', {'name': name, 'mimeType': 'application/pdf', 'buffer': blob})
+            await self.page.wait_for_function('!savePending')
+            self.assertTrue(await self.page.locator('#finance-error').is_visible())
+            self.assertEqual(await self.page.locator('#finance-manual-import').count(), 0)
+        self.assertEqual(self.console_errors, [])
+
     async def asyncSetUp(self):
         self.sid = self.login(f'finance-{self._testMethodName}@example.test')
         await super().asyncSetUp()
@@ -195,6 +424,7 @@ class FinanceBrowserTest(BrowserFixture):
         await self.page.fill('[name="unit-0"]', '12.30')
         for locale in ('fr', 'en', 'it', 'de', 'es'):
             await self.page.select_option('#language-picker', locale)
+            await self.page.wait_for_function('!savePending')
             await self.page.click('[data-page="dashboard"]')
             await self.page.click('[data-page="business"]')
             self.assertEqual(await self.page.input_value('[name="party"]'), 'Day care')

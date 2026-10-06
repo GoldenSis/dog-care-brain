@@ -11,6 +11,43 @@ from tests.test_tenant_isolation import _http
 
 
 class DailyBrowserAcceptanceTest(BrowserFixture):
+    async def test_contributor_document_labels_and_dog_names_stay_literal(self):
+        await self.new_booking(new_dog=True)
+        await self.page.fill('#booking-form [name="dogName"]', 'Today')
+        await self.submit_booking()
+        daily = await self.snapshot()
+        dog = next(d for d in daily['dogs'] if d['name'] == 'Today')
+        await self.route('dashboard')
+        await self.page.click(f'[data-dog="{dog["id"]}"]')
+        await self.page.fill('#document-form [name="label"]', 'Today')
+        await self.page.set_input_files('#document-form [name="file"]', {
+            'name': 'today.pdf', 'mimeType': 'application/pdf', 'buffer': b'%PDF-1.7\nfixture'})
+        await self.page.click('#document-form button')
+        await self.page.wait_for_selector('[data-document-id]')
+        for locale in ('fr', 'en', 'it', 'de', 'es'):
+            await self.page.select_option('#language-picker', locale)
+            await self.page.wait_for_function('!savePending')
+            self.assertEqual(await self.page.inner_text('#page-title'), 'Today')
+            self.assertEqual(await self.page.inner_text(f'[data-dog="{dog["id"]}"] strong'), 'Today')
+            self.assertEqual(await self.page.inner_text('.profile-hero h2'), 'Today')
+            self.assertEqual(await self.page.inner_text('[data-document-id] > strong'), 'Today')
+            await self.route('dashboard')
+            self.assertEqual(await self.page.inner_text(f'[data-dog="{dog["id"]}"] .dog-name'), 'Today')
+            await self.route('capture')
+            self.assertEqual(await self.page.inner_text(f'[data-capture-dog="{dog["id"]}"] strong'), 'Today')
+            await self.route('schedule')
+            await self.page.click('#new-booking')
+            self.assertEqual(await self.page.inner_text(f'#booking-form [name="dogId"] option[value="{dog["id"]}"]'), 'Today')
+            await self.page.click('#cancel-booking')
+            await self.route('dashboard')
+            await self.page.click(f'[data-dog="{dog["id"]}"]')
+        await self.page.reload()
+        await self.wait_ready()
+        await self.route('dashboard')
+        await self.page.click(f'[data-dog="{dog["id"]}"]')
+        self.assertEqual(await self.page.inner_text('[data-document-id] > strong'), 'Today')
+        self.assertEqual(self.console_errors, [])
+
     async def asyncSetUp(self):
         self.sid = self.login(f"daily-{self._testMethodName}@example.com")
         await super().asyncSetUp()

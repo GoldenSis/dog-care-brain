@@ -143,7 +143,7 @@
     cache.language = data.language || "en";
     cache.daily = data.daily || {version:1,clients:[],dogs:[],bookings:[],rates:{currency:"CHF",walk:null,day:null,night:null},documents:[]};
     cache.knowledge = data.knowledge || {version:1,experiences:[]};
-    cache.finance = data.finance || {version:1,profile:{name:"",address:"",taxId:""},entries:[],documents:[]};
+    cache.finance = data.finance ?? null;
     return true;
   }
 
@@ -207,7 +207,15 @@
       return cache.language || "en";
     },
     getFinance() { return JSON.parse(JSON.stringify(cache.finance)); },
+    reloadFinance() {
+      return enqueue(async()=>{
+        const result=await req('/state');
+        if(!result.ok || !result.data.ok || result.data.business_id!==businessId || result.data.revision!==revision || !result.data.finance)return false;
+        cache.finance=result.data.finance;return true;
+      });
+    },
     saveFinance(finance, uploads=[]) {
+      if(!cache.finance)return Promise.resolve(false);
       const snapshot=JSON.parse(JSON.stringify({finance,uploads}));
       return enqueue(async()=>{const result=await putJson('/finance',snapshot);return result.ok&&acceptState(result.data);});
     },

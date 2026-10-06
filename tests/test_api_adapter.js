@@ -8,6 +8,24 @@ const serverState = { ok: true, business_id: 1, revision: 0, imported: false, ob
 const response = (data, status = 200) => ({ ok: status < 400, status, text: async () => JSON.stringify(data) });
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
+test('missing accounting stays unavailable and retry preserves business and revision guards', async () => {
+  const finance={version:1,profile:{name:'',address:'',taxId:''},entries:[],documents:[]};
+  let state=serverState;
+  const h=adapter({fetcher:async()=>response(state)});
+  assert.equal(await h.api.ready,true);
+  assert.equal(h.api.getFinance(),null);
+  assert.equal(await h.api.saveFinance(finance),false);
+  assert.equal(h.calls.length,1);
+  for(const patch of [{business_id:2},{revision:1}]){
+    state={...serverState,...patch,finance};
+    assert.equal(await h.api.reloadFinance(),false);
+    assert.equal(h.api.getFinance(),null);
+  }
+  state={...serverState,finance};
+  assert.equal(await h.api.reloadFinance(),true);
+  assert.equal(JSON.stringify(h.api.getFinance()),JSON.stringify(finance));
+});
+
 function adapter({ local = {}, fetcher, confirm = () => true, enabled = true, timers = {} } = {}) {
   const storage = new Map(Object.entries(local));
   const calls = [], toasts = [], notices = [];

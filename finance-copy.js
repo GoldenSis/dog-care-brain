@@ -108,7 +108,18 @@ window.FinanceCopy={
     "savePayment": "Enregistrer ce paiement",
     "profile": "Coordonnées de facturation",
     "keepProfile": "Réutiliser ces coordonnées pour les prochaines factures",
-    "adjustAreas": "Ajuster les zones"
+    "adjustAreas": "Ajuster les zones",
+    "previewFailed": "Aperçu du PDF indisponible. Conservez l’original avec un brouillon manuel, sans page ni zone supposée.",
+    "pendingDraft": "Vos modifications restent ici tant que cette page reste ouverte. Reprenez-les ou abandonnez-les avant d’ouvrir une autre écriture.",
+    "resumeHelp": "Revenir à l’écriture ouverte.",
+    "resume": "Reprendre l’écriture",
+    "discard": "Abandonner les modifications",
+    "resumeImport": "Reprendre les justificatifs",
+    "discardImport": "Abandonner les justificatifs sélectionnés",
+    "pendingImport": "Des justificatifs attendent déjà. Conservez-les ou abandonnez-les avant d’en choisir d’autres.",
+    "unavailable": "Comptabilité indisponible. Les écritures n’ont pas pu être chargées. Enregistrement et export désactivés. Réessayez ; si nécessaire, rechargez la page.",
+    "retry": "Réessayer",
+    "saveEditsFirst": "Enregistrez ou abandonnez les modifications de l’écriture avant d’ajouter un paiement."
   },
   "en": {
     "title": "Accounting",
@@ -218,7 +229,18 @@ window.FinanceCopy={
     "savePayment": "Save payment",
     "profile": "Billing details",
     "keepProfile": "Reuse these details for future invoices",
-    "adjustAreas": "Adjust areas"
+    "adjustAreas": "Adjust areas",
+    "previewFailed": "PDF preview unavailable. Keep the original with a manual draft, without assuming a page or area.",
+    "pendingDraft": "Your edits remain here while this page stays open. Resume or discard them before opening another record.",
+    "resumeHelp": "Return to the open record.",
+    "resume": "Resume record",
+    "discard": "Discard edits",
+    "resumeImport": "Resume documents",
+    "discardImport": "Discard selected documents",
+    "pendingImport": "Documents are already waiting. Keep or discard them before selecting others.",
+    "unavailable": "Accounting unavailable. Records could not be loaded. Saving and export are disabled. Retry; if necessary, reload the page.",
+    "retry": "Retry",
+    "saveEditsFirst": "Save or discard the record edits before adding a payment."
   },
   "it": {
     "title": "Contabilità",
@@ -328,7 +350,18 @@ window.FinanceCopy={
     "savePayment": "Salva pagamento",
     "profile": "Dati fatturazione",
     "keepProfile": "Riutilizza dati per prossime fatture",
-    "adjustAreas": "Regola le aree"
+    "adjustAreas": "Regola le aree",
+    "previewFailed": "Anteprima PDF non disponibile. Conserva l’originale con una bozza manuale, senza presumere pagina o area.",
+    "pendingDraft": "Le modifiche restano qui finché la pagina è aperta. Riprendile o scartale prima di aprire un’altra registrazione.",
+    "resumeHelp": "Torna alla registrazione aperta.",
+    "resume": "Riprendi registrazione",
+    "discard": "Scarta modifiche",
+    "resumeImport": "Riprendi documenti",
+    "discardImport": "Scarta documenti selezionati",
+    "pendingImport": "Ci sono già documenti in attesa. Conservali o scartali prima di selezionarne altri.",
+    "unavailable": "Contabilità non disponibile. Impossibile caricare le registrazioni. Salvataggio ed esportazione disattivati. Riprova; se necessario, ricarica la pagina.",
+    "retry": "Riprova",
+    "saveEditsFirst": "Salva o scarta le modifiche alla registrazione prima di aggiungere un pagamento."
   },
   "de": {
     "title": "Buchhaltung",
@@ -438,7 +471,18 @@ window.FinanceCopy={
     "savePayment": "Zahlung speichern",
     "profile": "Rechnungsangaben",
     "keepProfile": "Angaben für künftige Rechnungen verwenden",
-    "adjustAreas": "Bereiche anpassen"
+    "adjustAreas": "Bereiche anpassen",
+    "previewFailed": "PDF-Vorschau nicht verfügbar. Original mit manuellem Entwurf behalten, ohne Seite oder Bereich anzunehmen.",
+    "pendingDraft": "Änderungen bleiben erhalten, solange diese Seite geöffnet ist. Vor einem anderen Eintrag fortsetzen oder verwerfen.",
+    "resumeHelp": "Zum geöffneten Eintrag zurückkehren.",
+    "resume": "Eintrag fortsetzen",
+    "discard": "Änderungen verwerfen",
+    "resumeImport": "Belege fortsetzen",
+    "discardImport": "Ausgewählte Belege verwerfen",
+    "pendingImport": "Belege warten bereits. Vor der nächsten Auswahl behalten oder verwerfen.",
+    "unavailable": "Buchhaltung nicht verfügbar. Einträge konnten nicht geladen werden. Speichern und Export sind deaktiviert. Erneut versuchen; bei Bedarf Seite neu laden.",
+    "retry": "Erneut versuchen",
+    "saveEditsFirst": "Änderungen am Eintrag speichern oder verwerfen, bevor eine Zahlung hinzugefügt wird."
   },
   "es": {
     "title": "Contabilidad",
@@ -548,6 +592,17 @@ window.FinanceCopy={
     "savePayment": "Guardar pago",
     "profile": "Datos de facturación",
     "keepProfile": "Reutilizar datos en próximas facturas",
-    "adjustAreas": "Ajustar zonas"
+    "adjustAreas": "Ajustar zonas",
+    "previewFailed": "Vista previa del PDF no disponible. Conserva el original con un borrador manual, sin suponer página ni zona.",
+    "pendingDraft": "Los cambios se conservan mientras la página siga abierta. Retómalos o descártalos antes de abrir otro registro.",
+    "resumeHelp": "Volver al registro abierto.",
+    "resume": "Retomar registro",
+    "discard": "Descartar cambios",
+    "resumeImport": "Retomar justificantes",
+    "discardImport": "Descartar justificantes seleccionados",
+    "pendingImport": "Ya hay justificantes pendientes. Consérvalos o descártalos antes de seleccionar otros.",
+    "unavailable": "Contabilidad no disponible. No se pudieron cargar los registros. Guardado y exportación desactivados. Reintenta; si hace falta, recarga la página.",
+    "retry": "Reintentar",
+    "saveEditsFirst": "Guarda o descarta los cambios del registro antes de añadir un pago."
   }
 };

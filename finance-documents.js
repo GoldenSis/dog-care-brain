@@ -15,14 +15,18 @@
   function canvas(width,height){const c=document.createElement('canvas');c.width=width;c.height=height;return c;}
   async function pages(file,meta){
     if(meta.type==='application/pdf'){
-      const pdfjs=await import(base+'pdfjs-dist/pdf.mjs');pdfjs.GlobalWorkerOptions.workerSrc=base+'pdfjs-dist/pdf.worker.mjs';
-      const task=pdfjs.getDocument({data:new Uint8Array(await file.arrayBuffer()),isEvalSupported:false,useSystemFonts:true,disableFontFace:true});
-      const pdf=await task.promise, result=[];
-      try{if(pdf.numPages>20)throw Error('Too many pages');for(let n=1;n<=pdf.numPages;n++){
-        const p=await pdf.getPage(n), natural=p.getViewport({scale:1}), scale=Math.min(2,2400/Math.max(natural.width,natural.height)), view=p.getViewport({scale});
-        const c=canvas(Math.ceil(view.width),Math.ceil(view.height));await p.render({canvasContext:c.getContext('2d'),viewport:view}).promise;
-        result.push({canvas:c,page:n,regions:[{page:n,x:0,y:0,width:1,height:1}]});p.cleanup();
-      }return result;}finally{await task.destroy();}
+      let task,overLimit=false;
+      try{
+        const pdfjs=await import(base+'pdfjs-dist/pdf.mjs');pdfjs.GlobalWorkerOptions.workerSrc=base+'pdfjs-dist/pdf.worker.mjs';
+        task=pdfjs.getDocument({data:new Uint8Array(await file.arrayBuffer()),isEvalSupported:false,useSystemFonts:true,disableFontFace:true});
+        const pdf=await task.promise, result=[];
+        if(pdf.numPages>20){overLimit=true;throw Error('Too many pages');}for(let n=1;n<=pdf.numPages;n++){
+          const p=await pdf.getPage(n), natural=p.getViewport({scale:1}), scale=Math.min(2,2400/Math.max(natural.width,natural.height)), view=p.getViewport({scale});
+          const c=canvas(Math.ceil(view.width),Math.ceil(view.height));await p.render({canvasContext:c.getContext('2d'),viewport:view}).promise;
+          result.push({canvas:c,page:n,regions:[{page:n,x:0,y:0,width:1,height:1}]});p.cleanup();
+        }return result;
+      }catch(error){if(overLimit)throw error;return [{canvas:null,page:null,regions:[null]}];}
+      finally{if(task)try{await task.destroy();}catch{}}
     }
     const bitmap=await createImageBitmap(file);try{if(bitmap.width*bitmap.height>40000000)throw Error('Image too large');const scale=Math.min(1,3000/Math.max(bitmap.width,bitmap.height));const c=canvas(Math.round(bitmap.width*scale),Math.round(bitmap.height*scale));c.getContext('2d').drawImage(bitmap,0,0,c.width,c.height);return [{canvas:c,page:1,regions:detect(c)}];}finally{bitmap.close();}
   }

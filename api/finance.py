@@ -127,6 +127,9 @@ def validate(value, previous):
     for old in previous['entries']:
         require(old['id'] in current)
         e = current[old['id']]
+        if old['payments']:
+            require(e['currency'] == old['currency'] and
+                    (e['kind'] in ('sale', 'extra')) == (old['kind'] in ('sale', 'extra')))
         if old['kind'] == 'sale' and old['status'] != 'draft':
             require(all(e[k] == v for k, v in old.items() if k not in ('payments', 'status', 'cancelReason')))
             require(e['status'] == old['status'] or (old['status'] == 'confirmed' and e['status'] == 'cancelled'))

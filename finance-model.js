@@ -13,6 +13,7 @@
   function parseMinor(v){if(!v.trim())return null;check(/^\d+(?:[.,]\d{1,2})?$/.test(v.trim()));const [a,b='']=v.trim().split(/[.,]/);const n=Number(BigInt(a)*100n+BigInt(b.padEnd(2,'0')));check(minor(n));return n;}
   function total(e){if(!e.lines.length||e.lines.some(l=>l.unitMinor===null))return null;const t=e.lines.reduce((sum,l)=>sum+l.quantity*l.unitMinor,0);check(Number.isSafeInteger(t)&&t<=1000000000000);return t;}
   const paid=e=>e.payments.reduce((sum,p)=>sum+p.amountMinor,0);
+  const incoming=kind=>['sale','extra'].includes(kind);
   function draft(id,kind='purchase'){return {id,kind,status:'draft',number:'',date:'',due:'',party:'',address:'',issuer:'',issuerAddress:'',taxId:'',currency:'',category:'other',lines:[{description:'',quantity:1,unitMinor:null,bookingId:''}],vatMinor:null,note:'',sourceId:'',region:null,raw:'',payments:[],cancelReason:''};}
   function validate(value,previous=null){
     fields(value,'version profile entries documents');check(value.version===1);fields(value.profile,'name address taxId');
@@ -40,7 +41,7 @@
     }
     if(previous){
       for(const old of previous.documents)check(value.documents.some(d=>JSON.stringify(d)===JSON.stringify(old)));
-      for(const old of previous.entries){const e=value.entries.find(x=>x.id===old.id);check(e);if(old.kind==='sale'&&old.status!=='draft'){
+      for(const old of previous.entries){const e=value.entries.find(x=>x.id===old.id);check(e);if(old.payments.length)check(e.currency===old.currency&&incoming(e.kind)===incoming(old.kind));if(old.kind==='sale'&&old.status!=='draft'){
         for(const key of Object.keys(old).filter(k=>!['payments','status','cancelReason'].includes(k)))check(JSON.stringify(old[key])===JSON.stringify(e[key]));
         check(e.status===old.status||(old.status==='confirmed'&&e.status==='cancelled'));if(old.status==='cancelled')check(e.cancelReason===old.cancelReason);
       }
@@ -64,5 +65,5 @@
     const found=Object.keys(rules).filter(k=>rules[k].test(raw));if(found.length===1)result.category=found[0];
     return result;
   }
-  return {empty,draft,validate,total,paid,parseMinor,propose,kinds,categories,date};
+  return {empty,draft,validate,total,paid,incoming,parseMinor,propose,kinds,categories,date};
 }));

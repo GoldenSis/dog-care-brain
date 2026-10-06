@@ -1,5 +1,15 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const M=require('../finance-model.js');
+test('payments retain their currency and cash direction across every editable kind',()=>{
+  for(const kind of M.kinds){
+    const old=M.empty(),e=invoice();e.kind=kind;e.payments=[{id:'p1',date:e.date,amountMinor:100,note:''}];old.entries.push(e);
+    for(const patch of [{currency:'EUR'},...M.kinds.filter(k=>['sale','extra'].includes(k)!==['sale','extra'].includes(kind)).map(kind=>({kind}))]){
+      const next=structuredClone(old);Object.assign(next.entries[0],patch);assert.throws(()=>M.validate(next,old),JSON.stringify({kind,patch}));
+    }
+    assert.equal(M.validate(structuredClone(old),old),true);
+    if(kind!=='sale'){const next=structuredClone(old);next.entries[0].note='Corrected receipt note';next.entries[0].payments.push({id:'p2',date:e.date,amountMinor:200,note:''});assert.equal(M.validate(next,old),true);}
+  }
+});
 function invoice(){const e=M.draft('sale-1','sale');Object.assign(e,{number:'F-2026-001',date:'2026-10-06',party:'Client fixture',address:'Client address',issuer:'Fixture business',issuerAddress:'Business address',currency:'CHF',status:'confirmed'});e.lines=[{description:'Day',quantity:2,unitMinor:6500,bookingId:''},{description:'Extra',quantity:1,unitMinor:500,bookingId:''}];return e;}
 test('draft unknowns stay unknown; invoice totals and partial payments use exact minor units',()=>{const data=M.empty(),e=invoice();data.entries.push(e);assert.equal(M.total(M.draft('draft')),null);assert.equal(M.total(e),13500);e.payments.push({id:'p1',date:'2026-10-06',amountMinor:3500,note:'Literal =SUM(A1)'});assert.equal(M.paid(e),3500);assert.equal(M.validate(data),true);assert.equal(M.parseMinor('12,30'),1230);assert.throws(()=>M.parseMinor('12.345'));});
 test('issued invoice detail, numbering, payments and source identities cannot be rewritten',()=>{const old=M.empty();old.entries.push(invoice());for(const key of ['party','number','currency','issuer']){const next=structuredClone(old);next.entries[0][key]='CHANGED';assert.throws(()=>M.validate(next,old));}const next=structuredClone(old);next.entries.push({...invoice(),id:'duplicate'});assert.throws(()=>M.validate(next));assert.throws(()=>M.validate(M.empty(),old));const paid=structuredClone(old);paid.entries[0].payments.push({id:'p',date:'2026-10-06',amountMinor:1,note:''});assert.throws(()=>M.validate(old,paid));});
