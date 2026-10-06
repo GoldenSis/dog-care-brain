@@ -219,7 +219,7 @@ Run the API regressions with the standard library and the adapter regressions wi
 
 ```bash
 python3 -m unittest tests.test_api_server tests.test_tenant_isolation tests.test_daily_api tests.test_knowledge_api tests.test_finance_api tests.test_crawl_site -v
-node --test tests/test_api_adapter.js tests/test_daily_model.js tests/test_finance_model.js tests/test_finance_export.js
+node --test tests/test_api_adapter.js tests/test_daily_model.js tests/test_finance_model.js tests/test_finance_documents.js tests/test_finance_export.js
 for file in app.js api.js daily-*.js knowledge-*.js finance-*.js; do node --check "$file" || exit 1; done
 ```
 

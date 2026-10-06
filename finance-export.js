@@ -2,6 +2,7 @@
 (function(w){
   'use strict';
   const xml=s=>String(s??'').replace(/[&<>"'\r]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;','\r':'&#13;'}[c]));
+  const cellText=s=>xml(String(s).replace(/_(?=x[0-9a-fA-F]{4}_)/g,'_x005F_'));
   const column=n=>{let s='';for(n++;n;n=Math.floor((n-1)/26))s=String.fromCharCode(65+(n-1)%26)+s;return s;};
   function workbook(sheets){
     const ns='http://schemas.openxmlformats.org/spreadsheetml/2006/main',rel='http://schemas.openxmlformats.org/officeDocument/2006/relationships',pack='http://schemas.openxmlformats.org/package/2006/relationships';
@@ -13,7 +14,7 @@
     put('xl/styles.xml',`<styleSheet xmlns="${ns}"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0"/><xf numFmtId="2" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`);
     sheets.forEach((sheet,i)=>{
       const width=sheet.rows.reduce((max,row)=>Math.max(max,row.length),1);
-      const rows=sheet.rows.map((row,r)=>`<row r="${r+1}">${row.map((v,c)=>{const ref=column(c)+(r+1);if(v===null||v===undefined)return `<c r="${ref}"/>`;if(typeof v==='number')return `<c r="${ref}" s="2"><v>${v}</v></c>`;return `<c r="${ref}" t="inlineStr" s="${r===0?1:0}"><is><t xml:space="preserve">${xml(v)}</t></is></c>`;}).join('')}</row>`).join('');
+      const rows=sheet.rows.map((row,r)=>`<row r="${r+1}">${row.map((v,c)=>{const ref=column(c)+(r+1);if(v===null||v===undefined)return `<c r="${ref}"/>`;if(typeof v==='number')return `<c r="${ref}" s="2"><v>${v}</v></c>`;return `<c r="${ref}" t="inlineStr" s="${r===0?1:0}"><is><t xml:space="preserve">${cellText(v)}</t></is></c>`;}).join('')}</row>`).join('');
       put(`xl/worksheets/sheet${i+1}.xml`,`<worksheet xmlns="${ns}" xmlns:r="${rel}"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols><col min="1" max="${width}" width="24" customWidth="1"/></cols><sheetData>${rows}</sheetData><autoFilter ref="A1:${column(width-1)}${Math.max(1,sheet.rows.length)}"/>${sheet.links?.length?`<hyperlinks>${sheet.links.map((link,j)=>`<hyperlink ref="${link.ref}" r:id="link${j}"/>`).join('')}</hyperlinks>`:''}</worksheet>`);
       if(sheet.links?.length)put(`xl/worksheets/_rels/sheet${i+1}.xml.rels`,`<Relationships xmlns="${pack}">${sheet.links.map((link,j)=>`<Relationship Id="link${j}" Type="${rel}/hyperlink" Target="${xml(link.target)}" TargetMode="External"/>`).join('')}</Relationships>`);
     });return fflate.zipSync(files,{level:6});

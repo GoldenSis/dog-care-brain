@@ -29,7 +29,7 @@ Accounting tabs, booking/rate shortcuts and other routes retain the open editor,
 
 Unavailable or malformed daily records disable booking integration without blocking manual invoices or expenses. Currency stays incomplete until entered manually; existing daily records remain unchanged.
 
-Limits: 5 MiB per original, 10 files/20 MiB per intake, 20 pages per PDF, 40 million pixels per image, 5,000 entries and 5,000 originals, 100 lines/payments per entry. Oversized files, unsupported formats and images that cannot be decoded reject the intake batch without saving it. Eligible PDFs that cannot be rendered can use the manual-original fallback described above. Camera intake requests supported JPEG/PNG. Paper-area detection is a suggestion, not guaranteed document separation. OCR uses the current interface language's bundled reader (French, English, Italian, German or Spanish).
+Limits: 5 MiB per original, 10 files/20 MiB per intake, 20 pages per PDF, 40 million pixels per image (encoded PNG/JPEG dimensions checked before decoding, then checked again after decoding), 5,000 entries and 5,000 originals, 100 lines/payments per entry. Oversized files, unsupported formats and images that cannot be decoded reject the intake batch without saving it. Eligible PDFs that cannot be rendered can use the manual-original fallback described above. Camera intake requests supported JPEG/PNG. Paper-area detection is a suggestion, not guaranteed document separation. OCR uses the current interface language's bundled reader (French, English, Italian, German or Spanish).
 
 ## API contract
 
@@ -79,7 +79,7 @@ Bundled versions/licenses/checksums: [local document readers](../assets/vendor/f
 Relevant automated checks:
 
 ```sh
-node --test tests/test_finance_model.js tests/test_finance_export.js
+node --test tests/test_finance_model.js tests/test_finance_documents.js tests/test_finance_export.js
 python3 -m unittest tests.test_finance_api -v
 uv run --python 3.12 --with playwright==1.61.0 python -m unittest tests.test_finance_browser -v
 ```

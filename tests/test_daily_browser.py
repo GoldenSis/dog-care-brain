@@ -11,6 +11,108 @@ from tests.test_tenant_isolation import _http
 
 
 class DailyBrowserAcceptanceTest(BrowserFixture):
+    async def test_document_registration_selects_owner_by_id_without_splitting_bookings(self):
+        seeded = await self.page.evaluate('DailyModel.empty()')
+        owner = await self.page.evaluate('dogs.billie.owner')
+        seeded['clients'] = [{'id': key, 'name': '  ' + owner + '  '} for key in ('first', 'second')]
+        await self.seed_daily(seeded)
+        for dog_id in ('billie', 'charlie'):
+            await self.page.evaluate('(id) => { state.dog=id; }', dog_id)
+            await self.prepare_document(choose_owner=False)
+            choice = self.page.locator('#document-form [name="clientId"]')
+            self.assertEqual(await choice.count(), 1)
+            self.assertEqual(await choice.input_value(), '')
+            self.assertFalse(await self.page.locator('#document-form').evaluate('el => el.checkValidity()'))
+            await choice.select_option('second')
+            await self.page.click('#document-form button')
+            await self.page.wait_for_selector('[data-open-document]')
+        saved = await self.snapshot()
+        self.assertEqual(saved['clients'], seeded['clients'])
+        self.assertEqual([(d['id'], d['clientId']) for d in saved['dogs']], [('billie', 'second'), ('charlie', 'second')])
+        for dog_id in ('billie', 'charlie'):
+            await self.route('schedule')
+            await self.page.click('#new-booking')
+            await self.page.select_option('#booking-form [name="dogId"]', dog_id)
+            self.assertTrue(await self.page.locator('#booking-form [name="clientId"]').is_disabled())
+            await self.page.fill('#booking-form [name="start"]', '2026-10-05')
+            await self.page.fill('#booking-form [name="end"]', '2026-10-05')
+            await self.submit_booking()
+        rows = await self.page.evaluate("DailyModel.monthlySummary(DailyUI.snapshot(), '2026-10')")
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]['clientId'], 'second')
+        self.assertEqual(rows[0]['bookingCount'], 2)
+        saved = await self.snapshot()
+        await self.page.reload()
+        await self.wait_ready()
+        self.assertEqual(await self.snapshot(), saved)
+        self.assertEqual(self.console_errors, [])
+
+    async def test_document_owner_choice_and_literal_fields_survive_failed_save(self):
+        await self.prepare_document(choose_owner=False)
+        choice = self.page.locator('#document-form [name="clientId"]')
+        self.assertEqual(await choice.count(), 1)
+        self.assertEqual(await self.page.input_value('#document-form [name="client"]'), await self.page.evaluate('dogs.billie.owner'))
+        for locale in ('fr', 'it', 'de', 'es', 'en'):
+            await self.page.select_option('#language-picker', locale)
+            await self.page.wait_for_function('!savePending')
+            for width, height in ((390, 844), (1024, 768), (1440, 900)):
+                await self.page.set_viewport_size({'width': width, 'height': height})
+                await choice.focus()
+                self.assertTrue(await choice.evaluate('el => el === document.activeElement'))
+                self.assertGreaterEqual((await choice.bounding_box())['height'], 44)
+                self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+        await self.prepare_document()
+        label, owner = '  Literal proof  ', '  Explicit new owner  '
+        await choice.select_option(':new')
+        await self.page.fill('#document-form [name="client"]', owner)
+        await self.page.fill('#document-form [name="label"]', label)
+        await self.page.evaluate('''() => {
+            window.originalRead=File.prototype.arrayBuffer;
+            File.prototype.arrayBuffer=()=>Promise.reject(Error('Unreadable fixture'));
+        }''')
+        await self.page.click('#document-form button')
+        await self.page.wait_for_selector('#document-form .daily-error:not([hidden])')
+        self.assertEqual(await self.page.input_value('#document-form [name="client"]'), owner)
+        self.assertEqual(await self.page.input_value('#document-form [name="label"]'), label)
+        self.assertEqual(await self.page.locator('#document-form [name="file"]').evaluate('el => el.files[0].name'), 'proof.pdf')
+        await self.page.evaluate('() => { File.prototype.arrayBuffer=window.originalRead; }')
+        await self.page.evaluate('''() => {
+            if(window.DogCareAPI){window.originalSave=DogCareAPI.saveDocument;DogCareAPI.saveDocument=async()=>false;}
+            else{window.originalSave=Storage.prototype.setItem;Storage.prototype.setItem=function(key,value){if(key==='dogcare-daily-v1')throw Error('Storage unavailable');return originalSave.call(this,key,value);};}
+        }''')
+        await self.page.click('#document-form button')
+        await self.page.wait_for_function('!savePending')
+        self.assertTrue(await self.page.locator('#document-form .daily-error').is_visible())
+        self.assertEqual(await choice.input_value(), ':new')
+        self.assertEqual(await self.page.input_value('#document-form [name="client"]'), owner)
+        self.assertEqual(await self.page.input_value('#document-form [name="label"]'), label)
+        self.assertEqual(await self.page.locator('#document-form [name="file"]').evaluate('el => el.files[0].name'), 'proof.pdf')
+        await self.page.evaluate('''() => {
+            if(window.DogCareAPI)DogCareAPI.saveDocument=window.originalSave;
+            else Storage.prototype.setItem=window.originalSave;
+        }''')
+        await self.page.click('#document-form button')
+        await self.page.wait_for_selector('[data-open-document]')
+        saved = await self.snapshot()
+        self.assertEqual(len(saved['clients']), 1)
+        self.assertEqual(saved['clients'][0]['name'], owner)
+        self.assertEqual(saved['documents'][0]['label'], label)
+        self.assertEqual(await choice.count(), 0)
+        self.assertEqual(self.console_errors, [])
+
+    async def test_document_upload_preserves_explicitly_unknown_registered_owner(self):
+        seeded = await self.page.evaluate('DailyModel.empty()')
+        seeded['dogs'] = [{'id': 'billie', 'name': '  Known dog  ', 'clientId': None}]
+        await self.seed_daily(seeded)
+        await self.prepare_document()
+        self.assertEqual(await self.page.locator('#document-form [name="clientId"]').count(), 0)
+        await self.page.click('#document-form button')
+        await self.page.wait_for_selector('[data-open-document]')
+        saved = await self.snapshot()
+        self.assertEqual(saved['dogs'], seeded['dogs'])
+        self.assertEqual(saved['clients'], [])
+        self.assertEqual(self.console_errors, [])
+
     async def test_booking_selects_existing_owner_by_id_and_keeps_literal_names(self):
         seeded = await self.page.evaluate('DailyModel.empty()')
         seeded['clients'] = [{'id': 'first', 'name': 'Shared owner'},
@@ -248,8 +350,10 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
         await self.page.click('#rates-form button')
         await self.page.wait_for_function("document.querySelector('#rates-saved').textContent.length > 0 && !savePending")
 
-    async def prepare_document(self):
+    async def prepare_document(self, choose_owner=True):
         await self.route('dogs')
+        if choose_owner and await self.page.locator('#document-form [name="clientId"]').count():
+            await self.page.select_option('#document-form [name="clientId"]', ':new')
         await self.page.fill('#document-form [name="label"]', 'Original proof')
         await self.page.fill('#document-form [name="renewal"]', '2027-10-05')
         await self.page.set_input_files('#document-form [name="file"]', {
@@ -1250,6 +1354,7 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
 
     async def test_document_reload_download_and_explicit_renewal_followup(self):
         await self.route('dogs')
+        await self.page.select_option('#document-form [name="clientId"]', ':new')
         pdf = b'%PDF-1.7\nSynthetic vaccination proof fixture\n%%EOF'
         await self.page.fill('#document-form [name="label"]', 'Fixture vaccination proof')
         await self.page.set_input_files('#document-form [name="file"]',

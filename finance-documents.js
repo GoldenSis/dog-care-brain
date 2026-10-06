@@ -14,6 +14,30 @@
   }
   function canvas(width,height){const c=document.createElement('canvas');c.width=width;c.height=height;return c;}
   function release(c){c.width=0;c.height=0;}
+  async function checkImageSize(file,type){
+    const bytes=new Uint8Array(await file.arrayBuffer()),view=new DataView(bytes.buffer);
+    let width=0,height=0;
+    if(type==='image/png'){
+      if(bytes.length>=33&&[137,80,78,71,13,10,26,10].every((v,i)=>bytes[i]===v)&&view.getUint32(8)===13&&view.getUint32(12)===0x49484452){width=view.getUint32(16);height=view.getUint32(20);}
+    }else if(type==='image/jpeg'&&bytes[0]===255&&bytes[1]===216){
+      let offset=2;
+      while(offset<bytes.length){
+        if(bytes[offset++]!==255)break;
+        while(bytes[offset]===255)offset++;
+        const marker=bytes[offset++];
+        if(marker===0xda||marker===0xd9||offset+2>bytes.length)break;
+        if(marker===0x01||marker>=0xd0&&marker<=0xd7)continue;
+        const length=view.getUint16(offset);
+        if(length<2||offset+length>bytes.length)break;
+        if(marker>=0xc0&&marker<=0xcf&&![0xc4,0xc8,0xcc].includes(marker)){
+          if(length>=8){height=view.getUint16(offset+3);width=view.getUint16(offset+5);}break;
+        }
+        offset+=length;
+      }
+    }
+    if(!width||!height)throw Error('Unreadable image dimensions');
+    if(width*height>40000000)throw Error('Image too large');
+  }
   async function withPdf(file,use){
     const pdfjs=await import(base+'pdfjs-dist/pdf.mjs');pdfjs.GlobalWorkerOptions.workerSrc=base+'pdfjs-dist/pdf.worker.mjs';
     const task=pdfjs.getDocument({data:new Uint8Array(await file.arrayBuffer()),isEvalSupported:false,useSystemFonts:true,disableFontFace:true});
@@ -26,6 +50,7 @@
         c=canvas(Math.ceil(view.width),Math.ceil(view.height));await p.render({canvasContext:c.getContext('2d'),viewport:view}).promise;return c;
       }catch(error){if(c)release(c);throw error;}finally{p.cleanup?.();}
     });
+    await checkImageSize(item.file,item.meta.type);
     const bitmap=await createImageBitmap(item.file);let c;
     try{if(bitmap.width*bitmap.height>40000000)throw Error('Image too large');const scale=Math.min(1,limit/Math.max(bitmap.width,bitmap.height));c=canvas(Math.max(1,Math.round(bitmap.width*scale)),Math.max(1,Math.round(bitmap.height*scale)));c.getContext('2d').drawImage(bitmap,0,0,c.width,c.height);return c;
     }catch(error){if(c)release(c);throw error;}finally{bitmap.close();}
