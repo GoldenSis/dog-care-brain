@@ -15,6 +15,175 @@ from tests.test_browser_acceptance import BrowserFixture, QuietStaticHandler, RO
 
 
 class FinanceBrowserTest(BrowserFixture):
+    async def test_export_bounds_original_lifetimes_and_keeps_form_responsive(self):
+        saved = await self.page.evaluate('''async () => {
+          const next=FinanceStore.snapshot();
+          for(let i=0;i<12;i++){
+            const bytes=new Uint8Array(i===0?5*1024*1024:512*1024).fill(i);
+            bytes.set([137,80,78,71,13,10,26,10]);
+            const blob=new Blob([bytes],{type:'image/png'}),id=await FinanceDocuments.sha(blob);
+            next.documents.push({id,sha256:id,name:`source-${i}.png`,type:blob.type,size:blob.size});
+            const entry=FinanceModel.draft('source-'+i,'purchase');
+            Object.assign(entry,{sourceId:id,party:'INV_x0041_',raw:'  Literal\\r\\ntext  '});
+            next.entries.push(entry);
+            if(!await FinanceStore.save(next,new Map([[id,blob]])))throw Error('Fixture save failed');
+          }
+          return next;
+        }''')
+        await self.page.reload()
+        await self.wait_ready()
+        await self.page.click('[data-page="business"]')
+        await self.page.click('#finance-new-expense')
+        await self.page.fill('[name="party"]', 'Unsaved before export')
+        await self.page.evaluate('''async () => {
+          await FinanceDocuments.script('fflate/index.js');
+          const get=FinanceStore.document,sha=FinanceDocuments.sha,originals=new WeakMap(),buffers=[];
+          const stats=window.exportStats={peakBytes:0,active:0,peakActive:0,completed:0,sync:0};
+          const measure=()=>stats.peakBytes=Math.max(stats.peakBytes,buffers.reduce((n,b)=>n+b.byteLength,0));
+          FinanceDocuments.sha=blob=>sha(originals.get(blob)||blob);
+          FinanceStore.document=async id=>{
+            const blob=await get(id);
+            const source={size:blob.size,arrayBuffer:async()=>{
+              const bytes=await blob.arrayBuffer();buffers.push(bytes);measure();return bytes;
+            }};
+            originals.set(source,blob);return source;
+          };
+          const sync=fflate.zipSync,Deflate=fflate.AsyncZipDeflate;
+          fflate.zipSync=(...args)=>{stats.sync++;return sync(...args);};
+          fflate.AsyncZipDeflate=class extends Deflate {
+            push(bytes,final){
+              if(this.filename.startsWith('originals/')){
+                stats.active++;stats.peakActive=Math.max(stats.peakActive,stats.active);
+                const ondata=this.ondata;
+                this.ondata=(error,chunk,last)=>{
+                  if(error||last){stats.active--;stats.completed++;}
+                  ondata(error,chunk,last);
+                };
+                if(!window.resumeExport){
+                  window.resumeExport=()=>super.push(bytes,final);
+                  window.exportPaused=true;return;
+                }
+              }
+              super.push(bytes,final);
+            }
+          };
+          window.remainingExportBytes=()=>buffers.reduce((n,b)=>n+b.byteLength,0);
+        }''')
+        async with self.page.expect_download() as info:
+            await self.page.click('#finance-export')
+            await self.page.wait_for_function('window.exportPaused === true')
+            self.assertTrue(await self.page.locator('#finance-export').is_disabled())
+            await self.page.fill('[name="party"]', '  Unsaved during export 🐾  ')
+            await self.page.click('[data-finance-tab="journal"]')
+            self.assertTrue(await self.page.locator('#finance-export').is_disabled())
+            await self.page.click('#finance-resume')
+            self.assertEqual(await self.page.input_value('[name="party"]'), '  Unsaved during export 🐾  ')
+            await self.page.evaluate('resumeExport()')
+        download = await info.value
+        await self.page.wait_for_function('!document.querySelector("#finance-export").disabled')
+        stats = await self.page.evaluate('exportStats')
+        self.assertEqual(stats['sync'], 0)
+        self.assertEqual(stats['peakActive'], 1)
+        self.assertEqual(stats['active'], 0)
+        self.assertEqual(stats['completed'], 12)
+        self.assertLessEqual(stats['peakBytes'], 5 * 1024 * 1024)
+        self.assertEqual(await self.page.evaluate('remainingExportBytes()'), 0)
+        with zipfile.ZipFile(await download.path()) as archive:
+            self.assertEqual(len(archive.namelist()), 14)
+            self.assertIsNone(archive.testzip())
+            self.assertEqual(json.loads(archive.read('records.json')), saved)
+            for meta in saved['documents']:
+                original = archive.read('originals/' + meta['id'] + '.png')
+                self.assertEqual(len(original), meta['size'])
+                self.assertEqual(hashlib.sha256(original).hexdigest(), meta['sha256'])
+            with zipfile.ZipFile(io.BytesIO(archive.read('comptabilite.xlsx'))) as workbook:
+                self.assertIsNone(workbook.testzip())
+                sheet = workbook.read('xl/worksheets/sheet1.xml').decode()
+                self.assertEqual(sheet.count('INV_x005F_x0041_'), 12)
+        self.assertEqual(await self.snapshot(), saved)
+        self.assertEqual(await self.page.input_value('[name="party"]'), '  Unsaved during export 🐾  ')
+        await self.page.click('[data-finance-tab="journal"]')
+        await self.page.click('#finance-resume')
+        self.assertEqual(await self.page.input_value('[name="party"]'), '  Unsaved during export 🐾  ')
+        self.assertEqual(self.console_errors, [])
+
+    async def test_export_failure_discards_partial_archive_and_preserves_draft(self):
+        saved = await self.page.evaluate('''async () => {
+          const next=FinanceStore.snapshot(),files=new Map();
+          for(let i=0;i<3;i++){
+            const blob=new Blob(['%PDF-1.4\\noriginal '+i],{type:'application/pdf'});
+            const id=await FinanceDocuments.sha(blob);
+            next.documents.push({id,sha256:id,name:`original-${i}.pdf`,size:blob.size,type:blob.type});
+            files.set(id,blob);
+          }
+          if(!await FinanceStore.save(next,files))throw Error('Fixture save failed');
+          return next;
+        }''')
+        await self.page.click('#finance-new-expense')
+        await self.page.fill('[name="party"]', '  Editable after failure 🐾  ')
+        await self.page.evaluate('''async () => {
+          await FinanceDocuments.script('fflate/index.js');
+          const get=FinanceStore.document,Zip=fflate.Zip,Deflate=fflate.AsyncZipDeflate;
+          const second=FinanceStore.snapshot().documents[1].id;
+          const active=window.exportWorkers=new Set();
+          window.exportChunks=0;
+          fflate.Zip=class extends Zip {
+            constructor(callback){super((error,chunk,final)=>{
+              if(chunk?.length)window.exportChunks++;
+              callback(error,chunk,final);
+            });}
+          };
+          fflate.AsyncZipDeflate=class extends Deflate {
+            constructor(...args){
+              super(...args);active.add(this);const terminate=this.terminate;
+              this.terminate=()=>{active.delete(this);terminate();};
+            }
+            push(bytes,final){
+              if(window.exportFailure==='compression'&&this.filename.includes(second)){
+                queueMicrotask(()=>this.ondata(Error('Compressor failed'),null,false));return;
+              }
+              super.push(bytes,final);
+            }
+          };
+          FinanceStore.document=async id=>{
+            const blob=await get(id);if(id!==second)return blob;
+            switch(window.exportFailure){
+              case 'missing':return null;
+              case 'size':return new Blob(['truncated']);
+              case 'hash':return new Blob([new Uint8Array(blob.size)]);
+              case 'read':throw Error('Read failed');
+              default:return blob;
+            }
+          };
+        }''')
+        downloads = []
+        self.page.on('download', lambda item: downloads.append(item))
+        for failure in ('missing', 'size', 'hash', 'read', 'compression'):
+            with self.subTest(failure=failure):
+                await self.page.evaluate('''failure=>{
+                  window.exportFailure=failure;window.exportChunks=0;
+                  document.querySelector('#finance-error').hidden=true;
+                }''', failure)
+                await self.page.click('#finance-export')
+                await self.page.wait_for_function('!document.querySelector("#finance-export").disabled')
+                self.assertGreater(await self.page.evaluate('exportChunks'), 0)
+                self.assertEqual(await self.page.evaluate('exportWorkers.size'), 0)
+                self.assertEqual(downloads, [])
+                self.assertTrue(await self.page.locator('#finance-error').is_visible())
+                self.assertEqual(await self.page.inner_text('#finance-error'),
+                                 await self.page.evaluate("FinanceUI.text('exportError')"))
+                self.assertEqual(await self.page.input_value('[name="party"]'), '  Editable after failure 🐾  ')
+                self.assertEqual(await self.snapshot(), saved)
+        await self.page.evaluate('window.exportFailure=null')
+        async with self.page.expect_download() as info:
+            await self.page.click('#finance-export')
+        with zipfile.ZipFile(await (await info.value).path()) as archive:
+            self.assertEqual(len(archive.namelist()), 5)
+            self.assertIsNone(archive.testzip())
+        self.assertEqual(await self.page.evaluate('exportWorkers.size'), 0)
+        self.assertEqual(await self.page.input_value('[name="party"]'), '  Editable after failure 🐾  ')
+        self.assertEqual(self.console_errors, [])
+
     async def test_multipage_intake_bounds_canvas_lifetime_and_retains_regions(self):
         objects = [b'<< /Type /Catalog /Pages 2 0 R >>',
                    ('<< /Type /Pages /Kids [' + ' '.join(f'{3+i} 0 R' for i in range(20)) + '] /Count 20 >>').encode()]
@@ -771,7 +940,7 @@ class FinanceBrowserTest(BrowserFixture):
         self.page.on('download', lambda item: downloads.append(item))
         await self.page.evaluate('FinanceStore.document = async () => null')
         await self.page.click('#finance-export')
-        await self.page.wait_for_function('!savePending')
+        await self.page.wait_for_function('!document.querySelector("#finance-export").disabled')
         self.assertEqual(downloads, [])
         self.assertTrue(await self.page.locator('#toast.show').is_visible())
         self.assertEqual(await self.page.inner_text('#toast'),

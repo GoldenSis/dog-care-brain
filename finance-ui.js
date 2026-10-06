@@ -3,7 +3,7 @@
   'use strict';
   const M=w.FinanceModel,S=w.FinanceStore;
   let tab='journal',editing=null,inputs=null,query='',month='',intake=[],notice='',isImport=false,showEditor=false,dirty=false,auxiliary={};
-  let previewObserver=null,previewGeneration=0,previewJobs=Promise.resolve();
+  let previewObserver=null,previewGeneration=0,previewJobs=Promise.resolve(),exporting=false;
   const previewCanvases=new Set();
   const t=k=>(w.FinanceCopy[state.language]||w.FinanceCopy.en)[k];
   const esc=v=>String(v??'').replace(/[&<>"'\r]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','\r':'&#13;'}[c]));
@@ -128,7 +128,14 @@
     if(state.page!=='business')return;
     document.querySelector('#finance-new-sale').onclick=()=>newEntry('sale');document.querySelector('#finance-new-expense').onclick=()=>newEntry('expense');
     document.querySelector('#finance-import').onclick=()=>{leaveEditor();isImport=true;draw();};
-    document.querySelector('#finance-export').onclick=async event=>{const ok=await persistChange(async()=>{try{if(S.unavailable())return false;const blob=await FinanceExport.archive(S.snapshot(),t,S.document);FinanceExport.download(blob,'comptabilite.zip');return true;}catch{return false;}},event.currentTarget);if(!ok)showError('exportError');};
+    const exportButton=document.querySelector('#finance-export');exportButton.disabled=S.unavailable()||exporting;
+    exportButton.onclick=async()=>{
+      if(exporting||S.unavailable())return;exporting=true;exportButton.disabled=true;
+      const copy=w.FinanceCopy[state.language]||w.FinanceCopy.en;
+      try{const blob=await FinanceExport.archive(S.snapshot(),key=>copy[key],S.document);FinanceExport.download(blob,'comptabilite.zip');}
+      catch{showError('exportError');}
+      finally{exporting=false;const button=document.querySelector('#finance-export');if(button)button.disabled=S.unavailable();}
+    };
     document.querySelectorAll('[data-finance-tab]').forEach(b=>b.onclick=()=>{leaveEditor();tab=b.dataset.financeTab;draw();});
     document.querySelectorAll('[data-finance-edit]').forEach(b=>b.onclick=()=>{if(S.unavailable())return;if(editing?.id===b.dataset.financeEdit){showEditor=true;isImport=false;draw('#finance-form h2');return;}if(!replaceEditor())return;editing=S.snapshot().entries.find(e=>e.id===b.dataset.financeEdit);inputs=null;isImport=false;showEditor=true;dirty=false;draw('#finance-form h2');});
     document.querySelector('#finance-back')?.addEventListener('click',()=>{leaveEditor();draw();});
@@ -169,5 +176,6 @@
     document.querySelectorAll('[data-remove-region]').forEach(b=>b.onclick=()=>{const [i,j]=b.dataset.removeRegion.split(',').map(Number);intake[i].regions.splice(j,1);draw();});
     document.querySelectorAll('[data-add-region]').forEach(b=>b.onclick=()=>{const item=intake[Number(b.dataset.addRegion)];item.regions.push({page:item.page,x:0,y:0,width:.5,height:.5});draw();});
   }
+  w.addEventListener('beforeunload',event=>{if(exporting){event.preventDefault();event.returnValue='';}});
   w.FinanceUI={text:t,view,bind,rememberDraft,showRates:()=>{leaveEditor();tab='rates';}};
 })(window);

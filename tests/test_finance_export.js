@@ -1,11 +1,38 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
 const fflate=require('../assets/vendor/finance/fflate/index.js');
-const context=vm.createContext({window:{},fflate});
+const {Worker}=require('node:worker_threads'),{resolveObjectURL}=require('node:buffer');
+class BrowserWorker {
+  constructor(url){
+    this.worker=new Worker(`
+      const {parentPort}=require('node:worker_threads');
+      globalThis.self=globalThis;
+      globalThis.postMessage=(data,transfers)=>parentPort.postMessage(data,transfers);
+      globalThis.addEventListener=()=>{};
+      parentPort.once('message',source=>{
+        (0,eval)(source);
+        parentPort.on('message',data=>globalThis.onmessage({data}));
+      });
+    `,{eval:true});
+    this.worker.on('message',data=>this.onmessage?.({data}));
+    this.worker.on('error',error=>this.onmessage?.({data:{$e$:[error.message,error.code,error.stack]}}));
+    this.ready=resolveObjectURL(url).text().then(source=>this.worker.postMessage(source));
+  }
+  postMessage(data,transfers){this.ready.then(()=>this.worker.postMessage(data,transfers));}
+  terminate(){return this.worker.terminate();}
+}
+function exportContext(extra={}){
+  const context=vm.createContext({Blob,URL,Worker:BrowserWorker,Uint8Array,TextEncoder,TextDecoder,...extra});
+  context.window=context;context.self=context;
+  vm.runInContext(fs.readFileSync(require.resolve('../assets/vendor/finance/fflate/index.js'),'utf8'),context);
+  return context;
+}
+const context=exportContext();
 vm.runInContext(fs.readFileSync(require.resolve('../finance-export.js'),'utf8'),context);
-test('literal OOXML escapes are protected in every text cell without changing types or links',()=>{
+test('literal OOXML escapes are protected in every text cell without changing types or links',async()=>{
   const rows=[['INV_x0041_','_x005F_x0041_','_x0041__x00aF_','_x0041_x0042_'],
     ['=_x0041_+1','_x123_ _X0041_ _xZZZZ_',12.5,null]];
-  const bytes=context.window.FinanceExport.workbook([{name:'Journal',rows,links:[{ref:'A2',target:'originals/_x0041_.pdf'}]}]);
+  const book=await context.window.FinanceExport.workbook([{name:'Journal',rows,links:[{ref:'A2',target:'originals/_x0041_.pdf'}]}]);
+  const bytes=new Uint8Array(await book.arrayBuffer());
   const files=fflate.unzipSync(bytes),sheet=fflate.strFromU8(files['xl/worksheets/sheet1.xml']);
   for(const value of ['INV_x005F_x0041_','_x005F_x005F_x005F_x0041_','_x005F_x0041__x005F_x00aF_',
     '_x005F_x0041_x005F_x0042_','=_x005F_x0041_+1','_x123_ _X0041_ _xZZZZ_'])assert.ok(sheet.includes('>'+value+'</t>'),value);
@@ -16,7 +43,7 @@ test('literal OOXML escapes are protected in every text cell without changing ty
 test('archive keeps escape-like ledger text, original bytes and source relationships',async()=>{
   const {createHash}=require('node:crypto'),blob=new Blob(['%PDF-1.4\nfixture'],{type:'application/pdf'});
   const hash=createHash('sha256').update(Buffer.from(await blob.arrayBuffer())).digest('hex');
-  const context=vm.createContext({window:{},fflate,Blob,Uint8Array,FinanceDocuments:{script:async()=>{},sha:async()=>hash}});
+  const context=exportContext({FinanceDocuments:{script:async()=>{},sha:async()=>hash}});
   vm.runInContext(fs.readFileSync(require.resolve('../finance-model.js'),'utf8'),context);
   context.FinanceModel=context.window.FinanceModel;
   vm.runInContext(fs.readFileSync(require.resolve('../finance-export.js'),'utf8'),context);
@@ -39,10 +66,11 @@ test('archive keeps escape-like ledger text, original bytes and source relations
   }
   for(const sheet of [1,4])assert.ok(fflate.strFromU8(sheets[`xl/worksheets/_rels/sheet${sheet}.xml.rels`]).includes(`Target="${target}"`));
 });
-test('maximum ledger row count exports every row with typed literal cells',()=>{
+test('maximum ledger row count exports every row with typed literal cells',async()=>{
   const rows=[['ID','Description','Amount']];
   for(let i=0;i<500000;i++)rows.push(['entry-'+Math.floor(i/100),'=1+1',10.5]);
-  const bytes=context.window.FinanceExport.workbook([{name:'Lines',rows}]);
+  const book=await context.window.FinanceExport.workbook([{name:'Lines',rows}]);
+  const bytes=new Uint8Array(await book.arrayBuffer());
   const files=fflate.unzipSync(bytes),sheet=fflate.strFromU8(files['xl/worksheets/sheet1.xml']);
   assert.equal((sheet.match(/<row /g)||[]).length,500001);
   assert.ok(sheet.includes('<c r="A500001" t="inlineStr" s="0"><is><t xml:space="preserve">entry-4999</t></is></c>'));
