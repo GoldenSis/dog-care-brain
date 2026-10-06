@@ -238,4 +238,4 @@ Set `DOGCARE_EVIDENCE_DIR` to an allowed evidence directory to retain the browse
 
 ### Comptabilité
 
-See [Comptabilité](docs/comptabilite.md) for invoices, expense claims, local receipt recognition, original documents, workbook export and storage boundaries. The existing monthly booking totals/rates remain accessible in its Réservations et tarifs tab. Finance acceptance: `node --test tests/test_finance_model.js`, `python3 -m unittest tests.test_finance_api -v`, and `uv run --python 3.12 --with playwright==1.61.0 python -m unittest tests.test_finance_browser -v`; full acceptance commands above still apply.
+See [Comptabilité](docs/comptabilite.md) for invoices, expense claims, local receipt recognition, original documents, workbook export and storage boundaries. The existing monthly booking totals/rates remain accessible in its Réservations et tarifs tab. Finance acceptance: `node --test tests/test_finance_model.js tests/test_finance_export.js`, `python3 -m unittest tests.test_finance_api -v`, and `uv run --python 3.12 --with playwright==1.61.0 python -m unittest tests.test_finance_browser -v`; full acceptance commands above still apply.

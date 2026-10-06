@@ -33,7 +33,7 @@
     try {
       if(!w.DogCareAPI)localSnapshot=localStorage.getItem(KEY);
       const raw=w.DogCareAPI ? w.DogCareAPI.getDaily() : JSON.parse(localSnapshot || 'null');
-      const candidate=raw || M.empty(); M.validateDaily(candidate); daily=candidate;
+      const candidate=!w.DogCareAPI && localSnapshot===null ? M.empty() : raw; M.validateDaily(candidate); daily=candidate;
     } catch { loadError=true; }
     syncDogs();
   }
@@ -190,5 +190,5 @@
       if(!ok)return;state.dog=dogId;navigate('dogs');document.querySelector('#dog-documents').scrollIntoView({block:'start'});showToast(text('saved'));
     };
   }
-  w.DailyUI={text,load,home,schedule,business,documents,bind};
+  w.DailyUI={text,load,snapshot:()=>loadError?null:structuredClone(daily),home,schedule,business,documents,bind};
 })(window);

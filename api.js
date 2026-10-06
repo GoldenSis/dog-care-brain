@@ -141,7 +141,7 @@
     cache.dogs = data.dogs || [];
     cache.invites = data.invites;
     cache.language = data.language || "en";
-    cache.daily = data.daily || {version:1,clients:[],dogs:[],bookings:[],rates:{currency:"CHF",walk:null,day:null,night:null},documents:[]};
+    cache.daily = data.daily ?? null;
     cache.knowledge = data.knowledge || {version:1,experiences:[]};
     cache.finance = data.finance ?? null;
     return true;

@@ -6,6 +6,7 @@ The directly visible **Comptabilité** destination replaces the vague Activité 
 
 - Create a customer invoice, supplier bill, expense claim or billed extra. Enter the party, date, currency, lines and any explicitly known tax included in the gross prices. Unknown amounts stay incomplete. Saved bookings can supply invoice lines at their recorded agreed rate; extras are separate lines.
 - Save a draft, then review before issuing/confirming. Customer invoice number and issuer/customer details are required at issuance. Issued details cannot be rewritten, and their numbers cannot be reused. Unpaid records may be cancelled with a reason; originals and cancelled records remain available. Record actual partial/full payments or reimbursements manually; first save or discard any pending record edits. The app does not execute banking operations or send invoices.
+- Converting a reviewed purchase, expense or extra into a customer invoice remains editable and unissued until validation and saving succeed. An unsuccessful issuance attempt still allows an incomplete unpaid draft to be saved. Records with existing payments must remain confirmed when saved; converting a paid extra requires successful issuance and retains its payments and currency.
 - Add JPEG/PNG photos or PDFs. Recognition runs on the device using bundled assets, without an external document service. A photo of multiple pale receipts on a darker table can suggest separate areas; adjust/remove areas using drawing or percentage fields. Each selected area/page becomes an editable review draft. Check multi-page invoices carefully: pages are separate draft entries, not automatically reconciled into one invoice.
 - Check proposed party, date, reference, currency, category and amount against the retained original. Ambiguous values remain incomplete. OCR is fallible; suggestions never become confirmed records automatically. If recognition is unavailable, retain originals with manual drafts. If PDF loading or rendering fails, a manual draft retains the eligible original without inventing a page or region; known page-count limits still reject oversized PDFs. Duplicate original bytes are rejected to avoid accidental re-import.
 - Export a ZIP containing a genuine `.xlsx` workbook (journal, line items, payments, source manifest, guidance), every original file, and an exact JSON snapshot. Strings remain literal cells, never formulas. Sources use content hashes as safe filenames, and the manifest retains the original names. Missing or mismatched originals fail the whole export rather than silently omitting evidence. Export covers all entries, including drafts/cancellations, regardless of the current filter.
@@ -22,6 +23,8 @@ Static mode uses the separate IndexedDB database `dogcare-finance-v1`. Snapshot 
 
 Accounting tabs, booking/rate shortcuts and other routes retain the open editor, payment/cancellation inputs and selected originals in memory. Resume controls return to that work; opening another record requires saving or deliberately discarding pending edits. These drafts are not stored across sessions. If accounting cannot load, its journal, mutations and export remain unavailable with a retry control; other routes and bookings/rates remain accessible. Account retries retain the loaded business and revision guards.
 
+Unavailable or malformed daily records disable booking integration without blocking manual invoices or expenses. Currency stays incomplete until entered manually; existing daily records remain unchanged.
+
 Limits: 5 MiB per original, 10 files/20 MiB per intake, 20 pages per PDF, 40 million pixels per image, 5,000 records, 100 lines/payments per record. Large/encrypted/font-dependent/unreadable documents may need manual entry. Camera intake requests supported JPEG/PNG; unsupported formats are rejected visibly. Paper-area detection is a suggestion, not guaranteed document separation.
 
 ## Local readers and checks
@@ -31,7 +34,7 @@ Bundled versions/licenses/checksums: [local document readers](../assets/vendor/f
 Relevant automated checks:
 
 ```sh
-node --test tests/test_finance_model.js
+node --test tests/test_finance_model.js tests/test_finance_export.js
 python3 -m unittest tests.test_finance_api -v
 uv run --python 3.12 --with playwright==1.61.0 python -m unittest tests.test_finance_browser -v
 ```

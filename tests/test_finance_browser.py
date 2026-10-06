@@ -14,6 +14,162 @@ from tests.test_browser_acceptance import BrowserFixture, QuietStaticHandler, RO
 
 
 class FinanceBrowserTest(BrowserFixture):
+    async def test_confirmed_conversion_requires_successful_invoice_issuance(self):
+        entries = await self.page.evaluate('''() => ['expense','purchase','extra','paid-extra'].map(id=>{
+          const e=FinanceModel.draft(id,id==='paid-extra'?'extra':id);
+          Object.assign(e,{status:'confirmed',date:'2026-10-06',party:'Supplier',currency:'JPY'});
+          e.lines[0]={description:'Literal =1+1',quantity:1,unitMinor:1050,bookingId:''};
+          if(id==='paid-extra')e.payments=[{id:'payment',date:e.date,amountMinor:250,note:'Original payment'}];
+          return e;
+        })''')
+        await self.seed_finance(entries)
+        for entry in entries:
+            await self.page.click(f'[data-finance-edit="{entry["id"]}"]')
+            await self.page.select_option('#finance-form [name="kind"]', 'sale')
+            self.assertTrue(await self.page.locator('#finance-form [name="number"]').is_enabled())
+            self.assertEqual(await self.page.locator('#finance-print').count(), 0)
+            for locale in ('fr', 'en', 'it', 'de', 'es'):
+                await self.page.select_option('#language-picker', locale)
+                await self.page.wait_for_function('!savePending')
+                draft = await self.page.evaluate("FinanceUI.text('draft')")
+                self.assertIn(draft, await self.page.inner_text('#finance-form h2'))
+            await self.page.click('#finance-form button[value="confirmed"]')
+            self.assertEqual((await self.snapshot())['entries'][entries.index(entry)], entry)
+            self.assertEqual(await self.page.locator('#finance-print').count(), 0)
+            for name, value in {'number': 'CONVERT-'+entry['id'], 'address': 'Client address', 'issuer': 'Business', 'issuerAddress': 'Business address'}.items():
+                await self.page.fill(f'#finance-form [name="{name}"]', value)
+            if self.api_mode:
+                await self.page.route('**/api/finance', lambda route: route.fulfill(status=200, json={'ok': False}))
+            else:
+                await self.page.evaluate('''() => {
+                  window.originalPut=IDBObjectStore.prototype.put;
+                  IDBObjectStore.prototype.put=function(...args){if(this.name==='state')throw new DOMException('Quota','QuotaExceededError');return originalPut.apply(this,args);};
+                }''')
+            await self.page.click('#finance-form button[value="confirmed"]')
+            await self.page.wait_for_function('!savePending')
+            self.assertTrue(await self.page.locator('#finance-error').is_visible())
+            self.assertEqual((await self.snapshot())['entries'][entries.index(entry)], entry)
+            self.assertEqual(await self.page.locator('#finance-print').count(), 0)
+            await self.page.click('[data-finance-tab="rates"]')
+            await self.page.click('#finance-resume')
+            self.assertEqual(await self.page.input_value('#finance-form [name="number"]'), 'CONVERT-'+entry['id'])
+            if self.api_mode:
+                await self.page.unroute('**/api/finance')
+            else:
+                await self.page.evaluate('() => { IDBObjectStore.prototype.put=window.originalPut; }')
+            await self.save_entry('confirmed')
+            self.assertTrue(await self.page.locator('#finance-form [name="number"]').is_disabled())
+            self.assertTrue(await self.page.locator('#finance-print').is_visible())
+            saved = (await self.snapshot())['entries'][entries.index(entry)]
+            self.assertEqual(saved['status'], 'confirmed')
+            self.assertEqual(saved['kind'], 'sale')
+            self.assertEqual(saved['payments'], entry['payments'])
+            self.assertEqual(saved['currency'], entry['currency'])
+            await self.page.click('#finance-back')
+            await self.page.click('[data-finance-tab="journal"]')
+        saved = await self.snapshot()
+        await self.page.reload()
+        await self.wait_ready()
+        self.assertEqual(await self.snapshot(), saved)
+        self.assertEqual(self.console_errors, [])
+
+    async def test_failed_issuance_allows_incomplete_draft_save(self):
+        await self.page.click('#finance-new-sale')
+        await self.page.fill('[name="description-0"]', 'Still under review')
+        await self.page.click('#finance-form button[value="confirmed"]')
+        self.assertEqual((await self.snapshot())['entries'], [])
+        await self.save_entry('draft')
+        saved = await self.snapshot()
+        self.assertEqual(len(saved['entries']), 1)
+        entry = saved['entries'][0]
+        self.assertEqual(entry['status'], 'draft')
+        self.assertEqual(entry['party'], '')
+        self.assertEqual(entry['number'], '')
+        self.assertIsNone(entry['lines'][0]['unitMinor'])
+        self.assertEqual(entry['lines'][0]['description'], 'Still under review')
+        await self.page.reload()
+        await self.wait_ready()
+        self.assertEqual(await self.snapshot(), saved)
+        self.assertEqual(self.console_errors, [])
+
+    async def test_saved_bookings_and_changed_rates_remain_available(self):
+        await self.page.click('[data-finance-tab="rates"]')
+        await self.page.select_option('#rates-form [name="currency"]', 'EUR')
+        await self.page.fill('#rates-form [name="day"]', '10.50')
+        await self.page.click('#rates-form button')
+        await self.page.wait_for_function("document.querySelector('#rates-saved').textContent.length > 0 && !savePending")
+        await self.page.click('[data-page="schedule"]')
+        await self.page.click('#new-booking')
+        await self.page.fill('#booking-form [name="client"]', 'Booking client')
+        await self.page.select_option('#booking-form [name="service"]', 'day')
+        await self.page.fill('#booking-form [name="start"]', '2026-10-06')
+        await self.page.fill('#booking-form [name="end"]', '2026-10-07')
+        await self.page.click('#booking-form [type="submit"]')
+        await self.page.wait_for_selector('#booking-form', state='detached')
+        await self.page.click('[data-page="business"]')
+        await self.page.click('#finance-new-sale')
+        self.assertEqual(await self.page.input_value('[name="currency"]'), 'EUR')
+        await self.page.click('#finance-booking')
+        await self.page.locator('#finance-booking + select').select_option(index=1)
+        self.assertEqual(await self.page.input_value('[name="party"]'), 'Booking client')
+        self.assertEqual(await self.page.input_value('[name="unit-0"]'), '10.50')
+        self.assertEqual(await self.page.input_value('[name="quantity-0"]'), '2')
+        await self.save_entry()
+        saved = (await self.snapshot())['entries'][0]
+        self.assertTrue(saved['lines'][0]['bookingId'])
+        self.assertEqual(saved['currency'], 'EUR')
+        self.assertEqual(self.console_errors, [])
+
+    async def test_invalid_daily_data_keeps_manual_accounting_usable(self):
+        malformed = [None, {}, {'rates': {'currency': 'CHF'}}, {'rates': {'currency': 'BAD!'}},
+                     {'version': 1, 'clients': [], 'dogs': [], 'bookings': [None],
+                      'rates': {'currency': 'CHF', 'walk': None, 'day': None, 'night': None}, 'documents': []}]
+        for index, value in enumerate(malformed):
+            with self.subTest(daily=value):
+                if self.api_mode:
+                    async def bad_daily(route):
+                        response = await route.fetch()
+                        body = await response.json()
+                        body['daily'] = value
+                        await route.fulfill(response=response, json=body)
+                    await self.page.route('**/api/state', bad_daily)
+                else:
+                    await self.page.evaluate("value=>localStorage.setItem('dogcare-daily-v1',JSON.stringify(value))", value)
+                await self.page.reload()
+                await self.wait_ready()
+                await self.page.click('[data-page="business"]')
+                for kind in ('sale', 'expense'):
+                    await self.page.click('#finance-new-sale' if kind == 'sale' else '#finance-new-expense')
+                    self.assertEqual(await self.page.locator('#finance-form').count(), 1)
+                    self.assertEqual(await self.page.input_value('[name="currency"]'), '')
+                    for locale in ('fr', 'en', 'it', 'de', 'es'):
+                        await self.page.select_option('#language-picker', locale)
+                        await self.page.wait_for_function('!savePending')
+                        self.assertTrue(await self.page.locator('#finance-bookings-unavailable').is_visible())
+                        self.assertEqual(await self.page.inner_text('#finance-bookings-unavailable'),
+                                         await self.page.evaluate("FinanceUI.text('bookingsUnavailable')"))
+                        self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth>innerWidth'))
+                        if index == 0 and kind == 'sale' and locale == 'fr':
+                            await self.capture_evidence(f'finance-manual-unavailable-{self.api_mode}.png')
+                    if kind == 'sale':
+                        self.assertTrue(await self.page.locator('#finance-booking').is_disabled())
+                    await self.page.fill('[name="party"]', f'Manual {kind} {index}')
+                    await self.page.fill('[name="currency"]', 'EUR')
+                    await self.page.fill('[name="description-0"]', 'Manual line')
+                    await self.page.fill('[name="unit-0"]', '10.50')
+                    await self.save_entry('draft' if kind == 'sale' else 'confirmed')
+                    await self.page.click('#finance-back')
+                await self.page.click('[data-finance-tab="rates"]')
+                await self.page.click('[data-page="capture"]')
+                self.assertTrue(await self.page.locator('#observation').is_visible())
+                if self.api_mode:
+                    await self.page.unroute('**/api/state')
+                else:
+                    self.assertEqual(await self.page.evaluate("localStorage.getItem('dogcare-daily-v1')"),
+                                     json.dumps(value, separators=(',', ':')))
+        self.assertEqual(len((await self.snapshot())['entries']), len(malformed)*2)
+        self.assertEqual(self.console_errors, [])
+
     async def seed_finance(self, entries):
         self.assertTrue(await self.page.evaluate('''entries => {
           const next=FinanceStore.snapshot();next.entries.push(...entries);return FinanceStore.save(next);
@@ -452,6 +608,28 @@ class FinanceBrowserTest(BrowserFixture):
 
 class StaticFinanceBrowserTest(FinanceBrowserTest):
     api_mode = False
+
+    async def test_unreadable_daily_storage_preserves_manual_draft_and_original(self):
+        await self.page.evaluate("localStorage.setItem('dogcare-daily-v1','{')")
+        for blocked in (False, True):
+            if blocked:
+                await self.page.add_init_script('''
+                  const get=Storage.prototype.getItem;
+                  Storage.prototype.getItem=function(key){if(key==='dogcare-daily-v1')throw Error('Unavailable');return get.call(this,key);};
+                  window.readStoredDaily=()=>get.call(localStorage,'dogcare-daily-v1');
+                ''')
+            await self.page.reload()
+            await self.wait_ready()
+            await self.page.click('[data-page="business"]')
+            await self.page.click('#finance-new-expense')
+            self.assertTrue(await self.page.locator('#finance-bookings-unavailable').is_visible())
+            self.assertEqual(await self.page.input_value('[name="currency"]'), '')
+            await self.page.fill('[name="party"]', 'Manual entry')
+            await self.save_entry()
+            raw = await self.page.evaluate("window.readStoredDaily ? readStoredDaily() : localStorage.getItem('dogcare-daily-v1')")
+            self.assertEqual(raw, '{')
+        self.assertEqual(len((await self.snapshot())['entries']), 2)
+        self.assertEqual(self.console_errors, [])
 
     @classmethod
     def setUpClass(cls):
