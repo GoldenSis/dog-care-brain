@@ -15,6 +15,119 @@ from tests.test_browser_acceptance import BrowserFixture, QuietStaticHandler, RO
 
 
 class FinanceBrowserTest(BrowserFixture):
+    async def test_multipage_intake_bounds_canvas_lifetime_and_retains_regions(self):
+        objects = [b'<< /Type /Catalog /Pages 2 0 R >>',
+                   ('<< /Type /Pages /Kids [' + ' '.join(f'{3+i} 0 R' for i in range(20)) + '] /Count 20 >>').encode()]
+        objects.extend([b'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 1200 1600] /Resources << >> >>'])
+        objects.extend([b'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 80 100] /Resources << >> >>'] * 19)
+        pdf = b'%PDF-1.4\n'
+        offsets = [0]
+        for i, obj in enumerate(objects, 1):
+            offsets.append(len(pdf))
+            pdf += f'{i} 0 obj\n'.encode() + obj + b'\nendobj\n'
+        start = len(pdf)
+        pdf += f'xref\n0 {len(offsets)}\n0000000000 65535 f \n'.encode()
+        pdf += b''.join(f'{v:010d} 00000 n \n'.encode() for v in offsets[1:])
+        pdf += f'trailer\n<< /Size {len(offsets)} /Root 1 0 R >>\nstartxref\n{start}\n%%EOF'.encode()
+        originals = [pdf + f'\n% original {i}'.encode() for i in range(10)]
+        await self.page.evaluate('''() => {
+          const canvases=[],create=document.createElement.bind(document);
+          let peak=0;
+          const measure=()=>{const pixels=canvases.reduce((sum,c)=>sum+c.width*c.height,0);peak=Math.max(peak,pixels);return {pixels,peak};};
+          document.createElement=function(name,...args){const el=create(name,...args);if(name==='canvas'){canvases.push(el);measure();}return el;};
+          for(const key of ['width','height']){
+            const descriptor=Object.getOwnPropertyDescriptor(HTMLCanvasElement.prototype,key);
+            Object.defineProperty(HTMLCanvasElement.prototype,key,{...descriptor,set(value){descriptor.set.call(this,value);if(!canvases.includes(this))canvases.push(this);measure();}});
+          }
+          window.canvasMemory=()=>({...measure(),large:canvases.filter(c=>c.width>720||c.height>720).length});
+        }''')
+        await self.page.click('#finance-import')
+        await self.page.set_input_files('#finance-files', [
+            {'name': f'pages-{i}.pdf', 'mimeType': 'application/pdf', 'buffer': blob}
+            for i, blob in enumerate(originals)])
+        await self.page.wait_for_function('!savePending')
+        self.assertEqual(await self.page.locator('[data-finance-canvas]').count(), 200)
+        self.assertLessEqual((await self.page.evaluate('canvasMemory()'))['peak'], 4 * 720 * 720)
+        await self.page.locator('.finance-regions summary').first.click()
+        await self.page.locator('[data-region="0,0,width"]').fill('50')
+        await self.page.locator('[data-region="0,0,width"]').press('Tab')
+        await self.page.locator('[data-finance-canvas="199"]').scroll_into_view_if_needed()
+        await self.page.wait_for_function("document.querySelector('[data-finance-canvas=\"199\"]').width > 0")
+        self.assertLessEqual((await self.page.evaluate('canvasMemory()'))['peak'], 4 * 720 * 720)
+        await self.page.click('[data-page="dogs"]')
+        await self.page.wait_for_function('canvasMemory().pixels === 0')
+        await self.page.click('[data-page="business"]')
+        self.assertEqual(await self.page.locator('[data-region="0,0,width"]').input_value(), '50')
+        await self.page.route('**/tesseract.js/tesseract.min.js', lambda route: route.fulfill(
+            content_type='text/javascript', body='''window.Tesseract={createWorker:async()=>({
+              recognize:async(canvas,{rectangle})=>{if(!window.failedOCR){window.failedOCR=true;throw Error('Recognition unavailable');}window.readRegions??=[];window.readRegions.push(rectangle.width/canvas.width);return {data:{text:'Supplier\\nTotal CHF 1.00'}};},
+              terminate:async()=>{window.terminatedOCR=true;}
+            })};'''))
+        await self.page.click('#finance-recognize')
+        await self.page.wait_for_function('!savePending')
+        self.assertTrue(await self.page.locator('#finance-error').is_visible())
+        self.assertTrue(await self.page.evaluate('terminatedOCR'))
+        self.assertEqual((await self.page.evaluate('canvasMemory()'))['large'], 0)
+        self.assertEqual((await self.snapshot())['documents'], [])
+        self.assertEqual(await self.page.locator('[data-region="0,0,width"]').input_value(), '50')
+        await self.page.click('#finance-recognize')
+        await self.page.wait_for_function('!savePending', timeout=60000)
+        self.assertEqual(await self.page.evaluate('readRegions.length'), 200)
+        self.assertEqual(await self.page.evaluate('readRegions[0]'), .5)
+        await self.page.wait_for_function('canvasMemory().pixels === 0')
+        self.assertLessEqual((await self.page.evaluate('canvasMemory()'))['peak'], 2400 * 2400)
+        saved = await self.snapshot()
+        self.assertEqual(len(saved['entries']), 200)
+        self.assertEqual(saved['entries'][0]['region']['width'], .5)
+        self.assertEqual([e['region']['page'] for e in saved['entries']], list(range(1, 21)) * 10)
+        for meta, original in zip(saved['documents'], originals):
+            actual = await self.page.evaluate('''async id => Array.from(new Uint8Array(
+              await (await FinanceStore.document(id)).arrayBuffer()))''', meta['id'])
+            self.assertEqual(bytes(actual), original)
+        await self.page.click('#finance-import')
+        await self.page.set_input_files('#finance-files', {
+            'name': 'discard.pdf', 'mimeType': 'application/pdf', 'buffer': pdf})
+        await self.page.wait_for_function("!savePending && [...document.querySelectorAll('[data-finance-canvas]')].some(c=>c.width>0)")
+        await self.page.click('#finance-discard-intake')
+        await self.page.wait_for_function('canvasMemory().pixels === 0')
+        self.assertEqual(await self.snapshot(), saved)
+        await self.page.reload()
+        await self.wait_ready()
+        self.assertEqual(await self.snapshot(), saved)
+        self.assertEqual(self.console_errors, [])
+
+    async def test_unrelated_edits_preserve_literal_finance_text(self):
+        entry = await self.page.evaluate("FinanceModel.draft('literal-record', 'sale')")
+        literal = '\r\n  =Text\twith\rline\nbreaks\r\n'
+        for key in ('number', 'party', 'issuer', 'taxId', 'address', 'issuerAddress', 'note'):
+            entry[key] = literal + key
+        entry['lines'][0]['description'] = literal + 'description'
+        await self.seed_finance([entry])
+        await self.page.click('[data-finance-edit="literal-record"]')
+        await self.page.fill('[name="quantity-0"]', '2')
+        await self.page.click('#finance-add-line')
+        await self.page.click('[data-finance-remove="1"]')
+        for locale in ('fr', 'it', 'de', 'es', 'en'):
+            await self.page.select_option('#language-picker', locale)
+            await self.page.wait_for_function('!savePending')
+        await self.page.click('[data-page="dogs"]')
+        await self.page.click('[data-page="business"]')
+        await self.page.check('[name="keepProfile"]')
+        await self.save_entry()
+        entry['lines'][0]['quantity'] = 2
+        saved = await self.snapshot()
+        self.assertEqual(saved['entries'], [entry])
+        self.assertEqual(saved['profile'], {'name': entry['issuer'], 'address': entry['issuerAddress'], 'taxId': entry['taxId']})
+        await self.page.fill('[name="party"]', 'Edited party')
+        await self.page.fill('[name="note"]', 'Edited\nnote')
+        await self.page.fill('[name="description-0"]', 'Edited line')
+        await self.save_entry()
+        entry['party'], entry['note'], entry['lines'][0]['description'] = 'Edited party', 'Edited\nnote', 'Edited line'
+        await self.page.reload()
+        await self.wait_ready()
+        self.assertEqual((await self.snapshot())['entries'], [entry])
+        self.assertEqual(self.console_errors, [])
+
     async def test_retained_original_metadata_survives_save_rejection_and_reload(self):
         self.assertTrue(await self.page.evaluate('''async () => {
           const next=FinanceStore.snapshot(),files=new Map();
@@ -487,6 +600,8 @@ class FinanceBrowserTest(BrowserFixture):
                 await self.page.click('#finance-import')
                 await self.page.set_input_files('#finance-files', {'name': 'reader.pdf', 'mimeType': 'application/pdf', 'buffer': original})
                 await self.page.wait_for_function('!savePending')
+                if failure == 'render':
+                    await self.page.wait_for_function("document.querySelector('#finance-recognize')?.disabled")
                 if failure == 'pages':
                     self.assertTrue(await self.page.locator('#finance-error').is_visible())
                     self.assertEqual(await self.page.locator('#finance-manual-import').count(), 0)

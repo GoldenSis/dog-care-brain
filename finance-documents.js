@@ -13,27 +13,44 @@
     const id=await sha(file);return {id,sha256:id,name:file.name,type,size:file.size};
   }
   function canvas(width,height){const c=document.createElement('canvas');c.width=width;c.height=height;return c;}
+  function release(c){c.width=0;c.height=0;}
+  async function withPdf(file,use){
+    const pdfjs=await import(base+'pdfjs-dist/pdf.mjs');pdfjs.GlobalWorkerOptions.workerSrc=base+'pdfjs-dist/pdf.worker.mjs';
+    const task=pdfjs.getDocument({data:new Uint8Array(await file.arrayBuffer()),isEvalSupported:false,useSystemFonts:true,disableFontFace:true});
+    try{return await use(await task.promise);}finally{try{await task.destroy();}catch{}}
+  }
+  async function render(item,limit){
+    if(item.meta.type==='application/pdf')return withPdf(item.file,async pdf=>{
+      const p=await pdf.getPage(item.page);let c;
+      try{const natural=p.getViewport({scale:1}),view=p.getViewport({scale:Math.min(2,limit/Math.max(natural.width,natural.height))});
+        c=canvas(Math.ceil(view.width),Math.ceil(view.height));await p.render({canvasContext:c.getContext('2d'),viewport:view}).promise;return c;
+      }catch(error){if(c)release(c);throw error;}finally{p.cleanup?.();}
+    });
+    const bitmap=await createImageBitmap(item.file);let c;
+    try{if(bitmap.width*bitmap.height>40000000)throw Error('Image too large');const scale=Math.min(1,limit/Math.max(bitmap.width,bitmap.height));c=canvas(Math.max(1,Math.round(bitmap.width*scale)),Math.max(1,Math.round(bitmap.height*scale)));c.getContext('2d').drawImage(bitmap,0,0,c.width,c.height);return c;
+    }catch(error){if(c)release(c);throw error;}finally{bitmap.close();}
+  }
+  let rendering=Promise.resolve();
+  function withCanvas(item,limit,use){
+    const job=rendering.then(async()=>{const c=await render(item,limit);try{return await use(c);}finally{release(c);}});
+    rendering=job.catch(()=>{});return job;
+  }
   async function pages(file,meta){
     if(meta.type==='application/pdf'){
-      let task,overLimit=false;
-      try{
-        const pdfjs=await import(base+'pdfjs-dist/pdf.mjs');pdfjs.GlobalWorkerOptions.workerSrc=base+'pdfjs-dist/pdf.worker.mjs';
-        task=pdfjs.getDocument({data:new Uint8Array(await file.arrayBuffer()),isEvalSupported:false,useSystemFonts:true,disableFontFace:true});
-        const pdf=await task.promise, result=[];
-        if(pdf.numPages>20){overLimit=true;throw Error('Too many pages');}for(let n=1;n<=pdf.numPages;n++){
-          const p=await pdf.getPage(n), natural=p.getViewport({scale:1}), scale=Math.min(2,2400/Math.max(natural.width,natural.height)), view=p.getViewport({scale});
-          const c=canvas(Math.ceil(view.width),Math.ceil(view.height));await p.render({canvasContext:c.getContext('2d'),viewport:view}).promise;
-          result.push({canvas:c,page:n,regions:[{page:n,x:0,y:0,width:1,height:1}]});p.cleanup();
+      let overLimit=false;
+      try{return await withPdf(file,async pdf=>{
+        if(pdf.numPages>20){overLimit=true;throw Error('Too many pages');}
+        const result=[];for(let n=1;n<=pdf.numPages;n++){
+          const p=await pdf.getPage(n);try{const view=p.getViewport({scale:1});result.push({width:view.width,height:view.height,page:n,regions:[{page:n,x:0,y:0,width:1,height:1}]});}finally{p.cleanup?.();}
         }return result;
-      }catch(error){if(overLimit)throw error;return [{canvas:null,page:null,regions:[null]}];}
-      finally{if(task)try{await task.destroy();}catch{}}
+      });}catch(error){if(overLimit)throw error;return [{width:0,height:0,page:null,regions:[null]}];}
     }
-    const bitmap=await createImageBitmap(file);try{if(bitmap.width*bitmap.height>40000000)throw Error('Image too large');const scale=Math.min(1,3000/Math.max(bitmap.width,bitmap.height));const c=canvas(Math.round(bitmap.width*scale),Math.round(bitmap.height*scale));c.getContext('2d').drawImage(bitmap,0,0,c.width,c.height);return [{canvas:c,page:1,regions:detect(c)}];}finally{bitmap.close();}
+    return withCanvas({file,meta},3000,c=>[{width:c.width,height:c.height,page:1,regions:detect(c)}]);
   }
   /* Suggest separate pale paper rectangles on darker tables; always user-correctable. */
   function detect(source){
     const width=240,height=Math.max(1,Math.round(source.height/source.width*width));if(height>1000)return [{page:1,x:0,y:0,width:1,height:1}];
-    const c=canvas(width,height),ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(source,0,0,width,height);const pixels=ctx.getImageData(0,0,width,height).data,visited=new Uint8Array(width*height),boxes=[];
+    const c=canvas(width,height),ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(source,0,0,width,height);const pixels=ctx.getImageData(0,0,width,height).data;release(c);const visited=new Uint8Array(width*height),boxes=[];
     const paper=i=>{const rgb=[pixels[i*4],pixels[i*4+1],pixels[i*4+2]];return Math.min(...rgb)>195&&Math.max(...rgb)-Math.min(...rgb)<55;};
     for(let i=0;i<visited.length;i++){
       if(visited[i]||!paper(i))continue;const stack=[i];visited[i]=1;let minX=width,maxX=0,minY=height,maxY=0,count=0;
@@ -48,10 +65,10 @@
     const deadline=(promise,ms=120000)=>{let timer;return Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Reader timed out')),ms);})]).finally(()=>clearTimeout(timer));};
     const lang={fr:'fra',en:'eng',de:'deu',it:'ita',es:'spa'}[language]||'fra';let worker,finished=false;
     try{worker=await deadline(Tesseract.createWorker(lang,1,{workerPath:base+'tesseract.js/worker.min.js',corePath:base+'tesseract.js-core',langPath:base+'tessdata',workerBlobURL:false,logger:m=>onProgress(m.progress||0)}).then(value=>{if(finished){value.terminate();throw Error('Reader stopped');}return value;}));
-      const result=[];for(const item of items){const c=item.canvas,r=item.region,rectangle={left:Math.floor(r.x*c.width),top:Math.floor(r.y*c.height),width:Math.max(1,Math.floor(r.width*c.width)),height:Math.max(1,Math.floor(r.height*c.height))};
+      const result=[];for(const item of items)await withCanvas(item,item.meta.type==='application/pdf'?2400:3000,async c=>{const r=item.region,rectangle={left:Math.floor(r.x*c.width),top:Math.floor(r.y*c.height),width:Math.max(1,Math.floor(r.width*c.width)),height:Math.max(1,Math.floor(r.height*c.height))};
         rectangle.width=Math.min(rectangle.width,c.width-rectangle.left);rectangle.height=Math.min(rectangle.height,c.height-rectangle.top);
-        const output=await deadline(worker.recognize(c,{rectangle}));result.push(output.data.text.slice(0,20000));}return result;
+        const output=await deadline(worker.recognize(c,{rectangle}));result.push(output.data.text.slice(0,20000));});return result;
     }finally{finished=true;if(worker)await worker.terminate();}
   }
-  w.FinanceDocuments={inspect,pages,recognize,script,sha};
+  w.FinanceDocuments={inspect,pages,withCanvas,release,recognize,script,sha};
 })(window);

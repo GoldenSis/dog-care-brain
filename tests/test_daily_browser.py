@@ -11,6 +11,41 @@ from tests.test_tenant_isolation import _http
 
 
 class DailyBrowserAcceptanceTest(BrowserFixture):
+    async def test_booking_selects_existing_owner_by_id_and_keeps_literal_names(self):
+        seeded = await self.page.evaluate('DailyModel.empty()')
+        seeded['clients'] = [{'id': 'first', 'name': 'Shared owner'},
+                             {'id': 'second', 'name': 'Shared owner'},
+                             {'id': 'padded', 'name': '  Padded owner  '}]
+        seeded['dogs'] = [{'id': 'ownerless', 'name': '  Registered dog  ', 'clientId': None}]
+        await self.seed_daily(seeded)
+        for dog_id, client_id in [('ownerless', 'second'), (':new', 'padded')]:
+            await self.new_booking(service='day', start='2026-10-05', end='2026-10-05')
+            await self.page.select_option('#booking-form [name="dogId"]', dog_id)
+            if await self.page.locator('#booking-form select[name="clientId"]').count():
+                await self.page.select_option('#booking-form [name="clientId"]', client_id)
+            else:
+                await self.page.fill('#booking-form [name="client"]', next(c['name'] for c in seeded['clients'] if c['id'] == client_id))
+            if dog_id == ':new':
+                await self.page.fill('#booking-form [name="dogName"]', '  New dog  ')
+            await self.submit_booking()
+        saved = await self.snapshot()
+        self.assertEqual(saved['clients'], seeded['clients'])
+        self.assertEqual([(d['name'], d['clientId']) for d in saved['dogs']],
+                         [('  Registered dog  ', 'second'), ('  New dog  ', 'padded')])
+        rows = await self.page.evaluate("DailyModel.monthlySummary(DailyUI.snapshot(), '2026-10')")
+        self.assertEqual({r['clientId'] for r in rows}, {'second', 'padded'})
+        await self.page.reload()
+        await self.wait_ready()
+        self.assertEqual(await self.snapshot(), saved)
+        await self.new_booking(new_dog=True)
+        await self.page.select_option('#booking-form [name="clientId"]', ':new')
+        await self.page.fill('#booking-form [name="client"]', '  Shared owner  ')
+        await self.submit_booking()
+        saved = await self.snapshot()
+        self.assertEqual(saved['clients'][-1]['name'], '  Shared owner  ')
+        self.assertEqual(len(saved['clients']), 4)
+        self.assertEqual(self.console_errors, [])
+
     async def test_add_dog_visible_from_current_profile(self):
         await self.page.select_option('#language-picker', 'fr')
         await self.route('dogs')
@@ -790,6 +825,7 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
                 name: 'Dog', clientId: 'client'});
             try { DailyModel.validateDaily(daily); return false; } catch { return true; }
         }'''))
+        await self.page.select_option('#booking-form [name="clientId"]', first['clients'][0]['id'])
         await self.submit_booking()
         created = await self.snapshot()
         self.assertEqual(len(created['dogs']), 2)

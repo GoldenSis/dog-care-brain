@@ -3,6 +3,8 @@
   'use strict';
   const M=w.FinanceModel,S=w.FinanceStore;
   let tab='journal',editing=null,inputs=null,query='',month='',intake=[],notice='',isImport=false,showEditor=false,dirty=false,auxiliary={};
+  let previewObserver=null,previewGeneration=0,previewJobs=Promise.resolve();
+  const previewCanvases=new Set();
   const t=k=>(w.FinanceCopy[state.language]||w.FinanceCopy.en)[k];
   const esc=v=>String(v??'').replace(/[&<>"'\r]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','\r':'&#13;'}[c]));
   const id=()=>crypto.randomUUID();
@@ -19,6 +21,7 @@
   const error=()=>'<p class="daily-error" id="finance-error" role="alert" hidden></p>';
   function showError(key='error'){const p=document.querySelector('#finance-error');if(p){p.textContent=t(key);p.hidden=false;p.focus();}else showToast(t(key));}
   function rememberDraft(){
+    stopPreviews();
     const form=document.querySelector('#finance-form');if(form)inputs=Object.fromEntries(new FormData(form));
     for(const key of ['payment','cancel']){const form=document.querySelector('#finance-'+key);if(form)auxiliary[key]=Object.fromEntries(new FormData(form));}
   }
@@ -27,7 +30,7 @@
   function replaceEditor(){rememberDraft();if(hasPending()){showEditor=false;isImport=false;draw('#finance-resume');return false;}inputs=null;auxiliary={};return true;}
   function draftNotice(){return editing&&!showEditor?`<div class="card daily-form"><p>${esc(t(hasPending()?'pendingDraft':'resumeHelp'))}</p><div class="daily-actions">${action('id="finance-resume"','resume')}${action('id="finance-discard"','discard')}</div></div>`:'';}
 
-  function draw(focus){content.innerHTML=view();localizeContent();bindView();if(focus)document.querySelector(focus)?.focus();}
+  function draw(focus){stopPreviews();content.innerHTML=view();localizeContent();bindView();if(focus)document.querySelector(focus)?.focus();}
   const daily=()=>DailyUI.snapshot();
   function summaries(entries){
     const totals=new Map();for(const e of entries.filter(x=>x.status==='confirmed')){const row=totals.get(e.currency)||{income:0,costs:0,received:0,spent:0};const incoming=M.incoming(e.kind);row[incoming?'income':'costs']+=M.total(e);row[incoming?'received':'spent']+=M.paid(e);totals.set(e.currency,row);}
@@ -42,7 +45,7 @@
     return `${action('id="finance-back"','back')}<form id="finance-form" class="card daily-form"><h2 tabindex="-1">${esc(t(e.kind))} · ${esc(status(e))}</h2><p class="daily-help">${esc(t('unsaved'))}</p>${!bookingsAvailable?`<p id="finance-bookings-unavailable" role="status">${esc(t('bookingsUnavailable'))}</p>`:''}${e.sourceId?`${action('id="finance-source"','source')}<details><summary>${esc(t('raw'))}</summary><pre class="finance-raw">${esc(e.raw)}</pre></details>`:''}<fieldset ${locked||e.status==='cancelled'?'disabled':''}><div class="daily-fields">${field('kind',`<select name="kind">${options(M.kinds,val('kind',e.kind),kind=>e.payments.length&&M.incoming(kind)!==M.incoming(e.kind))}</select>`)}${field('number',input('number',e.number))}${field('date',input('date',e.date,'date'))}${field('due',input('due',e.due,'date'))}${field('party',input('party',e.party))}${field('currency',input('currency',e.currency,'text',`pattern="[A-Z]{3}" maxlength="3" placeholder="CHF" ${e.payments.length?'disabled':''}`))}${field('category',`<select name="category">${options(M.categories,val('category',e.category))}</select>`)}</div>${e.kind==='sale'?`<div class="daily-fields">${field('address',area('address',e.address))}${field('issuer',input('issuer',e.issuer))}${field('issuerAddress',area('issuerAddress',e.issuerAddress))}${field('taxId',input('taxId',e.taxId))}</div><label class="finance-check"><input type="checkbox" name="keepProfile" ${val('keepProfile','')?'checked':''}>${esc(t('keepProfile'))}</label>`:''}<div class="finance-lines">${e.lines.map((l,i)=>`<div class="finance-line">${field('description',input(`description-${i}`,l.description))}${field('quantity',input(`quantity-${i}`,l.quantity,'number','min="1" max="10000" step="1" required'))}${field('unit',input(`unit-${i}`,decimal(l.unitMinor),'text','inputmode="decimal"'))}${e.lines.length>1?action(`data-finance-remove="${i}"`,'remove'):''}</div>`).join('')}</div><div class="daily-actions">${action('id="finance-add-line"','addLine')}${e.kind==='sale'?action(`id="finance-booking" ${bookingsAvailable?'':'disabled'}`,'booking'):''}</div>${field('vat',input('vatMinor',decimal(e.vatMinor),'text','inputmode="decimal"'))}${field('note',area('note',e.note))}</fieldset><p class="daily-total">${esc(t('amount'))}: <strong id="finance-total">${esc(t('unknown'))}</strong></p>${error()}${e.status!=='cancelled'&&!locked?`<p class="daily-help">${esc(t(e.kind==='sale'?'issueHelp':'ocrHelp'))}</p><div class="daily-actions">${e.status==='draft'&&!e.payments.length?`<button type="submit" name="intent" value="draft" class="ghost">${esc(t('save'))}</button>`:''}<button type="submit" name="intent" value="confirmed" class="primary">${esc(t(e.kind==='sale'?'issue':'confirm'))}</button></div>`:''}</form>${e.status==='confirmed'?`<section class="card daily-form"><h2>${esc(t('payments'))}</h2><p>${esc(t('paid'))}: ${esc(money(M.paid(e),e.currency))} · ${esc(t('outstanding'))}: ${esc(money(M.total(e)-M.paid(e),e.currency))}</p>${e.payments.map(p=>`<p>${esc(p.date)} · ${esc(money(p.amountMinor,e.currency))} · ${esc(p.note)}</p>`).join('')}<form id="finance-payment" class="daily-form"><p id="finance-payment-context" ${dirty?'':'hidden'}>${esc(t('saveEditsFirst'))}</p><p class="daily-help">${esc(t('paymentHelp'))}</p><div class="daily-fields">${field('date',`<input name="date" type="date" value="${today()}" required>`)}${field('amount','<input name="amount" inputmode="decimal" required>')}${field('note','<input name="note">')}</div><button class="primary" ${dirty?'disabled':''}>${esc(t('savePayment'))}</button></form></section>`:''}${e.kind==='sale'&&e.status!=='draft'?action('id="finance-print"','print'):''}${e.status!=='cancelled'&&!e.payments.length?`<details class="card"><summary>${esc(t('cancel'))}</summary><form id="finance-cancel" class="daily-form">${field('reason','<input name="reason" required>')}<button class="ghost">${esc(t('cancel'))}</button></form></details>`:''}`;
   }
   function importView(){
-    return `${action('id="finance-back"','back')}<section class="card daily-form"><h2 tabindex="-1">${esc(t('import'))}</h2><p>${esc(t('importHelp'))}</p><div class="daily-fields">${field('files','<input id="finance-files" type="file" accept="image/jpeg,image/png,application/pdf" multiple>')}${field('camera','<input id="finance-camera" type="file" accept="image/jpeg,image/png" capture="environment">')}</div>${error()}${intake.length?action('id="finance-discard-intake"','discardImport'):''}<p id="finance-progress" role="status">${esc(notice)}</p>${intake.length?`<p>${esc(t('cropHelp'))}</p><div id="finance-pages">${intake.map((item,i)=>`<article class="finance-page"><h3>${esc(item.meta.name)}${item.canvas?` · ${esc(t('page'))} ${item.page}`:''}</h3>${item.canvas?`<canvas data-finance-canvas="${i}" aria-label="${esc(item.meta.name)}"></canvas><details class="finance-regions"><summary>${esc(t('adjustAreas'))}</summary>${item.regions.map((r,j)=>`<fieldset class="finance-region"><legend>${esc(t('area'))} ${j+1}</legend>${['x','y','width','height'].map(k=>field(k,`<input type="number" min="0" max="100" step="0.1" value="${+(r[k]*100).toFixed(1)}" data-region="${i},${j},${k}">`)).join('')}${action(`data-remove-region="${i},${j}"`,'remove')}</fieldset>`).join('')}</details>${action(`data-add-region="${i}"`,'addArea')}`:`<p role="status">${esc(t('previewFailed'))}</p>`}</article>`).join('')}</div><p>${esc(t('ocrHelp'))}</p><div class="daily-actions">${action(`id="finance-recognize" ${intake.some(item=>!item.canvas)?'disabled':''}`,'recognize',true)}${action('id="finance-manual-import"','manualImport')}</div>`:''}</section>`;
+    return `${action('id="finance-back"','back')}<section class="card daily-form"><h2 tabindex="-1">${esc(t('import'))}</h2><p>${esc(t('importHelp'))}</p><div class="daily-fields">${field('files','<input id="finance-files" type="file" accept="image/jpeg,image/png,application/pdf" multiple>')}${field('camera','<input id="finance-camera" type="file" accept="image/jpeg,image/png" capture="environment">')}</div>${error()}${intake.length?action('id="finance-discard-intake"','discardImport'):''}<p id="finance-progress" role="status">${esc(notice)}</p>${intake.length?`<p>${esc(t('cropHelp'))}</p><div id="finance-pages">${intake.map((item,i)=>`<article class="finance-page"><h3>${esc(item.meta.name)}${item.width?` · ${esc(t('page'))} ${item.page}`:''}</h3>${item.width?`${item.previewError?`<p role="status">${esc(t('previewFailed'))}</p>`:`<canvas data-finance-canvas="${i}" width="0" height="0" style="aspect-ratio:${item.width}/${item.height}" aria-label="${esc(item.meta.name)}"></canvas>`}<details class="finance-regions"><summary>${esc(t('adjustAreas'))}</summary>${item.regions.map((r,j)=>`<fieldset class="finance-region"><legend>${esc(t('area'))} ${j+1}</legend>${['x','y','width','height'].map(k=>field(k,`<input type="number" min="0" max="100" step="0.1" value="${+(r[k]*100).toFixed(1)}" data-region="${i},${j},${k}">`)).join('')}${action(`data-remove-region="${i},${j}"`,'remove')}</fieldset>`).join('')}</details>${action(`data-add-region="${i}"`,'addArea')}`:`<p role="status">${esc(t('previewFailed'))}</p>`}</article>`).join('')}</div><p>${esc(t('ocrHelp'))}</p><div class="daily-actions">${action(`id="finance-recognize" ${intake.some(item=>!item.width||item.previewError)?'disabled':''}`,'recognize',true)}${action('id="finance-manual-import"','manualImport')}</div>`:''}</section>`;
   }
   function view(){
     const data=S.snapshot(),blocked=S.unavailable(),disabled=blocked?'disabled':'';
@@ -51,8 +54,12 @@
   function newEntry(kind){if(S.unavailable()||!replaceEditor())return;const data=S.snapshot();editing=M.draft(id(),kind);editing.date=today();editing.currency=daily()?.rates.currency||'';editing.issuer=data.profile.name;editing.issuerAddress=data.profile.address;editing.taxId=data.profile.taxId;inputs=null;isImport=false;showEditor=true;dirty=true;draw('#finance-form h2');}
   function readForm(){
     rememberDraft();const e=structuredClone(editing);if(e.kind==='sale'&&e.status!=='draft'||e.status==='cancelled')return e;
-    const f=inputs||{};for(const key of ['kind','number','date','due','party','currency','category','address','issuer','issuerAddress','taxId','note'])if(Object.hasOwn(f,key))e[key]=f[key];
-    e.vatMinor=M.parseMinor(f.vatMinor||'');e.lines=e.lines.map((l,i)=>({...l,description:f[`description-${i}`],quantity:Number(f[`quantity-${i}`]),unitMinor:M.parseMinor(f[`unit-${i}`]||'')}));return e;
+    const f=inputs||{}, retain=(key,value)=>{
+      const normalized=['address','issuerAddress','note'].includes(key)?value.replace(/\r\n?/g,'\n'):value.replace(/[\r\n]/g,'');
+      return f[key]===normalized?value:f[key];
+    };
+    for(const key of ['kind','number','date','due','party','currency','category','address','issuer','issuerAddress','taxId','note'])if(Object.hasOwn(f,key))e[key]=retain(key,e[key]);
+    e.vatMinor=M.parseMinor(f.vatMinor||'');e.lines=e.lines.map((l,i)=>({...l,description:retain(`description-${i}`,l.description),quantity:Number(f[`quantity-${i}`]),unitMinor:M.parseMinor(f[`unit-${i}`]||'')}));return e;
   }
   function updateTotal(form){
     const output=form.querySelector('#finance-total');
@@ -71,20 +78,51 @@
   }
   async function importEntries(recognize,button){
     const items=intake.flatMap(page=>page.regions.map(region=>({...page,region})));if(S.unavailable())return;if(!items.length){showError('fileError');return;}
-    const next=S.snapshot(),files=new Map();let texts=items.map(()=>''),problem='error';
+    stopPreviews();const next=S.snapshot(),files=new Map();let texts=items.map(()=>''),problem='error';
     const ok=await persistChange(async()=>{
-      if(recognize&&items.some(item=>!item.canvas)){problem='previewFailed';return false;}
+      if(recognize&&items.some(item=>!item.width||item.previewError)){problem='previewFailed';return false;}
       if(recognize){try{texts=await FinanceDocuments.recognize(items,state.language,p=>{const el=document.querySelector('#finance-progress');if(el)el.textContent=t('reading')+' '+Math.round(p*100)+'%';});}catch{problem='ocrFailed';return false;}}
       items.forEach((item,i)=>{if(!files.has(item.meta.id)){files.set(item.meta.id,item.file);next.documents.push(item.meta);}const proposed=M.propose(texts[i]),e=M.draft(id());e.date=proposed.date;e.party=proposed.party;e.number=proposed.number;e.currency=proposed.currency;e.category=proposed.category;e.sourceId=item.meta.id;e.region=item.region;e.raw=texts[i];e.lines[0].description=item.meta.name;e.lines[0].unitMinor=proposed.amount;next.entries.push(e);});
       return S.save(next,files);
     },button);
-    if(!ok){showError(problem);return;}intake=[];isImport=false;tab='review';notice='';draw();showToast(t('saved'));
+    if(!ok){bindPreviews();showError(problem);return;}intake=[];isImport=false;tab='review';notice='';draw();showToast(t('saved'));
   }
   async function source(){const d=S.snapshot().documents.find(d=>d.id===editing.sourceId);const blob=await S.document(d.id);if(!blob){showError();return;}FinanceExport.download(blob,d.name);}
   function printInvoice(){
     const e=editing,frame=document.createElement('iframe');frame.className='finance-print-frame';frame.title=t('print');frame.setAttribute('sandbox','allow-same-origin allow-modals');
     frame.srcdoc=`<!doctype html><html lang="${esc(state.language)}"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><title>${esc(t('sale')+' '+e.number)}</title><style>body{font:15px sans-serif;padding:30px;color:#222}h1{font-size:24px}p{white-space:pre-wrap}table{width:100%;border-collapse:collapse}td,th{padding:10px;text-align:left;border-bottom:1px solid #bbb}</style></head><body><h1>${esc(t('sale'))} ${esc(e.number)}</h1><p>${esc(status(e))}</p><p>${esc(e.issuer)}\n${esc(e.issuerAddress)}\n${esc(e.taxId)}</p><p>${esc(e.party)}\n${esc(e.address)}</p><p>${esc(t('date'))}: ${esc(e.date)} · ${esc(t('due'))}: ${esc(e.due)}</p><table><tr><th>${esc(t('description'))}</th><th>${esc(t('quantity'))}</th><th>${esc(t('unit'))}</th><th>${esc(t('amount'))}</th></tr>${e.lines.map(l=>`<tr><td>${esc(l.description)}</td><td>${l.quantity}</td><td>${esc(money(l.unitMinor,e.currency))}</td><td>${esc(money(l.unitMinor===null?null:l.quantity*l.unitMinor,e.currency))}</td></tr>`).join('')}</table><p>${esc(t('amount'))}: ${esc(money(M.total(e),e.currency))}${e.vatMinor!==null?`\n${esc(t('vat'))}: ${esc(money(e.vatMinor,e.currency))}`:''}\n${esc(t('paid'))}: ${esc(money(M.paid(e),e.currency))}</p><p>${esc(e.note)}</p>${e.cancelReason?`<p>${esc(e.cancelReason)}</p>`:''}</body></html>`;
     frame.onload=()=>frame.contentWindow.print();document.body.append(frame);setTimeout(()=>frame.remove(),60000);
+  }
+  function stopPreviews(){
+    previewObserver?.disconnect();previewObserver=null;previewGeneration++;
+    for(const c of previewCanvases)FinanceDocuments.release(c);previewCanvases.clear();
+  }
+  function bindPreviews(){
+    stopPreviews();const generation=previewGeneration,visible=new Set();
+    previewObserver=new IntersectionObserver(entries=>{
+      for(const entry of entries){
+        const c=entry.target,item=intake[Number(c.dataset.financeCanvas)];
+        if(!entry.isIntersecting){visible.delete(c);FinanceDocuments.release(c);continue;}
+        if(visible.has(c))continue;visible.add(c);
+        previewJobs=previewJobs.then(async()=>{
+          if(generation!==previewGeneration||!visible.has(c)||!c.isConnected)return;
+          await FinanceDocuments.withCanvas(item,720,source=>{
+            if(generation!==previewGeneration||!visible.has(c)||!c.isConnected)return;
+            c.width=source.width;c.height=source.height;const ctx=c.getContext('2d');ctx.drawImage(source,0,0);
+            ctx.strokeStyle='#b84600';ctx.lineWidth=Math.max(3,c.width/300);ctx.font=`bold ${Math.max(25,c.width/35)}px sans-serif`;ctx.fillStyle='#b84600';
+            item.regions.forEach((r,i)=>{ctx.strokeRect(r.x*c.width,r.y*c.height,r.width*c.width,r.height*c.height);ctx.fillText(String(i+1),r.x*c.width+12,r.y*c.height+45);});
+          });
+        }).catch(()=>{
+          if(generation!==previewGeneration||!c.isConnected)return;
+          for(const page of intake)if(page.meta.id===item.meta.id)page.previewError=true;
+          draw();
+        });
+      }
+    },{rootMargin:'200px'});
+    document.querySelectorAll('[data-finance-canvas]').forEach(c=>{
+      const item=intake[Number(c.dataset.financeCanvas)];previewCanvases.add(c);previewObserver.observe(c);
+      let start=null;const point=event=>{const r=c.getBoundingClientRect();return {x:Math.max(0,Math.min(1,(event.clientX-r.left)/r.width)),y:Math.max(0,Math.min(1,(event.clientY-r.top)/r.height))};};c.onpointerdown=event=>{start=point(event);c.setPointerCapture(event.pointerId);};c.onpointerup=event=>{if(!start)return;const end=point(event),r={page:item.page,x:Math.min(start.x,end.x),y:Math.min(start.y,end.y),width:Math.abs(start.x-end.x),height:Math.abs(start.y-end.y)};start=null;if(r.width<.02||r.height<.02)return;if(item.regions.length===1&&item.regions[0].width===1&&item.regions[0].height===1)item.regions=[];item.regions.push(r);draw();};c.onpointercancel=()=>{start=null;};});
+
   }
   function bind(){
     if(state.page!=='business')return;
@@ -107,7 +145,6 @@
     const queryField=document.querySelector('#finance-query');if(queryField)queryField.onchange=()=>{query=queryField.value;draw('#finance-query');};
     const monthField=document.querySelector('#finance-month');if(monthField)monthField.onchange=()=>{month=monthField.value;draw('#finance-month');};
     const formEl=document.querySelector('#finance-form');if(formEl){
-      // DOM assignment preserves literal contributor whitespace and line endings.
       formEl.querySelectorAll('textarea').forEach(el=>el.value=val(el.name,editing[el.name]||''));
       updateTotal(formEl);
       formEl.onsubmit=async event=>{event.preventDefault();try{const e=readForm();e.status=event.submitter.value;if(e.status==='confirmed'){const required=['date','party','currency',...e.lines.flatMap((_,i)=>[`description-${i}`,`unit-${i}`])];if(e.kind==='sale')required.push('number','address','issuer','issuerAddress');for(const name of required){const control=formEl.elements.namedItem(name);if(control&&!control.value.trim())control.setCustomValidity(t('unknown'));}const valid=formEl.reportValidity();for(const name of required)formEl.elements.namedItem(name)?.setCustomValidity('');if(!valid)return;}await storeEntry(e,event.submitter);}catch{showError();}};
@@ -127,7 +164,7 @@
     document.querySelector('#finance-cancel')?.addEventListener('submit',async event=>{event.preventDefault();const e=structuredClone(editing);e.status='cancelled';e.cancelReason=event.currentTarget.elements.reason.value;rememberDraft();await storeEntry(e,event.currentTarget.querySelector('button'),'cancel');});
     for(const name of ['finance-files','finance-camera'])document.querySelector('#'+name)?.addEventListener('change',event=>prepare([...event.target.files]));
     document.querySelector('#finance-recognize')?.addEventListener('click',event=>importEntries(true,event.currentTarget));document.querySelector('#finance-manual-import')?.addEventListener('click',event=>importEntries(false,event.currentTarget));
-    document.querySelectorAll('[data-finance-canvas]').forEach(c=>{const item=intake[Number(c.dataset.financeCanvas)];c.width=item.canvas.width;c.height=item.canvas.height;const ctx=c.getContext('2d');ctx.drawImage(item.canvas,0,0);ctx.strokeStyle='#b84600';ctx.lineWidth=Math.max(3,c.width/300);ctx.font=`bold ${Math.max(25,c.width/35)}px sans-serif`;ctx.fillStyle='#b84600';item.regions.forEach((r,i)=>{ctx.strokeRect(r.x*c.width,r.y*c.height,r.width*c.width,r.height*c.height);ctx.fillText(String(i+1),r.x*c.width+12,r.y*c.height+45);});let start=null;const point=event=>{const r=c.getBoundingClientRect();return {x:Math.max(0,Math.min(1,(event.clientX-r.left)/r.width)),y:Math.max(0,Math.min(1,(event.clientY-r.top)/r.height))};};c.onpointerdown=event=>{start=point(event);c.setPointerCapture(event.pointerId);};c.onpointerup=event=>{if(!start)return;const end=point(event),r={page:item.page,x:Math.min(start.x,end.x),y:Math.min(start.y,end.y),width:Math.abs(start.x-end.x),height:Math.abs(start.y-end.y)};start=null;if(r.width<.02||r.height<.02)return;if(item.regions.length===1&&item.regions[0].width===1&&item.regions[0].height===1)item.regions=[];item.regions.push(r);draw();};c.onpointercancel=()=>{start=null;};});
+    bindPreviews();
     document.querySelectorAll('[data-region]').forEach(el=>el.onchange=()=>{const [i,j,key]=el.dataset.region.split(',');const r=intake[i].regions[j],v=Number(el.value)/100;if(!Number.isFinite(v)||v<0||v>1)return;const next={...r,[key]:v};if(next.width<=0||next.height<=0||next.x+next.width>1.000001||next.y+next.height>1.000001){showError('fileError');return;}intake[i].regions[j]=next;draw();});
     document.querySelectorAll('[data-remove-region]').forEach(b=>b.onclick=()=>{const [i,j]=b.dataset.removeRegion.split(',').map(Number);intake[i].regions.splice(j,1);draw();});
     document.querySelectorAll('[data-add-region]').forEach(b=>b.onclick=()=>{const item=intake[Number(b.dataset.addRegion)];item.regions.push({page:item.page,x:0,y:0,width:.5,height:.5});draw();});
