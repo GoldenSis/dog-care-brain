@@ -40,7 +40,8 @@
       if(e.sourceId&&e.region&&e.status!=='cancelled'){const key=e.sourceId+JSON.stringify(['page','x','y','width','height'].map(k=>e.region[k]));check(!regions.has(key));regions.add(key);}
     }
     if(previous){
-      for(const old of previous.documents)check(value.documents.some(d=>JSON.stringify(d)===JSON.stringify(old)));
+      const documents=new Map(value.documents.map(d=>[d.id,JSON.stringify(d)]));
+      for(const old of previous.documents)check(documents.get(old.id)===JSON.stringify(old));
       for(const old of previous.entries){const e=value.entries.find(x=>x.id===old.id);check(e);if(old.payments.length)check(e.currency===old.currency&&incoming(e.kind)===incoming(old.kind));if(old.kind==='sale'&&old.status!=='draft'){
         for(const key of Object.keys(old).filter(k=>!['payments','status','cancelReason'].includes(k)))check(JSON.stringify(old[key])===JSON.stringify(e[key]));
         check(e.status===old.status||(old.status==='confirmed'&&e.status==='cancelled'));if(old.status==='cancelled')check(e.cancelReason===old.cancelReason);

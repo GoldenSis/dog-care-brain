@@ -14,6 +14,49 @@ from tests.test_browser_acceptance import BrowserFixture, QuietStaticHandler, RO
 
 
 class FinanceBrowserTest(BrowserFixture):
+    async def test_retained_original_metadata_survives_save_rejection_and_reload(self):
+        self.assertTrue(await self.page.evaluate('''async () => {
+          const next=FinanceStore.snapshot(),files=new Map();
+          for(let i=0;i<2;i++){
+            const blob=new Blob(['%PDF-1.4\\nOriginal '+i+'\\n%%EOF'],{type:'application/pdf'});
+            const hash=await crypto.subtle.digest('SHA-256',await blob.arrayBuffer());
+            const id=Array.from(new Uint8Array(hash),b=>b.toString(16).padStart(2,'0')).join('');
+            next.documents.push({id,name:'=Original café '+i+'.pdf',type:blob.type,size:blob.size,sha256:id});
+            files.set(id,blob);
+          }
+          const entry=FinanceModel.draft('source-linked');entry.sourceId=next.documents[0].id;
+          next.entries.push(entry);
+          return FinanceStore.save(next,files);
+        }'''))
+        saved = await self.snapshot()
+        for change in ('name', 'type', 'size', 'identity', 'missing', 'key-order'):
+            with self.subTest(change=change):
+                self.assertFalse(await self.page.evaluate('''change => {
+                  const next=FinanceStore.snapshot(),doc=next.documents[1];
+                  if(change==='name')doc.name='Renamed.pdf';
+                  if(change==='type')doc.type='image/png';
+                  if(change==='size')doc.size++;
+                  if(change==='identity')doc.id=doc.sha256='f'.repeat(64);
+                  if(change==='missing')next.documents.pop();
+                  if(change==='key-order')next.documents[1]=Object.fromEntries(Object.entries(doc).reverse());
+                  return FinanceStore.save(next);
+                }''', change))
+                self.assertEqual(await self.snapshot(), saved)
+        self.assertTrue(await self.page.evaluate('''() => {
+          const next=FinanceStore.snapshot();next.documents.reverse();next.entries[0].note='Reviewed';
+          return FinanceStore.save(next);
+        }'''))
+        saved['documents'].reverse()
+        saved['entries'][0]['note'] = 'Reviewed'
+        await self.page.reload()
+        await self.wait_ready()
+        self.assertEqual(await self.snapshot(), saved)
+        for i, doc in enumerate(reversed(saved['documents'])):
+            original = await self.page.evaluate('''async id => Array.from(new Uint8Array(
+              await (await FinanceStore.document(id)).arrayBuffer()))''', doc['id'])
+            self.assertEqual(bytes(original), f'%PDF-1.4\nOriginal {i}\n%%EOF'.encode())
+        self.assertEqual(self.console_errors, [])
+
     async def test_confirmed_conversion_requires_successful_invoice_issuance(self):
         entries = await self.page.evaluate('''() => ['expense','purchase','extra','paid-extra'].map(id=>{
           const e=FinanceModel.draft(id,id==='paid-extra'?'extra':id);

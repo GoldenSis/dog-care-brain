@@ -1,5 +1,40 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const M=require('../finance-model.js');
+function documents(count){return Array.from({length:count},(_,i)=>{const id=i.toString(16).padStart(64,'0');return {id,name:`Original ${i}.pdf`,type:'application/pdf',size:100,sha256:id};});}
+test('retained document comparison stays linear at the 5000-document limit',t=>{
+  const stringify=JSON.stringify;
+  let calls=0,budget=0;
+  t.mock.method(JSON,'stringify',(...args)=>{
+    assert.ok(++calls<=budget,'Document comparison exceeded its linear serialization budget');
+    return stringify(...args);
+  });
+  for(const count of [4999,5000]){
+    const old=M.empty();old.documents=documents(count);
+    const next=structuredClone(old);next.documents=documents(5000).reverse();next.profile.name='Updated business';
+    calls=0;budget=old.documents.length+next.documents.length;
+    assert.equal(M.validate(next,old),true);
+    assert.ok(calls<=budget);
+    assert.equal(old.profile.name,'');
+    assert.equal(old.documents.length,count);
+  }
+});
+test('retained originals require exact metadata even at the document limit',()=>{
+  const old=M.empty();old.documents=documents(5000);
+  for(const change of [
+    next=>{next.documents[4999].name='Renamed.pdf';},
+    next=>{next.documents[4999].type='image/png';},
+    next=>{next.documents[4999].size++;},
+    next=>{next.documents[4999].id=next.documents[4999].sha256='f'.repeat(64);},
+    next=>{next.documents.pop();},
+    next=>{next.documents[4999]=Object.fromEntries(Object.entries(next.documents[4999]).reverse());},
+    next=>{next.documents[4999]=structuredClone(next.documents[0]);}
+  ]){
+    const next=structuredClone(old);change(next);
+    assert.throws(()=>M.validate(next,old),/Invalid accounting record/);
+  }
+  const oversized=M.empty();oversized.documents=documents(5001);
+  assert.throws(()=>M.validate(oversized,old),/Invalid accounting record/);
+});
 test('payments retain their currency and cash direction across every editable kind',()=>{
   for(const kind of M.kinds){
     const old=M.empty(),e=invoice();e.kind=kind;e.payments=[{id:'p1',date:e.date,amountMinor:100,note:''}];old.entries.push(e);
