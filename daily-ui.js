@@ -72,7 +72,7 @@
     return `<section class="daily-followups"><h2>${esc(text('followup'))}</h2><p>${esc(text('followupHelp'))}</p>${due.length ? due.map(d=>`<button class="daily-record" data-document-dog="${esc(d.dogId)}"><span><strong>${esc(daily.dogs.find(x=>x.id===d.dogId)?.name)} · ${esc(d.label)}</strong><small>${esc(text(M.documentStatus(d,localDate())))} · ${esc(date(d.renewal))}</small></span><span aria-hidden="true">↗</span></button>`).join('') : `<p class="daily-empty">${esc(text('noFollowup'))}</p>`}</section>`;
   }
   function home() {
-    return `${unavailable()}<section class="daily-home"><div><h2>${esc(text('dailyWork'))}</h2><p>${esc(text('dailyIntro'))}</p></div><div class="daily-shortcuts"><button class="primary" data-go="schedule">${esc(text('planning'))} ↗</button><button class="ghost" data-go="business">${esc(text('monthly'))} ↗</button><button class="ghost" data-go="dogs">${esc(text('documents'))} ↗</button></div></section>${followups()}`;
+    return `${unavailable()}<section class="daily-home"><div><h2>${esc(text('dailyWork'))}</h2><p>${esc(text('dailyIntro'))}</p></div><div class="daily-shortcuts"><button class="primary" data-go="schedule">${esc(text('planning'))} ↗</button><button class="ghost" data-go="business" data-finance-rates>${esc(text('monthly'))} ↗</button><button class="ghost" data-go="dogs">${esc(text('documents'))} ↗</button></div></section>${followups()}`;
   }
   function bookingCard(b) {
     const dog=daily.dogs.find(d=>d.id===b.dogId);
@@ -85,7 +85,7 @@
   }
   function schedule() {
     const visible=daily.bookings.filter(b=>M.serviceDates(b).some(d=>d.startsWith(month))).sort((a,b)=>a.start.localeCompare(b.start));
-    return `${storage()}${unavailable()}<div class="daily-toolbar"><button class="primary" id="new-booking" ${loadError?'disabled':''}>＋ ${esc(text('newBooking'))}</button></div><div id="booking-editor"></div>${monthControl()}<p class="daily-help">${esc(text('plannedHelp'))}</p><div id="booking-list">${visible.length?visible.map(bookingCard).join(''):`<p class="daily-empty">${esc(text('noBookings'))}</p>`}</div>${followups()}<p class="daily-help">${esc(text('ratesLink'))} <button class="link-button" data-go="business">${esc(text('rates'))} ↗</button></p>`;
+    return `${storage()}${unavailable()}<div class="daily-toolbar"><button class="primary" id="new-booking" ${loadError?'disabled':''}>＋ ${esc(text('newBooking'))}</button></div><div id="booking-editor"></div>${monthControl()}<p class="daily-help">${esc(text('plannedHelp'))}</p><div id="booking-list">${visible.length?visible.map(bookingCard).join(''):`<p class="daily-empty">${esc(text('noBookings'))}</p>`}</div>${followups()}<p class="daily-help">${esc(text('ratesLink'))} <button class="link-button" data-go="business" data-finance-rates>${esc(text('rates'))} ↗</button></p>`;
   }
   function monthControl() { return `<div class="daily-month"><button class="ghost" data-month-step="-1" aria-label="${esc(text('previousMonth'))}">←</button>${label('month',input('month','month',month,'id="daily-month" required min="2000-01" max="2199-12"'))}<button class="ghost" data-month-step="1" aria-label="${esc(text('nextMonth'))}">→</button></div>`; }
   function business() {

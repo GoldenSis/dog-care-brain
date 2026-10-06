@@ -18,6 +18,8 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
     async def route(self, route):
         await self.page.click(f'#main-nav [data-page="{route}"]')
         await self.page.wait_for_function('!savePending')
+        if route == 'business':
+            await self.page.click('[data-finance-tab="rates"]')
 
     async def snapshot(self):
         return await self.page.evaluate("window.DogCareAPI ? DogCareAPI.getDaily() : JSON.parse(localStorage.getItem('dogcare-daily-v1'))")
@@ -1180,6 +1182,8 @@ class StaticDailyBrowserAcceptanceTest(DailyBrowserAcceptanceTest):
         await page.goto(self.url)
         await page.wait_for_function("document.querySelector('#app-content')?.dataset.ready === 'true'")
         await page.click(f'#main-nav [data-page="{route}"]')
+        if route == 'business':
+            await page.click('[data-finance-tab="rates"]')
         return page
 
     async def assert_stale_rates_preserve_records(self, record):
@@ -1205,6 +1209,7 @@ class StaticDailyBrowserAcceptanceTest(DailyBrowserAcceptanceTest):
         await other.reload()
         await other.wait_for_function("document.querySelector('#app-content')?.dataset.ready === 'true'")
         await other.click('#main-nav [data-page="business"]')
+        await other.click('[data-finance-tab="rates"]')
         await other.fill('#rates-form [name="day"]', '42.00')
         await other.click('#rates-form button')
         await other.wait_for_function("document.querySelector('#rates-saved').textContent === 'Saved' && !savePending")

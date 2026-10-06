@@ -1553,6 +1553,7 @@ function rememberCaptureDraft() {
 function escapeHtml(value) { return String(value).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
 function showToast(message) { const toast=document.querySelector('#toast'); toast.textContent=message; toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'),2500); }
 function dogAvatar(key) { const d=dogs[key]; return `<div class="dog-avatar ${d.colour}">${key==='billie'?`<img src="assets/photos/billie-pines.jpg" alt="Billie Blue" width="960" height="1280">`:`<span class="dog-initials" aria-hidden="true">${escapeHtml(d.name.split(/\s+/).slice(0,2).map(part=>part[0] || '').join('').toUpperCase())}</span><small>${t('Photo to add')}</small>`}</div>`; }
+Object.entries({fr:'Comptabilité',en:'Accounting',it:'Contabilità',de:'Buchhaltung',es:'Contabilidad'}).forEach(([lang,label])=>{translations[lang]??={};translations[lang].Accounting=label;});
 function t(text) { return translations[state.language]?.[text] || text; }
 function formatLocale(formatter) {
   try { return formatter.supportedLocalesOf(state.language)[0] || 'en'; }
@@ -1730,7 +1731,7 @@ const views = {
   invite() { setHeader('INVITE PREVIEW','Share care context safely'); return `<div class="page-title-row"><div><h2>${t('Prepare an invite')}</h2><p>${t('Build a local pending invite preview for an owner or trusted carer. Nothing is sent.')}</p></div></div><div class="grid page-grid invite-grid"><section class="card invite-card"><div class="form-row"><div class="label">${t('Invite role')}</div><div class="role-choice" role="radiogroup" aria-label="${t('Invite role')}"><label><input type="radio" name="invite-role" value="owner" checked><span><strong>${t('Owner')}</strong><small>${t('Family member who receives updates')}</small></span></label><label><input type="radio" name="invite-role" value="trusted-carer"><span><strong>${t('Trusted carer')}</strong><small>${t('Backup helper with limited context')}</small></span></label></div></div><div class="form-split"><label class="field-label" for="invite-name">${t('Name')}<input id="invite-name" autocomplete="name" placeholder="${t('e.g. Camille Martin')}"></label><label class="field-label" for="invite-email">${t('Email')}<input id="invite-email" type="email" autocomplete="email" placeholder="camille@example.com"></label></div><div class="label">${t('Can preview')}</div><div class="permission-list"><label><input type="checkbox" name="invite-permission" value="stories" checked><span><strong>${t('Daily stories')}</strong><small>${t('Owner-ready recaps and media placeholders')}</small></span></label><label><input type="checkbox" name="invite-permission" value="timeline" checked><span><strong>${t('Care timeline')}</strong><small>${t('Structured observations and handover notes')}</small></span></label><label><input type="checkbox" name="invite-permission" value="health"><span><strong>${t('Health notes')}</strong><small>${t('Factual medication and watch items, never diagnoses')}</small></span></label></div><div class="local-boundary"><strong>${t('Local preview only')}</strong><span>${t('This prototype will not send email, WhatsApp, SMS, or notifications.')}</span></div><div class="composer-actions"><small>${storageCopy('Demo data only · the invite is stored in this browser as pending.', ACCOUNT_INVITE)}</small><button class="primary" id="create-invite">${t('Create pending invite preview →')}</button></div></section><aside><section class="card summary-card"><div class="section-head" style="margin-top:0"><div><h2>${t('Invite-ready summary')}</h2><p>${t('Updates as you choose role and permissions')}</p></div></div><div id="invite-summary" class="invite-summary"></div></section><section class="card" style="margin-top:20px"><div class="section-head" style="margin-top:0"><div><h2>${t('Pending invites')}</h2><p>${t('Local preview queue')}</p></div></div><div id="pending-invites" class="pending-list">${pendingInvitesHtml()}</div></section></aside></div>`; },
   health() { setHeader('', KnowledgeUI.text('title')); return KnowledgeUI.view(); },
   schedule() { setHeader('', t('Schedule')); return DailyUI.schedule(); },
-  business() { setHeader('', DailyUI.text('monthly')); return DailyUI.business(); },
+  business() { setHeader('', FinanceUI.text('title')); return FinanceUI.view(); },
   settings() { setHeader('SETTINGS','Your calm corner'); return `<section class="card empty"><div class="big">⚙️</div><h2>${t('Demo settings')}</h2><p>${t('External integrations are intentionally unavailable in this local prototype.')}</p><button class="ghost" id="reset-demo">${t('Reset demo observations')}</button></section>`; }
 };
 
@@ -1903,11 +1904,12 @@ function revealActiveNavigation() {
     });
   }
 }
-function navigate(page) { if(savePending)return; if(!appReady)return; if(state.page==='health')KnowledgeUI.rememberDraft(); if(state.page==='capture'){stopActiveRecording();stopTranscription(true);rememberCaptureDraft();} state.page=page; if(page==='capture')audioDraft=captureDrafts[state.dog]?.audio || null; document.querySelectorAll('.nav-item').forEach(n=>{const active=n.dataset.page===page;n.classList.toggle('active',active);if(active)n.setAttribute('aria-current','page');else n.removeAttribute('aria-current');}); content.innerHTML=views[page](); localizeContent(); bindView(); window.scrollTo({top:0}); revealActiveNavigation(); }
+function navigate(page) { if(savePending)return; if(!appReady)return; if(state.page==='business')FinanceUI.rememberDraft(); if(state.page==='health')KnowledgeUI.rememberDraft(); if(state.page==='capture'){stopActiveRecording();stopTranscription(true);rememberCaptureDraft();} state.page=page; if(page==='capture')audioDraft=captureDrafts[state.dog]?.audio || null; document.querySelectorAll('.nav-item').forEach(n=>{const active=n.dataset.page===page;n.classList.toggle('active',active);if(active)n.setAttribute('aria-current','page');else n.removeAttribute('aria-current');}); content.innerHTML=views[page](); localizeContent(); bindView(); window.scrollTo({top:0}); revealActiveNavigation(); }
 function bindView() {
   DailyUI.bind();
   if(state.page==='health')KnowledgeUI.bind();
-  document.querySelectorAll('[data-go]').forEach(el=>el.onclick=()=>navigate(el.dataset.go));
+  if(state.page==='business')FinanceUI.bind();
+  document.querySelectorAll('[data-go]').forEach(el=>el.onclick=()=>{if(el.hasAttribute('data-finance-rates'))FinanceUI.showRates();navigate(el.dataset.go);});
   document.querySelectorAll('[data-assistant-action]').forEach(el=>el.onclick=()=>navigate(el.dataset.assistantAction));
   document.querySelectorAll('[data-assistant-prompt]').forEach(el=>el.onclick=()=>{const prompt=el.textContent.trim(),response=addAssistantExchange(prompt,el.dataset.assistantPrompt);appendAssistantExchange(prompt,response);document.querySelector('#assistant-question').focus();});
   const assistantForm=document.querySelector('#assistant-form');
@@ -2010,7 +2012,7 @@ languagePicker.onchange=async()=>{
   state.language=language;
   navigate(state.page);
 };
-function boot() {
+async function boot() {
   if (window.DogCareAPI) {
     state.language = window.DogCareAPI.getLanguage() || 'fr';
     const obs = window.DogCareAPI.getObservations();
@@ -2023,6 +2025,7 @@ function boot() {
   }
   DailyUI.load();
   KnowledgeUI.load();
+  await FinanceStore.load();
   languagePicker.value = state.language;
   languagePicker.disabled = false;
   appReady = true;

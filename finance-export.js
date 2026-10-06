@@ -1,0 +1,37 @@
+/* Minimal typed Open XML workbook: literal strings never become formulas. */
+(function(w){
+  'use strict';
+  const xml=s=>String(s??'').replace(/[&<>"'\r]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;','\r':'&#13;'}[c]));
+  const column=n=>{let s='';for(n++;n;n=Math.floor((n-1)/26))s=String.fromCharCode(65+(n-1)%26)+s;return s;};
+  function workbook(sheets){
+    const ns='http://schemas.openxmlformats.org/spreadsheetml/2006/main',rel='http://schemas.openxmlformats.org/officeDocument/2006/relationships',pack='http://schemas.openxmlformats.org/package/2006/relationships';
+    const files={};const put=(name,value)=>files[name]=fflate.strToU8('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+value);
+    put('[Content_Types].xml',`<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${sheets.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`);
+    put('_rels/.rels',`<Relationships xmlns="${pack}"><Relationship Id="rId1" Type="${rel}/officeDocument" Target="xl/workbook.xml"/></Relationships>`);
+    put('xl/workbook.xml',`<workbook xmlns="${ns}" xmlns:r="${rel}"><sheets>${sheets.map((s,i)=>`<sheet name="${xml(s.name.slice(0,31))}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')}</sheets></workbook>`);
+    put('xl/_rels/workbook.xml.rels',`<Relationships xmlns="${pack}">${sheets.map((_,i)=>`<Relationship Id="rId${i+1}" Type="${rel}/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')}<Relationship Id="styles" Type="${rel}/styles" Target="styles.xml"/></Relationships>`);
+    put('xl/styles.xml',`<styleSheet xmlns="${ns}"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0"/><xf numFmtId="2" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`);
+    sheets.forEach((sheet,i)=>{
+      const width=Math.max(1,...sheet.rows.map(r=>r.length));
+      const rows=sheet.rows.map((row,r)=>`<row r="${r+1}">${row.map((v,c)=>{const ref=column(c)+(r+1);if(v===null||v===undefined)return `<c r="${ref}"/>`;if(typeof v==='number')return `<c r="${ref}" s="2"><v>${v}</v></c>`;return `<c r="${ref}" t="inlineStr" s="${r===0?1:0}"><is><t xml:space="preserve">${xml(v)}</t></is></c>`;}).join('')}</row>`).join('');
+      put(`xl/worksheets/sheet${i+1}.xml`,`<worksheet xmlns="${ns}"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols><col min="1" max="${width}" width="24" customWidth="1"/></cols><sheetData>${rows}</sheetData><autoFilter ref="A1:${column(width-1)}${Math.max(1,sheet.rows.length)}"/></worksheet>`);
+    });return fflate.zipSync(files,{level:6});
+  }
+  function sourceName(d){const extension={'image/jpeg':'jpg','image/png':'png','application/pdf':'pdf'}[d.type];return `originals/${d.id}.${extension}`;}
+  async function archive(data,t,getDocument){
+    await FinanceDocuments.script('fflate/index.js');FinanceModel.validate(data);
+    const m=FinanceModel, sources=new Map(data.documents.map(d=>[d.id,sourceName(d)])), amount=v=>v===null?null:v/100;
+    const entries=[[t('number'),t('kind'),t('status'),t('date'),t('due'),t('party'),t('category'),t('currency'),t('amount'),t('vat'),t('paid'),t('outstanding'),t('sourceFile'),t('note'),'ID',t('area'),t('reason')]];
+    const lines=[['ID',t('description'),t('quantity'),t('unit'),t('currency'),'Booking ID']];
+    const payments=[['ID','Payment ID',t('date'),t('amount'),t('currency'),t('note')]];
+    for(const e of data.entries){const total=m.total(e);entries.push([e.number,t(e.kind),t(e.status==='confirmed'&&e.kind==='sale'?'issued':e.status),e.date,e.due,e.party,t(e.category),e.currency,amount(total),amount(e.vatMinor),amount(m.paid(e)),total===null?null:amount(total-m.paid(e)),sources.get(e.sourceId)||'',e.note,e.id,e.region?JSON.stringify(e.region):'',e.cancelReason]);
+      e.lines.forEach(l=>lines.push([e.id,l.description,l.quantity,amount(l.unitMinor),e.currency,l.bookingId]));e.payments.forEach(p=>payments.push([e.id,p.id,p.date,amount(p.amountMinor),e.currency,p.note]));}
+    const docs=[[t('sourceFile'),t('description'),'SHA-256','Bytes'],...data.documents.map(d=>[sourceName(d),d.name,d.sha256,d.size])];
+    const files={};for(const d of data.documents){const blob=await getDocument(d.id);if(!blob||blob.size!==d.size||await FinanceDocuments.sha(blob)!==d.sha256)throw Error('Missing original');files[sourceName(d)]=new Uint8Array(await blob.arrayBuffer());}
+    files['comptabilite.xlsx']=workbook([{name:t('journal'),rows:entries},{name:t('lines'),rows:lines},{name:t('payments'),rows:payments},{name:t('source'),rows:docs},{name:t('readme'),rows:[[t('title')],[t('allExport')],[t('summaryHelp')],[t('ocrHelp')]]}]);
+    files['records.json']=fflate.strToU8(JSON.stringify(data,null,2));
+    return new Blob([fflate.zipSync(files,{level:6})],{type:'application/zip'});
+  }
+  function download(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);}
+  w.FinanceExport={workbook,archive,download};
+})(window);

@@ -1,0 +1,82 @@
+[
+  {
+    "file": "fflate/LICENSE",
+    "sha256": "0a1df3a083d0c010560aa342e87959c8c1070e6fd54545741f083f22d0c8b551"
+  },
+  {
+    "file": "fflate/index.js",
+    "sha256": "462ef8041fc970e3615a20a9dd2b2e3047a073b2da729ef4f02b634bba8b7b83"
+  },
+  {
+    "file": "pdfjs-dist/LICENSE",
+    "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+  },
+  {
+    "file": "pdfjs-dist/pdf.mjs",
+    "sha256": "dd13af821c9c3e1778653340d6539a1ba07bc56cba40073a4c727864cf0c232a"
+  },
+  {
+    "file": "pdfjs-dist/pdf.worker.mjs",
+    "sha256": "07ceb740d746e5d9012fcf9f27d5c7dea09f7d2f5e74f5c8109e5787551a2333"
+  },
+  {
+    "file": "tessdata/deu.traineddata.gz",
+    "sha256": "acb48fa5d63b5088b6299bda4a700d86e97bb9421253be8fc4af8ea2d8247740"
+  },
+  {
+    "file": "tessdata/eng.traineddata.gz",
+    "sha256": "18c1ac52b75e35d44735fb6c2a60acfaf23033524653200738e98f0243edb75b"
+  },
+  {
+    "file": "tessdata/fra.traineddata.gz",
+    "sha256": "9800c70d1db21689e1ee91b5c81fe4c822120fa92cf5f0dab0d2b81b616fd468"
+  },
+  {
+    "file": "tessdata/ita.traineddata.gz",
+    "sha256": "8a4a1415e492f78d046dab8b8b0efa2c32bd377960ec7db8e9e7b0d28ba54d20"
+  },
+  {
+    "file": "tessdata/spa.traineddata.gz",
+    "sha256": "8db1167a8c9bb015ac8e97278384c3b07dfa9bc8271569beea071d9e296b4487"
+  },
+  {
+    "file": "tesseract.js/LICENSE.md",
+    "sha256": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1"
+  },
+  {
+    "file": "tesseract.js/tesseract.min.js",
+    "sha256": "10fff78484067759c43028a02a72d76d0b90eb17302bb23b58a9ec5410bc928b"
+  },
+  {
+    "file": "tesseract.js/tesseract.min.js.LICENSE.txt",
+    "sha256": "cdf963ced7d25a0f98901a547647b4d6e2dbe0197fd78c87a059a87b0e542fe2"
+  },
+  {
+    "file": "tesseract.js/worker.min.js",
+    "sha256": "38645599043239c0eb6db08a6504a92dcdc292200535f3e9339cd77c4443b842"
+  },
+  {
+    "file": "tesseract.js/worker.min.js.LICENSE.txt",
+    "sha256": "45f54171aeaa1d10c0c1a66f374b7bba1f02472b1487fbe892eec04f840002ac"
+  },
+  {
+    "file": "tesseract.js-core/LICENSE",
+    "sha256": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08"
+  },
+  {
+    "file": "tesseract.js-core/tesseract-core-lstm.wasm.js",
+    "sha256": "775a35df6f2ae100e02609443e6bd5cafcd07983dd6175454ca4a432a7730687"
+  },
+  {
+    "file": "tesseract.js-core/tesseract-core-simd-lstm.wasm.js",
+    "sha256": "9d7c43fb206dc9f48475228b46bf35f888fa9e6259da2e67d5a75c77049f2dc7"
+  },
+  {
+    "file": "tesseract.js-core/tesseract-core-simd.wasm.js",
+    "sha256": "3b0678c47a8dea6abb931b214171c08b742a5b9a9fcbbb1a028a08d5de6e9d4c"
+  },
+  {
+    "file": "tesseract.js-core/tesseract-core.wasm.js",
+    "sha256": "e66872f6a76f5ad414d73d21512245df0de3060ad4871a97c47efceaab27b955"
+  }
+]

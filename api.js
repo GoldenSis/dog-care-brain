@@ -18,6 +18,7 @@
     language: "fr",
     daily: null,
     knowledge: null,
+    finance: null,
   };
 
   function url(path) {
@@ -142,6 +143,7 @@
     cache.language = data.language || "en";
     cache.daily = data.daily || {version:1,clients:[],dogs:[],bookings:[],rates:{currency:"CHF",walk:null,day:null,night:null},documents:[]};
     cache.knowledge = data.knowledge || {version:1,experiences:[]};
+    cache.finance = data.finance || {version:1,profile:{name:"",address:"",taxId:""},entries:[],documents:[]};
     return true;
   }
 
@@ -203,6 +205,17 @@
     },
     getLanguage() {
       return cache.language || "en";
+    },
+    getFinance() { return JSON.parse(JSON.stringify(cache.finance)); },
+    saveFinance(finance, uploads=[]) {
+      const snapshot=JSON.parse(JSON.stringify({finance,uploads}));
+      return enqueue(async()=>{const result=await putJson('/finance',snapshot);return result.ok&&acceptState(result.data);});
+    },
+    async getFinanceDocument(id) {
+      if(!hydrated || writeBlocked || !/^[a-f0-9]{64}$/.test(id))return null;
+      const controller=new AbortController(), timer=setTimeout(()=>controller.abort(),requestTimeout);
+      try{const response=await fetch(url('/finance-documents/'+id),{credentials:'include',signal:controller.signal});return response.ok?await response.blob():null;}
+      catch{return null;}finally{clearTimeout(timer);}
     },
     getKnowledge() { return JSON.parse(JSON.stringify(cache.knowledge)); },
     saveKnowledge(knowledge) {

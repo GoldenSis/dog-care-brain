@@ -235,3 +235,7 @@ Account recovery checks cover French initial copy, all five recovery languages, 
 Speech recognition is simulated; these tests do not verify a real microphone or browser-provider transcription service. Browser tests skip with an installation hint if the Playwright Python package is absent; if the package is installed but Chromium is missing, browser launch fails until the install step above completes. Pure API/crawler tests always run with the standard library, and the Node adapter tests run separately.
 
 Set `DOGCARE_EVIDENCE_DIR` to an allowed evidence directory to retain the browser suite's selected screenshots and migration-state JSON; when unset it does not write those evidence files. Browser checks await `#app-content[data-ready="true"]` and rendered content, since adapter hydration alone does not establish that the UI is ready.
+
+### Comptabilité
+
+See [Comptabilité](docs/comptabilite.md) for invoices, expense claims, local receipt recognition, original documents, workbook export and storage boundaries. The existing monthly booking totals/rates remain accessible in its Réservations et tarifs tab. Finance acceptance: `node --test tests/test_finance_model.js`, `python3 -m unittest tests.test_finance_api -v`, and `uv run --python 3.12 --with playwright==1.61.0 python -m unittest tests.test_finance_browser -v`; full acceptance commands above still apply.

@@ -19,6 +19,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 import daily
 import knowledge
+import finance
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT_DEFAULT = os.path.dirname(HERE)
@@ -32,6 +33,8 @@ BLOB_RE = re.compile(r"^[a-f0-9]{32}\.(webm|ogg|m4a|wav|mp3)$")
 MIME = {
     ".html": "text/html; charset=utf-8",
     ".js": "text/javascript; charset=utf-8",
+    ".mjs": "text/javascript; charset=utf-8",
+    ".wasm": "application/wasm",
     ".css": "text/css; charset=utf-8",
     ".json": "application/json",
     ".svg": "image/svg+xml",
@@ -463,7 +466,8 @@ def state_of(user, c=None):
             "email": user["email"], "role": user["role"],
             "language": lang, "dogs": dogs, "observations": obs, "invites": inv,
             "daily": daily.load(c, user["business_id"]),
-            "knowledge": knowledge.load(c, user["business_id"])}
+            "knowledge": knowledge.load(c, user["business_id"]),
+            "finance": finance.load(c, user["business_id"])}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -582,6 +586,21 @@ class Handler(BaseHTTPRequestHandler):
             return self._send({"ok": False, "error": "experience could not be saved"}, 500)
         return self._send(out)
 
+    def _write_finance(self, user, payload):
+        try:
+            daily.fields(payload, 'finance uploads')
+            with _lock, connection() as c:
+                c.execute("BEGIN IMMEDIATE")
+                if self._advance_revision(c, user) is None:
+                    return
+                finance.save(c, user["business_id"], payload['finance'], payload['uploads'])
+                out = state_of(user, c)
+        except ValueError as error:
+            return self._send({"ok": False, "error": str(error)}, 400)
+        except sqlite3.Error:
+            return self._send({"ok": False, "error": "accounting records could not be saved"}, 500)
+        return self._send(out)
+
     def _write_daily(self, user, payload, uploading=False):
         try:
             with _lock, connection() as c:
@@ -668,15 +687,16 @@ class Handler(BaseHTTPRequestHandler):
             if not u:
                 return
             return self._send({"ok": True, "invites": state_of(u)["invites"]})
-        if path.startswith("/api/documents/"):
+        if path.startswith(("/api/documents/", "/api/finance-documents/")):
             u = self._need_user()
             if not u:
                 return
-            ident = path[len("/api/documents/"):]
+            ident = path.rsplit("/", 1)[1]
+            table = "finance_document" if path.startswith("/api/finance-documents/") else "daily_document"
             if not daily.ID.fullmatch(ident):
                 return self._send({"ok": False, "error": "not found"}, 404)
             with connection() as c:
-                row = c.execute("SELECT mime,contents FROM daily_document WHERE business_id=? AND id=?",
+                row = c.execute(f"SELECT mime,contents FROM {table} WHERE business_id=? AND id=?",
                                 (u["business_id"], ident)).fetchone()
             if not row:
                 return self._send({"ok": False, "error": "not found"}, 404)
@@ -817,6 +837,8 @@ class Handler(BaseHTTPRequestHandler):
         u = self._need_mutation_user()
         if not u:
             return
+        if path == "/api/finance":
+            return self._write_finance(u, payload)
         if path == "/api/knowledge":
             return self._write_knowledge(u, payload)
         if path == "/api/daily":
