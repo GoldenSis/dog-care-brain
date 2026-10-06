@@ -1,6 +1,6 @@
 # DogCare Brain
 
-A polished, dependency-free MVP for a small dog-care business. This premium **Muse** edition is branded for Adine-Sophie and Le Bus des Toutous. It follows Billie Blue and Charlie Rose from daily care capture through owner updates, scheduling, media, and lightweight business reporting.
+A polished, build-free MVP for a small dog-care business. This premium **Muse** edition is branded for Adine-Sophie and Le Bus des Toutous. It follows Billie Blue and Charlie Rose from daily care capture through owner updates, scheduling, media, and accounting preparation.
 
 ## Run locally
 
@@ -14,7 +14,7 @@ Then open [http://localhost:4173](http://localhost:4173).
 
 No install or build step is required. The four operational workflows—bookings, base rates/stay extensions, dog documents/follow-up and monthly summaries—are described in [Daily workflows](docs/daily-workflows.md). They persist in this browser in static mode and in the private SQLite database in account mode.
 
-Static mode stores observations, pending invite previews, and language in the browser's `localStorage` (`dogcare-observations`, `dogcare-invites`, and `dogcare-language`), with operational records and documents in `dogcare-daily-v1` and [private experience drafts](docs/maison-sante.md) in `dogcare-knowledge-v1`. Browser quota limits apply; no cloud synchronization is implied. **Reset demo observations** in Settings restores sample observations while retaining saved notes, registered dogs, daily records, experiences, invites and language.
+Static mode stores observations, pending invite previews, and language in the browser's `localStorage` (`dogcare-observations`, `dogcare-invites`, and `dogcare-language`), with operational records and documents in `dogcare-daily-v1` and [private experience drafts](docs/maison-sante.md) in `dogcare-knowledge-v1`. [Accounting records and originals](docs/comptabilite.md) use a separate IndexedDB database, `dogcare-finance-v1`. Browser quota limits apply; no cloud synchronization is implied. **Reset demo observations** in Settings restores sample observations while retaining saved notes, registered dogs, daily records, experiences, accounting records and originals, invites and language.
 
 Slice 1 (accounts, SQLite, still zero pip deps) — local only, no email keys:
 
@@ -42,9 +42,9 @@ curl -X POST http://localhost:4173/api/auth/request \
 
 Use your original scheme, hostname, and port if different. `localhost:4173` and `127.0.0.1:8787` have separate browser storage; the default account URL cannot see records from the static URL. Sign in to an unused business account at the original origin, accept the recording notice if shown, and let the import finish before making account writes. Browser copies stay intact, but an account already used for care writes cannot import them.
 
-Account mode imports whichever of the three browser keys exist, once per unused business. Missing keys leave the corresponding account data unchanged; explicitly empty observations or invites clear those collections. A language-only import also consumes this opportunity. The server's `imported` flag means import eligibility is closed, whether by import or by a successful observation, invite, language, dog, daily-record, document or experience write. Uploading audio alone does not close it. A browser marker (`dogcare-imported:<business_id>`) also prevents repeat automatic imports; the server flag protects the account across browser profiles. With no browser keys, the new account keeps its demo data and remains eligible until a care write.
+Account mode imports whichever of the three browser keys exist, once per unused business. Missing keys leave the corresponding account data unchanged; explicitly empty observations or invites clear those collections. A language-only import also consumes this opportunity. The server's `imported` flag means import eligibility is closed, whether by import or by a successful observation, invite, language, dog, daily-record, document, experience or accounting write. Uploading audio alone does not close it. A browser marker (`dogcare-imported:<business_id>`) also prevents repeat automatic imports; the server flag protects the account across browser profiles. With no browser keys, the new account keeps its demo data and remains eligible until a care write.
 
-**Daily bookings, rates, clients, documents and private experiences are not imported by this legacy three-key process.** They remain in their original browser storage; see [daily storage and migration](docs/daily-workflows.md#storage-and-migration) and [experience storage](docs/maison-sante.md#storage-and-compatibility).
+**Daily bookings, rates, clients, documents, private experiences and accounting records/originals are not imported by this legacy three-key process.** They remain in their original browser storage; see [daily storage and migration](docs/daily-workflows.md#storage-and-migration), [experience storage](docs/maison-sante.md#storage-and-compatibility) and [accounting storage](docs/comptabilite.md#storage-and-contracts).
 
 A notice appears before existing inline recordings transfer. Cancel leaves browser data intact and account loading paused; reload to continue. Failed imports remain retryable and keep capture disabled until account loading succeeds. Startup also closes import eligibility for older accounts with non-demo history, invites, recordings, or a non-English preference. Audio is uploaded separately before the snapshot. Local browser copies are retained and are not updated by later account saves; switching back to static mode displays those older browser copies.
 
@@ -58,7 +58,7 @@ All configuration is through environment variables read by `api/server.py`:
 | `DC_PORT` | `8787` | HTTP listen port. |
 | `DC_ROOT` | Repository root | Static document root; the API server injects `window.DOGCARE_API="/api"` into HTML. |
 | `DC_DATA_DIR` | `~/.local/share/dogcare-brain` | Base directory for private runtime files. |
-| `DC_DB` | `<DC_DATA_DIR>/dogcare.db` | SQLite database, including daily records, document bytes and private experiences, using WAL mode. |
+| `DC_DB` | `<DC_DATA_DIR>/dogcare.db` | SQLite database, including daily records, document bytes, private experiences and accounting records/originals, using WAL mode. |
 | `DC_OUTBOX` | `<DC_DATA_DIR>/.dev-outbox` | Local magic-link JSON files. |
 | `DC_BLOBS` | `<DC_DATA_DIR>/blobs` | Audio files, under a directory per business ID. |
 | `DC_INSECURE_COOKIE` | `1` | `1` uses HTTP magic links and omits `Secure` on the cookie; any other value uses HTTPS links and a `Secure` cookie. |
@@ -75,9 +75,9 @@ Account mode loads server state before enabling navigation and capture; a failed
 
 If you are not signed in, open your existing sign-in link in this browser profile. If it has expired or was already used, request a replacement from the person who gave you access; for local development, repeat `POST /api/auth/request` as above. Connection failures, failed browser imports and paused recording imports instead show their own translated reload guidance.
 
-Account saves complete before the app clears a draft or reports success. While saving, navigation and other controls are disabled. Each adapter API request has a 15-second deadline, including reading the response; a timeout restores interaction and keeps the draft available to edit, copy, or retry. Failed writes show a toast. If another tab changes accounts or saves newer care data, the stale tab cannot overwrite it: copy any unsaved draft, reload, then reapply it to the current records. Tabs do not automatically refresh each other's changes. A lost response may follow a committed write, so check the reloaded state before reapplying a draft.
+Account saves complete before the app clears a draft or reports success. While saving, navigation and other controls are disabled. Each adapter API request has a 15-second deadline, including reading the response; a timeout restores interaction and keeps the draft available to edit, copy, or retry. Failed writes show an error in the form or a toast. If another tab changes accounts or saves newer care data, the stale tab cannot overwrite it: copy any unsaved draft, reload, then reapply it to the current records. Tabs do not automatically refresh each other's changes. A lost response may follow a committed write, so check the reloaded state before reapplying a draft.
 
-Empty account history remains empty on reload. **Reset demo observations** also writes to the server in account mode: it refreshes exact sample entries and restores missing samples without replacing saved notes or their attachments. A saved note with a sample's ID takes precedence. Dogs, daily records, documents, experiences, invites and language are retained. Reset does not reopen import eligibility or delete uploaded audio files. Slice 1 has no blob cleanup or account-deletion endpoint; removing an attachment from a snapshot does not remove its stored file.
+Empty account history remains empty on reload. **Reset demo observations** also writes to the server in account mode: it refreshes exact sample entries and restores missing samples without replacing saved notes or their attachments. A saved note with a sample's ID takes precedence. Dogs, daily records, documents, experiences, accounting records and originals, invites and language are retained. Reset does not reopen import eligibility or delete uploaded audio files. Slice 1 has no blob cleanup or account-deletion endpoint; removing an attachment from a snapshot does not remove its stored file.
 
 When loading older account history, unsupported recording references are omitted while care text and supported account recordings are retained, so later notes can still be saved.
 
@@ -92,10 +92,12 @@ The local API uses JSON objects and a `dc_s` session cookie. JSON responses, pro
 | `GET /api/auth/verify?t=<token>` | Consumes a magic link, sets the session cookie, and redirects to `/?signin=ok`; invalid/expired links redirect with `signin=bad` or `signin=expired`. |
 | `GET /api/auth/me` | Returns `{ "ok": true, "email": "…", "role": "owner" }` when signed in, otherwise `{ "ok": false }` with HTTP 200. |
 | `POST /api/auth/logout` | Send `{}` and the business header below; deletes the current session and clears its cookie. No revision required. |
-| `GET /api/state` | Full snapshot: `ok`, `business_id`, `imported`, `revision`, `email`, `role`, `language`, `dogs`, `observations`, `invites`, `daily`, `knowledge`. |
+| `GET /api/state` | Full snapshot: `ok`, `business_id`, `imported`, `revision`, `email`, `role`, `language`, `dogs`, `observations`, `invites`, `daily`, `knowledge`, `finance`. |
 | `PUT /api/daily` | `{ "daily": <snapshot> }`; replaces the full operational snapshot, preserving uploaded document identities. Returns full account state; see the [daily contract](docs/daily-workflows.md#api-contract). |
 | `PUT /api/knowledge` | `{ "knowledge": <snapshot> }`; replaces all private experience drafts. Returns full account state; see the [experience contract](docs/maison-sante.md#api-contract). |
-| `POST /api/documents` | Dog, label, optional renewal, filename, supported MIME type and base64 file; returns full state. See [daily contract](docs/daily-workflows.md#api-contract). |
+| `PUT /api/finance` | `{ "finance": <snapshot>, "uploads": [] }`; saves the full accounting snapshot and any new originals atomically. Returns full account state; see the [accounting contract](docs/comptabilite.md#api-contract). |
+| `GET /api/finance-documents/<sha256>` | Business-scoped private accounting original; session required. |
+| `POST /api/documents` | Dog, label, renewal (`""` when unset), filename, supported MIME type and base64 file; returns full state. See [daily contract](docs/daily-workflows.md#api-contract). |
 | `GET /api/documents/<id>` | Business-scoped private document attachment; session required. |
 | `GET /api/dogs` | `{ "ok": true, "dogs": [{ "id": 1, "slug": "billie", "name": "Billie Blue" }, …] }`. |
 | `GET /api/dogs/<id>` | `{ "ok": true, "dog": { "id": …, "slug": "…", "name": "…" } }`; numeric ID, scoped to the signed-in business. |
@@ -113,11 +115,11 @@ Except for health and the request/verify/me auth routes, these endpoints require
 
 ### Mutation contract
 
-First read `/api/state` with your session cookie. Include `X-DogCare-Business: <business_id>` on every authenticated POST/PUT, including uploads and logout. Care writes also require `If-Match: "<revision>"` from that state; the quotation marks are required. Each successful observation, invite, language, dog, daily-record, document, experience, or first-import write increments the business revision and closes import eligibility. Use the returned revision for the next care write. Audio uploads and logout do neither; document uploads use the guarded revision contract. A repeat `/api/import` still validates the payload and business binding, but returns the current state with `skipped: true` without checking or advancing the revision.
+First read `/api/state` with your session cookie. Include `X-DogCare-Business: <business_id>` on every authenticated POST/PUT, including uploads and logout. Care writes also require `If-Match: "<revision>"` from that state; the quotation marks are required. Each successful observation, invite, language, dog, daily-record, document, experience, accounting, or first-import write increments the business revision and closes import eligibility. Use the returned revision for the next care write. Audio uploads and logout do neither; document uploads use the guarded revision contract, including originals submitted with an accounting snapshot. A repeat `/api/import` still validates the payload and business binding, but returns the current state with `skipped: true` without checking or advancing the revision.
 
 Observation/invite PUTs are **full replacements, not appends or per-dog updates**. Preserve all records you want to keep in the submitted snapshot. Omitting a dog removes its observations, but keeps the dog row; unknown valid slugs create dogs. `{ "observations": {} }` clears all observations, and `{ "invites": [] }` clears all invites. Import leaves absent top-level collections unchanged. Validation or database-constraint failures roll back the whole care write, including its revision. Successful care PUTs return the full state, read in the same transaction as the write. Language belongs to a user, even though changing it advances the business revision.
 
-The browser adapter in [api.js](api.js) loads these records before [app.js](app.js) renders them. `DogCareAPI.ready` resolves to a boolean; `false` means reload/sign-in/import recovery is needed before saving. The getters read its in-memory cache; `getDogs()`, `getDaily()` and `getKnowledge()` return copies. `saveObservations`, `saveInvites`, `saveLanguage`, `saveDaily`, `saveDocument`, and `saveKnowledge` serialize writes and resolve to success booleans; `whenSaved()` waits for writes already queued. `getDocument(id)` fetches the private file with the session cookie and resolves to a `Blob`, or `null` when unavailable; it accepts server-issued 32-character lowercase hexadecimal IDs. Account saves do not mirror data back into any browser storage key, including `dogcare-daily-v1` and `dogcare-knowledge-v1`.
+The browser adapter in [api.js](api.js) loads these records before [app.js](app.js) renders them. `DogCareAPI.ready` resolves to a boolean; `false` means reload/sign-in/import recovery is needed before saving. The getters read its in-memory cache; `getDogs()`, `getDaily()`, `getKnowledge()` and `getFinance()` return copies. `saveObservations`, `saveInvites`, `saveLanguage`, `saveDaily`, `saveDocument`, `saveKnowledge` and `saveFinance(finance, uploads=[])` serialize writes and resolve to success booleans; `whenSaved()` waits for writes already queued. `getDocument(id)` fetches the private file with the session cookie and resolves to a `Blob`, or `null` when unavailable; it accepts server-issued 32-character lowercase hexadecimal IDs. `getFinanceDocument(id)` does the same for a 64-character lowercase SHA-256 ID. `reloadFinance()` retries loading only the finance cache, returning `false` if the business or shared revision has changed; it does not resolve a stale-account conflict. Account saves do not mirror data back into localStorage or the static accounting IndexedDB database.
 
 ### Care payloads and recording references
 
@@ -130,7 +132,7 @@ Audio uploads use strict base64 and count toward the JSON body limit, so the max
 
 ### Errors
 
-API errors generally return `{ "ok": false, "error": "…" }`. Invalid JSON or care/daily/document/experience fields return 400; missing/expired sessions return 401; cross-origin writes return 403; unknown or other-business dogs/recordings/documents return 404; conflicting data or stale business/revision headers return 409; oversized bodies return 413; a non-JSON content type returns 415; and missing business/revision headers return 428. Daily-record, document or experience database failures return 500 and roll back that write. Business/revision precondition failures also include `reload_required: true`. Copy the draft, reload current state, and reconcile it before another write. The adapter blocks further writes after that signal or an authenticated write's 401. Other write failures leave the draft available for retry.
+API errors generally return `{ "ok": false, "error": "…" }`. Invalid JSON or care/daily/document/experience/accounting fields return 400; missing/expired sessions return 401; cross-origin writes return 403; unknown or other-business dogs/recordings/documents return 404; conflicting data or stale business/revision headers return 409; oversized bodies return 413; a non-JSON content type returns 415; and missing business/revision headers return 428. Daily-record, document, experience or accounting database failures return 500 and roll back that write. Invalid accounting transitions, duplicate invoice numbers and original-file mismatches return 400; see the [accounting contract](docs/comptabilite.md#api-contract). Business/revision precondition failures also include `reload_required: true`. Copy the draft, reload current state, and reconcile it before another write. The adapter blocks further writes after that signal or an authenticated write's 401. Other write failures leave the draft available for retry.
 
 ## Navigate the workspace
 
@@ -139,13 +141,17 @@ The shell keeps one compact **Le Bus des Toutous** brand and the dashboard greet
 | Group | Destinations (English labels) |
 | --- | --- |
 | Today | Home (dashboard), Schedule, Dogs, Capture, Handoff, Care & wellbeing (Maison de la Santé in French), Muse assistant, Daily story |
-| Share & organise | Gallery, Invite, Business, Settings |
+| Share & organise | Gallery, Invite, Accounting (Comptabilité in French), Settings |
 
 Above 700px, the groups appear in a slim sidebar that can scroll vertically in short windows. At 700px and below, the same buttons form two rows beneath the brand bar. Scroll this strip sideways to reach later destinations, including Invite and Settings; the page itself stays within the viewport. The navigation remains available while scrolling content.
 
 Buttons have at least 44px targets, visible keyboard focus, and an active state exposed as `aria-current="page"`. Use Tab to reach a destination and Enter or Space to activate it. Selecting a destination returns the page to its heading and reveals the selected button within the navigation's own scroll container. Handoff evidence links still open the source note in the dog's timeline.
 
 Navigation is shared by static and account modes and supports French, English, Italian, German, and Spanish. The language picker and capture shortcut remain beside the page heading. See the [compact-navigation review](docs/review/muse-compact-navigation/README.md) for before/after images and regression coverage.
+
+## Comptabilité
+
+Invoices, expense claims, billed extras, local receipt recognition and accountant export are available under **Accounting** (**Comptabilité** in French). Planned monthly booking totals and base rates remain in its **Bookings & rates / Réservations et tarifs** tab, also reached directly from home/planning shortcuts. See [Comptabilité](docs/comptabilite.md) for review, payments, print/PDF, original documents, workbook export and storage boundaries. OCR/PDF/ZIP libraries are bundled locally and loaded only for intake/export; no install or external document service is required.
 
 ## Maison de la Santé
 
@@ -191,7 +197,7 @@ This is a local interactive prototype using fictional demo care moments around t
 - **Static mode** (`python3 -m http.server`, no `DOGCARE_API`): care records and retained recordings are saved in this browser, with no API upload.
 - **Account mode** (`python3 api/server.py`, flag on): care records and recordings are stored in the business’s own account store on the server the business runs. API access is restricted to signed-in members of that business. The one-time recording import shows a notice before moving existing audio.
 
-Invitation creation remains a pending preview with no delivery. The magic-link mailer writes local `.dev-outbox` files only. Social connections, automatic owner delivery, payments, and cloud sync remain previews or drafts; social connection previews never collect credentials or post to a network. Explicit sharing can pass selected care content to the app you choose. Payments and subscriptions remain unimplemented. Operational rates are user supplied; this change adds no deployment, credentials or third-party email provider.
+Invitation creation remains a pending preview with no delivery. The magic-link mailer writes local `.dev-outbox` files only. Social connections, automatic owner delivery and cloud sync remain previews or unavailable; social connection previews never collect credentials or post to a network. Explicit sharing can pass selected care content to the app you choose. Accounting can issue and print invoices and record manually entered payments/reimbursements, but does not send invoices, execute payments, reconcile a bank account or file taxes. Payment processing and subscriptions remain unimplemented. Operational rates are user supplied; this change adds no deployment, credentials or third-party email provider.
 
 Voice transcription uses the browser's built-in speech-recognition feature. Depending on the browser, microphone audio may be processed by the browser provider's speech service; users should check their browser's privacy terms before dictating.
 
@@ -212,9 +218,9 @@ python3.12 -m venv /tmp/dogcare-crawler
 Run the API regressions with the standard library and the adapter regressions with Node:
 
 ```bash
-python3 -m unittest tests.test_api_server tests.test_tenant_isolation tests.test_daily_api tests.test_knowledge_api tests.test_crawl_site -v
-node --test tests/test_api_adapter.js tests/test_daily_model.js
-for file in app.js api.js daily-*.js knowledge-*.js; do node --check "$file" || exit 1; done
+python3 -m unittest tests.test_api_server tests.test_tenant_isolation tests.test_daily_api tests.test_knowledge_api tests.test_finance_api tests.test_crawl_site -v
+node --test tests/test_api_adapter.js tests/test_daily_model.js tests/test_finance_model.js tests/test_finance_export.js
+for file in app.js api.js daily-*.js knowledge-*.js finance-*.js; do node --check "$file" || exit 1; done
 ```
 
 The browser acceptance checks need the optional Playwright dependency and its matching Chromium binary; Crawl4AI is not required. Using `uv` and the Playwright version in `requirements-crawler.txt`:
@@ -228,6 +234,8 @@ The suite starts its own local servers and temporary account storage. It covers 
 
 Knowledge checks cover guide search and provider links, topic choices, five locales, private experience save/edit/reload, literal text and Unicode limits, failed-save drafts, and conflicting tabs in both storage modes. API checks cover business isolation, stale/switched-account rejection and atomic validation. External video navigation is intercepted in the fixture; remote playback and live source verification are separate from these tests.
 
+Accounting checks cover invoice/extra/payment save/reload, local receipt OCR and PDF/manual intake, immutable originals, duplicate rejection, ZIP/XLSX contents, literal cells, failed-save recovery and stale-tab protection in both storage modes. See [accounting checks](docs/comptabilite.md#local-readers-and-checks) for focused commands; the full Python discovery command above includes the finance browser suite.
+
 Navigation checks cover all 12 destinations and five locales at 1440 × 900, 1024 × 768, and 390 × 844, keyboard activation, active state, 44px targets, a single business brand, and heading visibility after switching from scrolled content. Separate checks verify active-button reveal within the phone strip and a short desktop sidebar.
 
 Account recovery checks cover French initial copy, all five recovery languages, no account or browser-setting writes when switching languages, and no fallback to demo history. They also check overflow and the reload button's 44px target at the three viewports above.
@@ -235,7 +243,3 @@ Account recovery checks cover French initial copy, all five recovery languages, 
 Speech recognition is simulated; these tests do not verify a real microphone or browser-provider transcription service. Browser tests skip with an installation hint if the Playwright Python package is absent; if the package is installed but Chromium is missing, browser launch fails until the install step above completes. Pure API/crawler tests always run with the standard library, and the Node adapter tests run separately.
 
 Set `DOGCARE_EVIDENCE_DIR` to an allowed evidence directory to retain the browser suite's selected screenshots and migration-state JSON; when unset it does not write those evidence files. Browser checks await `#app-content[data-ready="true"]` and rendered content, since adapter hydration alone does not establish that the UI is ready.
-
-### Comptabilité
-
-See [Comptabilité](docs/comptabilite.md) for invoices, expense claims, local receipt recognition, original documents, workbook export and storage boundaries. The existing monthly booking totals/rates remain accessible in its Réservations et tarifs tab. Finance acceptance: `node --test tests/test_finance_model.js tests/test_finance_export.js`, `python3 -m unittest tests.test_finance_api -v`, and `uv run --python 3.12 --with playwright==1.61.0 python -m unittest tests.test_finance_browser -v`; full acceptance commands above still apply.

@@ -1,11 +1,12 @@
 /* Adapter behind window.DOGCARE_API (the API server injects "/api").
    Flag off (undefined/falsy) → no storage or network access from this file.
    Flag on → hydrate account state, optionally import dogcare-observations,
-   dogcare-invites and dogcare-language once per business; dogcare-daily-v1 and
-   dogcare-knowledge-v1 are excluded. Save through /api with a session cookie;
-   browser copies stay intact. Observations/invites/daily records/experiences use
-   full replacement snapshots; language is per user, and care writes bind to the
-   loaded business/revision.
+   dogcare-invites and dogcare-language once per business; daily records,
+   experiences and accounting records/originals are excluded. Save through /api
+   with a session cookie; browser copies stay intact. Observations/invites/daily
+   records/experiences/accounting use full replacement snapshots; accounting
+   writes retain existing records and commit new originals atomically. Language
+   is per user, and care writes bind to the loaded business/revision.
    See README.md's Slice 1 API section for the request and recovery contracts. */
 (function (w) {
   const base = w.DOGCARE_API;

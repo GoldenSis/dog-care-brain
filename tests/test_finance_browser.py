@@ -1,5 +1,6 @@
 """Owned synthetic accounting journeys in account and browser-local modes."""
 import base64
+import hashlib
 import io
 import json
 import os
@@ -559,6 +560,112 @@ class FinanceBrowserTest(BrowserFixture):
         self.assertEqual(self.console_errors, [])
         self.assertEqual(self.page_errors, [])
 
+    async def test_filtered_export_preserves_all_records_sources_and_print_surface(self):
+        await self.page.select_option('#language-picker', 'fr')
+        await self.page.wait_for_function('!savePending')
+        photo = await self.receipt_photo()
+        self.assertTrue(await self.page.evaluate('''async encoded => {
+          const blob=new Blob([Uint8Array.from(atob(encoded),c=>c.charCodeAt(0))],{type:'image/png'});
+          const hash=await crypto.subtle.digest('SHA-256',await blob.arrayBuffer());
+          const id=Array.from(new Uint8Array(hash),b=>b.toString(16).padStart(2,'0')).join('');
+          const next=FinanceStore.snapshot();
+          next.documents.push({id,name:'=Original café.png',type:blob.type,size:blob.size,sha256:id});
+          const sale=FinanceModel.draft('export-sale','sale');
+          Object.assign(sale,{status:'confirmed',number:'F-2026-001',date:'2026-10-06',
+            party:'=SUM(A1)',address:'Adresse du client',issuer:'Entreprise exemple',
+            issuerAddress:'Adresse de l’entreprise',currency:'CHF',vatMinor:1000});
+          sale.lines=[{description:'Garde de jour',quantity:2,unitMinor:6500,bookingId:''},
+            {description:'Supplément',quantity:1,unitMinor:500,bookingId:''}];
+          sale.payments=[{id:'partial',date:'2026-10-06',amountMinor:3500,note:'Acompte saisi'}];
+          const purchase=FinanceModel.draft('export-purchase','purchase');
+          Object.assign(purchase,{status:'confirmed',date:'2026-10-06',party:'Fournisseur exemple',currency:'EUR',sourceId:id});
+          purchase.lines[0]={description:'Croquettes',quantity:1,unitMinor:4250,bookingId:''};
+          purchase.payments=[{id:'cost-partial',date:'2026-10-06',amountMinor:1000,note:'Paiement saisi'}];
+          const draft=FinanceModel.draft('export-draft','expense');
+          Object.assign(draft,{date:'2026-09-30',party:'Montant à vérifier',currency:'CHF',sourceId:id});
+          const cancelled=FinanceModel.draft('export-cancelled','sale');
+          Object.assign(cancelled,{status:'cancelled',number:'F-ANNULEE',date:'2026-09-30',
+            party:'Client annulé',currency:'EUR',cancelReason:'Annulation demandée par le client'});
+          cancelled.lines[0]={description:'Prestation annulée',quantity:1,unitMinor:9900,bookingId:''};
+          next.entries.push(sale,purchase,draft,cancelled);
+          return FinanceStore.save(next,new Map([[id,blob]]));
+        }''', base64.b64encode(photo).decode()))
+        await self.page.reload()
+        await self.wait_ready()
+        await self.page.click('[data-page="business"]')
+        saved = await self.snapshot()
+        self.assertEqual(await self.page.locator('[data-finance-entry]').count(), 4)
+        totals = await self.page.locator('.finance-totals strong').all_inner_texts()
+        self.assertEqual([' '.join(value.split()) for value in totals], [
+            '135,00 CHF', '0,00 CHF', '35,00 CHF', '0,00 CHF',
+            '0,00 €', '42,50 €', '0,00 €', '10,00 €',
+        ])
+        await self.page.click('.finance-filter-panel summary')
+        await self.page.fill('#finance-month', '2026-10')
+        await self.page.locator('#finance-month').press('Tab')
+        await self.page.click('.finance-filter-panel summary')
+        await self.page.fill('#finance-query', '=SUM(A1)')
+        await self.page.locator('#finance-query').press('Tab')
+        self.assertEqual(await self.page.locator('[data-finance-entry]').count(), 1)
+        await self.capture_evidence(f'finance-filtered-journal-{self.api_mode}.png')
+        async with self.page.expect_download() as info:
+            await self.page.click('#finance-export')
+        download = await info.value
+        directory = os.environ.get('DOGCARE_EVIDENCE_DIR')
+        if directory:
+            await download.save_as(str(Path(directory) / f'finance-complete-export-{self.api_mode}.zip'))
+        with zipfile.ZipFile(await download.path()) as archive:
+            self.assertEqual(json.loads(archive.read('records.json')), saved)
+            source = 'originals/' + hashlib.sha256(photo).hexdigest() + '.png'
+            self.assertEqual(archive.read(source), photo)
+            with zipfile.ZipFile(io.BytesIO(archive.read('comptabilite.xlsx'))) as workbook:
+                ns = {'r': 'http://schemas.openxmlformats.org/package/2006/relationships'}
+                for sheet in (1, 4):
+                    links = ET.fromstring(workbook.read(f'xl/worksheets/_rels/sheet{sheet}.xml.rels'))
+                    targets = [link.attrib['Target'] for link in links.findall('r:Relationship', ns)]
+                    self.assertTrue(targets)
+                    self.assertTrue(all(target == source for target in targets))
+        await self.page.click('[data-finance-edit="export-sale"]')
+        await self.page.evaluate('''() => {
+          const append=document.body.append;
+          document.body.append=function(...nodes){
+            for(const node of nodes)if(node.matches?.('.finance-print-frame')){
+              const onload=node.onload;
+              node.onload=function(event){
+                node.contentWindow.print=()=>{window.financePrintCalled=true;};
+                onload.call(node,event);
+              };
+            }
+            return append.apply(this,nodes);
+          };
+        }''')
+        await self.page.click('#finance-print')
+        await self.page.wait_for_function('window.financePrintCalled === true')
+        html = await self.page.locator('.finance-print-frame').get_attribute('srcdoc')
+        if directory:
+            Path(directory, f'finance-invoice-print-{self.api_mode}.html').write_text(html, encoding='utf-8')
+            preview = await self.context.new_page()
+            await preview.set_viewport_size({'width': 900, 'height': 1000})
+            await preview.set_content(html)
+            self.assertIn('135,00', await preview.inner_text('body'))
+            self.assertIn('=SUM(A1)', await preview.inner_text('body'))
+            await preview.screenshot(path=str(Path(directory) / f'finance-invoice-print-{self.api_mode}.png'), full_page=True)
+            await preview.close()
+        await self.page.click('#finance-back')
+        downloads = []
+        self.page.on('download', lambda item: downloads.append(item))
+        await self.page.evaluate('FinanceStore.document = async () => null')
+        await self.page.click('#finance-export')
+        await self.page.wait_for_function('!savePending')
+        self.assertEqual(downloads, [])
+        self.assertTrue(await self.page.locator('#toast.show').is_visible())
+        self.assertEqual(await self.page.inner_text('#toast'),
+                         await self.page.evaluate("FinanceUI.text('exportError')"))
+        self.assertEqual(await self.snapshot(), saved)
+        await self.capture_evidence(f'finance-export-missing-original-{self.api_mode}.png')
+        self.assertEqual(self.console_errors, [])
+        self.assertEqual(self.page_errors, [])
+
     async def receipt_photo(self):
         data = await self.page.evaluate('''() => {
           const c=document.createElement('canvas');c.width=1500;c.height=1000;const x=c.getContext('2d');x.fillStyle='#383838';x.fillRect(0,0,1500,1000);
@@ -589,6 +696,11 @@ class FinanceBrowserTest(BrowserFixture):
         self.assertEqual(len(data['documents']), 1)
         self.assertTrue(all(url.startswith(self.url + '/') or url.startswith('blob:') for url in requests), requests)
         await self.capture_evidence(f'finance-photo-review-{self.api_mode}.png')
+        if os.environ.get('DOGCARE_EVIDENCE_DIR'):
+            viewport = self.page.viewport_size
+            await self.page.set_viewport_size({'width': 1440, 'height': 900})
+            await self.capture_evidence(f'finance-photo-review-desktop-{self.api_mode}.png')
+            await self.page.set_viewport_size(viewport)
         await self.page.click('[data-finance-edit] >> nth=0')
         await self.save_entry('confirmed')
         await self.page.reload()
