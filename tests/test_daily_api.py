@@ -55,6 +55,21 @@ class DailyApiTest(ApiServerTestCase):
         finally:
             connection.close()
 
+    def test_ownerless_registration_preserves_business_scope_and_revision(self):
+        cookie=self.account();other=self.account('other');before=self.state(cookie);other_before=self.state(other)
+        value=before['daily'];value['dogs'].append({'id':'registered-only','name':' Today ','clientId':None})
+        self.save(other,value,expected=409,headers=self.headers(before))
+        self.assertEqual(self.state(other),other_before)
+        saved=self.save(cookie,value,headers=self.headers(before))
+        self.assertEqual(saved['daily']['dogs'][-1]['name'],' Today ')
+        self.assertEqual(saved['daily']['clients'],[])
+        self.assertEqual(saved['observations'],before['observations'])
+        self.assertEqual(saved['finance'],before['finance'])
+        retry=copy.deepcopy(value);retry['dogs'].append({'id':'second','name':' Today ','clientId':None})
+        self.save(cookie,retry,expected=409,headers=self.headers(before))
+        self.assertEqual(self.state(cookie),saved)
+        self.assertEqual(self.state(other),other_before)
+
     def test_create_reload_extend_and_rate_configuration_preserve_agreement(self):
         cookie = self.account()
         before = self.state(cookie)

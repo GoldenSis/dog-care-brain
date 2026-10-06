@@ -127,15 +127,17 @@
     }
     for (const dog of daily.dogs) {
       fields(dog, 'id name clientId');
-      requireValue(text(dog.name, 120) && clients.has(dog.clientId), 'Invalid dog name or client');
+      requireValue(text(dog.name, 120) && (dog.clientId === null || clients.has(dog.clientId)), 'Invalid dog name or client');
     }
     fields(daily.rates, 'currency walk day night');
     requireValue(object(daily.rates) && typeof daily.rates.currency === 'string' && CURRENCY.test(daily.rates.currency), 'Invalid rate currency');
     for (const service of SERVICES) requireValue(validMinor(daily.rates[service]), 'Invalid base rate');
+    const dogClients = new Map(daily.dogs.map(d => [d.id, d.clientId]));
     const totals = new Map();
     for (const booking of daily.bookings) {
       fields(booking, 'id dogId service start end unitMinor currency');
       requireValue(dogs.has(booking.dogId), 'Booking references an unknown dog');
+      requireValue(clients.has(dogClients.get(booking.dogId)), 'Booking needs a recorded client');
       requireValue(typeof booking.currency === 'string' && CURRENCY.test(booking.currency), 'Invalid agreement currency');
       const total = amount(booking);
       if (total !== null) totals.set(booking.currency, checkedMinor((totals.get(booking.currency) || 0) + total));

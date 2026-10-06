@@ -43,3 +43,10 @@
 #app-content .daily-form button {min-height:44px}
 @media(max-width:1100px){.daily-home{align-items:stretch;flex-direction:column}.daily-shortcuts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}.daily-shortcuts button{padding:10px}}
 @media(max-width:700px){.daily-home{padding:18px}.daily-shortcuts{grid-template-columns:1fr}.daily-home h2{font-size:28px}.daily-toolbar{align-items:stretch}.daily-toolbar .primary{width:100%}.daily-fields{grid-template-columns:1fr;gap:12px}.daily-form.card,.daily-documents{padding:18px}.daily-record{align-items:flex-start;flex-wrap:wrap;padding:14px}.daily-record>div{flex:1;min-width:170px}.daily-field input[type=date],.daily-field input[type=month]{appearance:none;min-height:46px}.daily-month{gap:8px}}
+
+.dog-toolbar {display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}
+.dog-directory {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:10px;margin-bottom:16px}
+.dog-directory button {min-height:44px;min-width:0;text-align:left;white-space:normal;overflow-wrap:anywhere}
+.dog-directory small {display:block;margin-top:4px}
+#dog-editor .card {margin-bottom:20px}
+#dog-form input, #dog-form select {min-height:44px;min-width:0}

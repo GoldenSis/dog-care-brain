@@ -174,3 +174,16 @@ test('document size boundary is measured in decoded bytes', () => {
   const oversized = Buffer.concat([content, Buffer.from([0])]);
   assert.throws(() => model.validateDocument(document({ data: oversized.toString('base64') })), /5 MiB/);
 });
+
+test('registration permits an unknown owner without inventing a client, while bookings require a recorded client', () => {
+  const daily = model.empty();
+  daily.dogs.push({id:'new-dog',name:' Today ',clientId:null});
+  assert.equal(model.validateDaily(daily), true);
+  assert.deepEqual(model.monthlySummary(daily,'2026-10'), []);
+  daily.bookings.push(booking({dogId:'new-dog'}));
+  assert.throws(() => model.validateDaily(daily), /recorded client/);
+  daily.clients.push({id:'owner',name:' Recorded owner '});
+  daily.dogs[0].clientId='owner';
+  assert.equal(model.validateDaily(daily), true);
+  assert.equal(daily.dogs[0].name,' Today ');
+});

@@ -98,20 +98,24 @@ def validate(value, previous):
     for dog in value["dogs"]:
         fields(dog, "id name clientId")
         text(dog["name"], "dog name")
-        identifier(dog["clientId"])
-        if dog["clientId"] not in clients:
+        if dog["clientId"] is not None:
+            identifier(dog["clientId"])
+        if dog["clientId"] is not None and dog["clientId"] not in clients:
             raise ValueError("unknown client")
     rates = value["rates"]
     fields(rates, "currency walk day night")
     currency(rates["currency"])
     for service in ("walk", "day", "night"):
         amount(rates[service])
+    dog_clients = {item["id"]: item["clientId"] for item in value["dogs"]}
     old_bookings = {item["id"]: item for item in previous["bookings"]}
     for booking in value["bookings"]:
         fields(booking, "id dogId service start end unitMinor currency")
         identifier(booking["dogId"])
         if booking["dogId"] not in dogs:
             raise ValueError("unknown dog")
+        if dog_clients[booking["dogId"]] not in clients:
+            raise ValueError("booking needs a recorded client")
         if booking["service"] not in ("walk", "day", "night"):
             raise ValueError("bad service")
         days = (calendar(booking["end"]) - calendar(booking["start"])).days

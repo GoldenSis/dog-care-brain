@@ -4,9 +4,15 @@ Planning saves bookings against a dog and client. The existing care-note, histor
 
 A booking does not record arrival or consent, so profiles show neither status as a badge. Sample timeline entries are labelled separately. Resetting sample observations restores those examples while retaining saved notes, registered dogs and their daily records.
 
+## Registering a dog
+
+Open **Dogs / Chiens** and choose **＋ Add a dog / Ajouter un chien**, above the current profile. The same action remains available with no dogs. **All dogs / Tous les chiens** opens the dog list without leaving the section. Enter the required dog name; optionally select an existing owner or enter a new one. Only those entered facts are saved; an omitted owner stays unknown. Saving opens the new profile and makes it available to the other dog selectors after reload. Different dogs may share a name; each has a separate stable ID. Cancel changes no saved records. Failed saves keep the form; drafts survive internal navigation and locale changes, but must be saved before closing/reloading.
+
+The daily dog record uses `clientId: null` when no owner is recorded. A later booking requires a client and links that same dog without duplicating it. Existing client associations and recorded booking agreements are preserved. Registration itself creates no booking, care note, price, arrival or consent fact.
+
 ## Bookings and rates
 
-Open the dashboard's **Planning** shortcut or **Schedule** in English navigation (**Planning** in French), choose **New booking**, then a known dog or **Add a dog**. A registered daily dog's saved client is reused, even when clients share a name, and cannot be changed in the booking form; a new dog can reuse an existing client by name, ignoring case. Choose a walk, day care or overnight stay, enter the dates and inspect the units and amount before saving. Saved bookings can be reopened with **Edit** after reload. The month selector shows bookings with service dates in that month; it is shared with the **Bookings & rates** summary under Accounting, independently of the accounting journal's month filter. **New booking** is hidden while its form is open.
+Open the dashboard's **Planning** shortcut or **Schedule** in English navigation (**Planning** in French), choose **New booking**, then a known dog or **Add a dog**. A registered daily dog's saved client is reused, even when clients share a name, and cannot be changed in the booking form; a dog whose client is unknown can be linked when its first booking is saved; a new dog can reuse an existing client by name, ignoring case. Choose a walk, day care or overnight stay, enter the dates and inspect the units and amount before saving. Saved bookings can be reopened with **Edit** after reload. The month selector shows bookings with service dates in that month; it is shared with the **Bookings & rates** summary under Accounting, independently of the accounting journal's month filter. **New booking** is hidden while its form is open.
 
 - Walks and day care count every calendar date from start through end, inclusively, as one service unit per day. Multiple walks on one date require separate bookings.
 - Overnight stays count nights from arrival to checkout; checkout is excluded. At least one night is required.
@@ -20,7 +26,7 @@ Open **Accounting → Bookings & rates**, or the dashboard's monthly-summary sho
 
 Open a dog's profile, add a document label and a PDF, JPEG or PNG, and optionally enter its recorded renewal date. Files must be nonempty, at most 5 MiB, and match the selected supported file signature. The app does not inspect clinical meaning, infer vaccinations or calculate a clinical renewal schedule.
 
-The dog needs a client in the daily registry. For an imported/recovered profile without a client, first save a booking linking the dog and client. Profiles with an existing owner can be registered automatically during upload. New profiles show placeholders for unrecorded details; this version has no general profile-detail editor.
+The dog must be registered in the daily registry; dogs registered through **Add a dog** can receive documents even while the owner is unknown. For an older imported/recovered profile without daily registration or an owner, first save a booking linking the dog and client. Profiles with an existing owner can be registered automatically during upload. New profiles show placeholders for unrecorded details; this version has no general profile-detail editor.
 
 Saved documents can be downloaded after reload using **Download document**. **Edit renewal date** lets you change or clear the date, then **Save date** persists it. Dates before today are overdue; dates from today through the next 30 calendar days, inclusive, appear as due, using the device's local date. These follow-ups are visible on the home and planning pages and link back to the dog's documents. No reminder or message is sent. Clinic-call and video-consultation preview controls have been replaced by an unavailable notice; care notes and handoff links remain available.
 
@@ -51,7 +57,7 @@ Every field below is required; empty lists are allowed. IDs must be unique withi
 | --- | --- |
 | `version` | Integer `1`. |
 | `clients` | Array of `{ "id": <client ID>, "name": <name> }`. |
-| `dogs` | Array of `{ "id": <dog identifier>, "name": <name>, "clientId": <existing daily client ID> }`. |
+| `dogs` | Array of `{ "id": <dog identifier>, "name": <name>, "clientId": <existing daily client ID or null> }`. |
 | `bookings` | Array of `{ "id": <booking ID>, "dogId": <existing daily dog ID>, "service": "walk" / "day" / "night", "start": "YYYY-MM-DD", "end": "YYYY-MM-DD", "unitMinor": <integer or null>, "currency": <currency> }`. |
 | `rates` | `{ "currency": <currency>, "walk": <integer or null>, "day": <integer or null>, "night": <integer or null> }`; defaults to CHF and three `null` rates. |
 | `documents` | Array of `{ "id": <server ID>, "dogId": <existing daily dog ID>, "label": <label>, "renewal": "" / "YYYY-MM-DD", "name": <original filename>, "type": <MIME type>, "href": "/api/documents/<id>" }`. Static snapshots use base64 `data` instead of `href`. |

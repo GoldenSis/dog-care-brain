@@ -4,6 +4,7 @@
   const M = w.DailyModel, KEY = 'dogcare-daily-v1', CREATE_DOG = ':new';
   let daily = M.empty(), loadError = false, month = localDate().slice(0, 7), editing = null;
   let localSnapshot = null, localStale = false;
+  let dogDraft = null, dogListOpen = false;
   const text = key => (w.DailyCopy[state.language] || w.DailyCopy.en)[key] || w.DailyCopy.en[key] || key;
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   function localDate() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
@@ -57,14 +58,48 @@
     return ok;
   }
   function save(next, button) { return persistChange(()=>commitDaily(next),button); }
-  function ensureDog(next, dogId, name, clientName) {
+  function ensureDog(next, dogId, name, clientName, requireClient=false) {
     const registered=next.dogs.find(d=>d.id===dogId);
-    if(registered)return registered;
+    if(registered && (!requireClient || registered.clientId))return registered;
     const clean=clientName.trim();
     if(!clean || !name.trim())throw Error('missing');
     let c=next.clients.find(c=>c.name.toLocaleLowerCase()===clean.toLocaleLowerCase());
     if(!c){c={id:id(),name:clean};next.clients.push(c);}
+    if(registered){registered.clientId=c.id;return registered;}
     const dog={id:dogId || id(),name:name.trim(),clientId:c.id};next.dogs.push(dog);return dog;
+  }
+  function rememberDogDraft() {
+    const form=document.querySelector('#dog-form');
+    if(form && dogDraft)for(const key of ['dogName','clientId','clientName'])dogDraft[key]=form.elements[key].value;
+  }
+  function dogControls() {
+    const showList=dogListOpen || !Object.keys(dogs).length;
+    return `${unavailable()}<div class="daily-toolbar dog-toolbar"><button class="primary" id="new-dog" aria-expanded="${!!dogDraft}" aria-controls="dog-editor" ${loadError?'disabled':''}>＋ ${esc(text('newDog'))}</button><button class="ghost" id="dog-list-toggle" aria-expanded="${showList}" aria-controls="dog-directory">${esc(text('allDogs'))}</button></div><div id="dog-directory" ${showList?'':'hidden'}>${showList?`<div class="dog-directory">${Object.entries(dogs).map(([key,d])=>`<button class="ghost" data-select-profile="${esc(key)}" aria-pressed="${key===state.dog}"><strong translate="no">${esc(d.name)}</strong>${d.owner?`<small translate="no">${esc(d.owner)}</small>`:''}</button>`).join('') || `<p class="daily-empty">${esc(text('noDogs'))}</p>`}</div>`:''}</div><div id="dog-editor">${dogDraft?dogForm():''}</div>`;
+  }
+  function dogForm() {
+    return `<form id="dog-form" class="card daily-form"><h2>${esc(text('newDog'))}</h2><p class="daily-help">${esc(text('dogFormHelp'))}</p><div class="daily-fields">${label('dogName',input('dogName','text',dogDraft.dogName,'required pattern="[\\s\\S]{0,120}" autocomplete="off"'))}${label('optionalOwner',`<select name="clientId"><option value="">${esc(text('ownerLater'))}</option>${daily.clients.map(c=>`<option translate="no" value="${esc(c.id)}" ${dogDraft.clientId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}<option value=":new" ${dogDraft.clientId===':new'?'selected':''}>${esc(text('newOwner'))}</option></select>`)}<label class="daily-field" id="dog-owner-field" ${dogDraft.clientId===':new'?'':'hidden'}>${esc(text('ownerName'))}${input('clientName','text',dogDraft.clientName,'pattern="[\\s\\S]{0,120}" autocomplete="off"')}</label></div><p class="daily-help">${esc(text('dogDraftHelp'))}</p><p class="daily-error" role="alert" ${dogDraft.error?'':'hidden'}>${dogDraft.error?esc(text(dogDraft.error)):''}</p><div class="daily-actions"><button class="primary" type="submit">${esc(text('saveDog'))}</button><button class="ghost" type="button" id="cancel-dog">${esc(text('cancel'))}</button></div></form>`;
+  }
+  function bindDogRegistration() {
+    document.querySelector('#new-dog')?.addEventListener('click',()=>{
+      rememberDogDraft();dogDraft??={id:id(),dogName:'',clientId:'',clientName:'',error:null};navigate('dogs');document.querySelector('#dog-form [name="dogName"]').focus();
+    });
+    document.querySelector('#dog-list-toggle')?.addEventListener('click',()=>{dogListOpen=!dogListOpen;navigate('dogs');document.querySelector('#dog-list-toggle').focus();});
+    document.querySelectorAll('[data-select-profile]').forEach(b=>b.onclick=()=>{state.dog=b.dataset.selectProfile;dogListOpen=false;navigate('dogs');document.querySelector('#page-title').focus();});
+    const form=document.querySelector('#dog-form');if(!form)return;
+    function ownerChoice(){const active=form.elements.clientId.value===':new';form.querySelector('#dog-owner-field').hidden=!active;form.elements.clientName.disabled=!active;form.elements.clientName.required=active;}
+    ownerChoice();form.elements.clientId.addEventListener('change',ownerChoice);
+    form.addEventListener('input',rememberDogDraft);form.addEventListener('change',rememberDogDraft);
+    form.querySelector('#cancel-dog').onclick=()=>{dogDraft=null;navigate('dogs');document.querySelector('#new-dog').focus();};
+    form.onsubmit=async event=>{
+      event.preventDefault();if(savePending || loadError)return;rememberDogDraft();
+      const draft=dogDraft, next=structuredClone(daily);let clientId=draft.clientId || null;
+      try {
+        if(clientId===':new'){clientId=id();next.clients.push({id:clientId,name:draft.clientName});}
+        next.dogs.push({id:draft.id,name:draft.dogName,clientId});M.validateDaily(next);
+      }catch{draft.error='invalidDog';setError(form,'invalidDog');return;}
+      if(!await save(next,form.querySelector('[type="submit"]'))){draft.error='saveError';setError(form);return;}
+      dogDraft=null;state.dog=draft.id;dogListOpen=false;navigate('dogs');document.querySelector('#page-title').focus();showToast(text('saved'));
+    };
   }
   function dogOptions(selected=state.dog) {return Object.entries(dogs).map(([key,d])=>`<option translate="no" value="${esc(key)}" ${key===selected?'selected':''}>${esc(d.name)}</option>`).join('');}
   function followups() {
@@ -119,7 +154,7 @@
     document.querySelector('.daily-toolbar').hidden=true;
     const editor=document.querySelector('#booking-editor');editor.innerHTML=bookingForm();
     const form=document.querySelector('#booking-form');
-    function selectDog(){const choice=form.elements.dogId.value, registered=daily.dogs.find(d=>d.id===choice);form.querySelector('#new-dog-field').hidden=choice!==CREATE_DOG;form.elements.dogName.required=choice===CREATE_DOG;form.elements.dogName.disabled=choice!==CREATE_DOG;form.elements.client.value=registered?client(registered):dogs[choice]?.owner || '';form.elements.client.readOnly=!!registered;}
+    function selectDog(){const choice=form.elements.dogId.value, registered=daily.dogs.find(d=>d.id===choice);form.querySelector('#new-dog-field').hidden=choice!==CREATE_DOG;form.elements.dogName.required=choice===CREATE_DOG;form.elements.dogName.disabled=choice!==CREATE_DOG;form.elements.client.value=registered?client(registered):dogs[choice]?.owner || '';form.elements.client.readOnly=!!registered?.clientId;}
     form.elements.dogId.onchange=selectDog;selectDog();
     const old=editing && daily.bookings.find(b=>b.id===editing);
     function selectService(){const same=old && old.service===form.elements.service.value, amount=same?old.unitMinor:daily.rates[form.elements.service.value];form.elements.unitMinor.value=amount===null?'':(amount/100).toFixed(2);form.elements.unitMinor.readOnly=!!(same&&old.unitMinor!==null);}
@@ -130,7 +165,7 @@
       e.preventDefault();const button=form.querySelector('[type="submit"]');
       try {
         const b=quote(form), next=structuredClone(daily), newDog=form.elements.dogId.value===CREATE_DOG;
-        const dog=ensureDog(next,newDog?null:b.dogId,newDog?form.elements.dogName.value:dogs[b.dogId].name,form.elements.client.value);
+        const dog=ensureDog(next,newDog?null:b.dogId,newDog?form.elements.dogName.value:dogs[b.dogId].name,form.elements.client.value,true);
         b.dogId=dog.id;M.units(b);
         const at=next.bookings.findIndex(x=>x.id===b.id);if(at<0)next.bookings.push(b);else next.bookings[at]=b;
         if(!await save(next,button)){setError(form);return;}
@@ -155,6 +190,7 @@
     }catch{showToast(text('documentError'));button.focus();}
   }
   function bind() {
+    bindDogRegistration();
     document.querySelector('#new-booking')?.addEventListener('click',()=>editBooking(null));
     document.querySelectorAll('[data-edit-booking]').forEach(b=>b.onclick=()=>editBooking(b.dataset.editBooking));
     document.querySelectorAll('[data-document-dog]').forEach(b=>b.onclick=()=>{state.dog=b.dataset.documentDog;navigate('dogs');document.querySelector('#dog-documents')?.scrollIntoView({block:'start'});});
@@ -190,5 +226,5 @@
       if(!ok)return;state.dog=dogId;navigate('dogs');document.querySelector('#dog-documents').scrollIntoView({block:'start'});showToast(text('saved'));
     };
   }
-  w.DailyUI={text,load,snapshot:()=>loadError?null:structuredClone(daily),home,schedule,business,documents,bind};
+  w.DailyUI={text,load,snapshot:()=>loadError?null:structuredClone(daily),home,schedule,business,documents,dogControls,rememberDogDraft,bind};
 })(window);
