@@ -986,7 +986,15 @@ class FinanceBrowserTest(BrowserFixture):
         await self.page.set_input_files('#finance-files', {'name': 'synthetic-two-receipts.png', 'mimeType': 'image/png', 'buffer': photo})
         await self.page.wait_for_selector('#finance-recognize')
         self.assertEqual(await self.page.locator('.finance-region').count(), 2)
-        await self.capture_evidence(f'finance-two-paper-areas-{self.api_mode}.png')
+        await self.page.locator('[data-finance-canvas="0"]').scroll_into_view_if_needed()
+        await self.page.wait_for_function("document.querySelector('[data-finance-canvas=\"0\"]').width > 0")
+        if directory := os.environ.get('DOGCARE_EVIDENCE_DIR'):
+            Path(directory).mkdir(parents=True, exist_ok=True)
+            # Offscreen previews release their pixels; keep the receipt visible
+            # so the evidence shows the proposed regions instead of a blank canvas.
+            await self.page.screenshot(
+                path=str(Path(directory) / f'finance-two-paper-areas-{self.api_mode}.png'),
+                full_page=False, animations='disabled')
         await self.page.click('#finance-recognize')
         await self.page.wait_for_function('!savePending', timeout=120000)
         data = await self.snapshot()

@@ -14,6 +14,8 @@ Then open [http://localhost:4173](http://localhost:4173).
 
 No install or build step is required. The four operational workflows—bookings, base rates/stay extensions, dog documents/follow-up and monthly summaries—are described in [Daily workflows](docs/daily-workflows.md). They persist in this browser in static mode and in the private SQLite database in account mode.
 
+To [register a dog](docs/daily-workflows.md#registering-a-dog) without a booking or care note, open **Dogs / Chiens → ＋ Add a dog / Ajouter un chien**. Only the dog name is required; the owner can remain unknown. **All dogs / Tous les chiens** opens the saved profiles.
+
 Static mode stores observations, pending invite previews, and language in the browser's `localStorage` (`dogcare-observations`, `dogcare-invites`, and `dogcare-language`), with operational records and documents in `dogcare-daily-v1` and [private experience drafts](docs/maison-sante.md) in `dogcare-knowledge-v1`. [Accounting records and originals](docs/comptabilite.md) use a separate IndexedDB database, `dogcare-finance-v1`. Browser quota limits apply; no cloud synchronization is implied. **Reset demo observations** in Settings restores sample observations while retaining saved notes, registered dogs, daily records, experiences, accounting records and originals, invites and language.
 
 Slice 1 (accounts, SQLite, still zero pip deps) — local only, no email keys:
@@ -44,7 +46,7 @@ Use your original scheme, hostname, and port if different. `localhost:4173` and 
 
 Account mode imports whichever of the three browser keys exist, once per unused business. Missing keys leave the corresponding account data unchanged; explicitly empty observations or invites clear those collections. A language-only import also consumes this opportunity. The server's `imported` flag means import eligibility is closed, whether by import or by a successful observation, invite, language, dog, daily-record, document, experience or accounting write. Uploading audio alone does not close it. A browser marker (`dogcare-imported:<business_id>`) also prevents repeat automatic imports; the server flag protects the account across browser profiles. With no browser keys, the new account keeps its demo data and remains eligible until a care write.
 
-**Daily bookings, rates, clients, documents, private experiences and accounting records/originals are not imported by this legacy three-key process.** They remain in their original browser storage; see [daily storage and migration](docs/daily-workflows.md#storage-and-migration), [experience storage](docs/maison-sante.md#storage-and-compatibility) and [accounting storage](docs/comptabilite.md#storage-and-contracts).
+**Daily dog names and owner associations, bookings, rates, clients, documents, private experiences and accounting records/originals are not imported by this legacy three-key process.** Imported observations retain their dog identifiers, but do not transfer daily profile details. The excluded records and files remain in their original browser storage; see [daily storage and migration](docs/daily-workflows.md#storage-and-migration), [experience storage](docs/maison-sante.md#storage-and-compatibility) and [accounting storage](docs/comptabilite.md#storage-and-contracts).
 
 A notice appears before existing inline recordings transfer. Cancel leaves browser data intact and account loading paused; reload to continue. Failed imports remain retryable and keep capture disabled until account loading succeeds. Startup also closes import eligibility for older accounts with non-demo history, invites, recordings, or a non-English preference. Audio is uploaded separately before the snapshot. Local browser copies are retained and are not updated by later account saves; switching back to static mode displays those older browser copies.
 
@@ -111,7 +113,7 @@ The local API uses JSON objects and a `dc_s` session cookie. JSON responses, pro
 | `POST /api/blobs` | `{ "type": "audio/webm", "data": "<base64 bytes, without data-URL prefix>" }`; returns `{ "ok": true, "ref": "<filename>" }`. No revision required. |
 | `GET /api/blobs/<ref>` | Returns the current business's recording bytes; another business's file is not accessible. |
 
-Except for health and the request/verify/me auth routes, these endpoints require a valid session. Invite roles and permissions are preview data only: there is no invite acceptance or membership-granting endpoint. New dogs entered through Planning join the daily registry and become available to the care-note UI; Billie and Charlie remain the initial profiles.
+Except for health and the request/verify/me auth routes, these endpoints require a valid session. Invite roles and permissions are preview data only: there is no invite acceptance or membership-granting endpoint. Dogs registered directly in **Dogs / Chiens** or through Planning join the daily registry via `PUT /api/daily` and become available to the care-note UI. They appear in `daily.dogs` within `/api/state`; registration alone does not create a `/api/dogs` row. Billie and Charlie remain the initial profiles.
 
 ### Mutation contract
 
@@ -231,6 +233,8 @@ uv run --python 3.12 --with playwright==1.61.0 python -m unittest discover -s te
 ```
 
 The suite starts its own local servers and temporary account storage. It covers both static and account modes, authentication, tenant isolation, safe migration and replacement writes, stale-tab/timeout recovery, protected recordings, robots/origin/output boundaries, the Muse briefing-to-handoff journey, dictated text editing, and mobile overflow. Daily-workflow checks cover booking create/reload/edit, original-rate extensions, cross-month allocation, unknown rates, private document download and renewal follow-up, and failed-save recovery in both storage modes.
+
+Dog-registration checks cover the selected profile and empty directory, optional owners, distinct IDs for same-named dogs, duplicate-submit prevention, cancel, failed-save/retry, literal drafts across navigation and five locales, save/reload and later booking association. They also cover keyboard focus, 44px controls and overflow at phone, tablet and desktop sizes; API/model checks cover ownerless records and business/revision guards.
 
 Knowledge checks cover guide search and provider links, topic choices, five locales, private experience save/edit/reload, literal text and Unicode limits, failed-save drafts, and conflicting tabs in both storage modes. API checks cover business isolation, stale/switched-account rejection and atomic validation. External video navigation is intercepted in the fixture; remote playback and live source verification are separate from these tests.
 
