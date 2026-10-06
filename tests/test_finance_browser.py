@@ -228,6 +228,69 @@ class FinanceBrowserTest(BrowserFixture):
             await self.page.click('#finance-back')
         self.assertEqual(self.console_errors, [])
 
+    async def test_retained_editor_total_tracks_current_inputs_after_redraw(self):
+        entries = await self.page.evaluate('''() => ['sale','expense'].map(kind=>{
+          const e=FinanceModel.draft('preview-'+kind,kind);e.currency='CHF';
+          e.lines[0]={description:'Original line',quantity:1,unitMinor:1050,bookingId:''};return e;
+        })''')
+        await self.seed_finance(entries)
+        saved = await self.snapshot()
+        for entry in entries:
+            await self.page.click(f'[data-finance-edit="{entry["id"]}"]')
+            await self.page.fill('[name="description-0"]', 'Today =1+1')
+            await self.page.fill('[name="unit-0"]', '20,50')
+            await self.page.fill('#finance-form [name="currency"]', 'EUR')
+            expected = await self.page.evaluate("() => new Intl.NumberFormat(formatLocale(Intl.NumberFormat),{style:'currency',currency:'EUR',minimumFractionDigits:2,maximumFractionDigits:2}).format(20.5)")
+            self.assertEqual(await self.page.inner_text('#finance-total'), expected)
+            await self.page.click('[data-finance-tab="rates"]')
+            await self.page.click('#finance-resume')
+            self.assertEqual(await self.page.inner_text('#finance-total'), expected)
+            for locale in ('fr', 'en', 'it', 'de', 'es'):
+                await self.page.select_option('#language-picker', locale)
+                await self.page.wait_for_function('!savePending')
+                expected = await self.page.evaluate("() => new Intl.NumberFormat(formatLocale(Intl.NumberFormat),{style:'currency',currency:'EUR',minimumFractionDigits:2,maximumFractionDigits:2}).format(20.5)")
+                self.assertEqual(await self.page.inner_text('#finance-total'), expected)
+                self.assertEqual(await self.page.input_value('[name="unit-0"]'), '20,50')
+                self.assertEqual(await self.page.input_value('#finance-form [name="currency"]'), 'EUR')
+                self.assertEqual(await self.page.input_value('[name="description-0"]'), 'Today =1+1')
+                if locale == 'fr':
+                    await self.capture_evidence(f'finance-retained-preview-{entry["kind"]}-{self.api_mode}.png')
+            self.assertEqual(await self.snapshot(), saved)
+            self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth>innerWidth'))
+            await self.page.click('[data-finance-tab="journal"]')
+            await self.page.click('#finance-discard')
+        await self.page.reload()
+        await self.wait_ready()
+        self.assertEqual(await self.snapshot(), saved)
+        self.assertEqual(self.console_errors, [])
+
+    async def test_retained_editor_total_stays_unknown_for_invalid_inputs(self):
+        entry = await self.page.evaluate('''() => {
+          const e=FinanceModel.draft('invalid-preview','sale');e.currency='CHF';
+          e.lines[0].unitMinor=1050;return e;
+        }''')
+        await self.seed_finance([entry])
+        saved = await self.snapshot()
+        await self.page.click('[data-finance-edit="invalid-preview"]')
+        cases = [('quantity-0', value) for value in ('', '0', '-1', '1.5', '10001')]
+        cases += [('unit-0', value) for value in ('', '20,unfinished', '20,', '1000000.01')]
+        cases += [('currency', value) for value in ('', 'EU', 'eur')]
+        for index, (name, value) in enumerate(cases):
+            with self.subTest(name=name, value=value):
+                for field, valid in {'quantity-0': '2', 'unit-0': '20.50', 'currency': 'JPY'}.items():
+                    await self.page.fill(f'#finance-form [name="{field}"]', valid)
+                await self.page.fill(f'#finance-form [name="{name}"]', value)
+                self.assertEqual(await self.page.inner_text('#finance-total'), await self.page.evaluate("FinanceUI.text('unknown')"))
+                await self.page.click('[data-finance-tab="rates"]')
+                await self.page.click('#finance-resume')
+                self.assertEqual(await self.page.inner_text('#finance-total'), await self.page.evaluate("FinanceUI.text('unknown')"))
+                await self.page.select_option('#language-picker', ('fr', 'en', 'it', 'de', 'es')[index % 5])
+                await self.page.wait_for_function('!savePending')
+                self.assertEqual(await self.page.inner_text('#finance-total'), await self.page.evaluate("FinanceUI.text('unknown')"))
+                self.assertEqual(await self.page.input_value(f'#finance-form [name="{name}"]'), value)
+        self.assertEqual(await self.snapshot(), saved)
+        self.assertEqual(self.console_errors, [])
+
     async def test_internal_navigation_preserves_editor_until_explicit_discard(self):
         entries = await self.page.evaluate("[FinanceModel.draft('existing-a'),FinanceModel.draft('existing-b')]")
         await self.seed_finance(entries)
