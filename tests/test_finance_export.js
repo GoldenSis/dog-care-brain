@@ -79,3 +79,80 @@ test('maximum ledger row count exports every row with typed literal cells',async
   assert.ok(sheet.includes('<autoFilter ref="A1:C500001"/>'));
   assert.equal(sheet.includes('<f>'),false);
 });
+function simulatedZipContext(lengths,{inputSize}={}){
+  const stats={names:[],compressed:0,emitted:0,ends:0,terminated:0,active:new Set(),archives:0};
+  class OutputBlob extends Blob {
+    constructor(parts,options){super(parts,options);if(options?.type==='application/zip')stats.archives++;}
+  }
+  const context=exportContext({Blob:OutputBlob}),{Zip,ZipPassThrough,strToU8}=context.fflate;
+  context.fflate.Zip=class extends Zip {
+    constructor(callback){super((error,chunk,final)=>{
+      if(chunk)stats.emitted+=chunk.length;
+      if(final)stats.directory=chunk;
+      callback(error,chunk,final);
+    });}
+    add(file){stats.names.push(file.filename);super.add(file);}
+    end(){stats.ends++;super.end();}
+    terminate(){stats.terminated++;super.terminate();}
+  };
+  context.fflate.AsyncZipDeflate=class extends ZipPassThrough {
+    constructor(name){super(name);stats.active.add(this);this.terminate=()=>stats.active.delete(this);}
+    push(bytes){
+      this.size=bytes.length;this.crc=0;
+      const chunks=lengths(this.filename,stats);
+      queueMicrotask(()=>chunks.forEach((length,i)=>{
+        const chunk=new Uint8Array(2);Object.defineProperty(chunk,'length',{value:length});
+        stats.compressed+=length;this.ondata(null,chunk,i===chunks.length-1);
+      }));
+    }
+  };
+  if(inputSize!==undefined)context.fflate.strToU8=value=>{
+    const bytes=strToU8(value);
+    if(value.includes('<Types '))Object.defineProperty(bytes,'length',{value:inputSize});
+    return bytes;
+  };
+  vm.runInContext(fs.readFileSync(require.resolve('../finance-export.js'),'utf8'),context);
+  return {context,stats,run:()=>context.FinanceExport.workbook([{name:'Journal',rows:[['Literal']]}])};
+}
+const zip32Max=0xffffffff;
+const overhead=names=>22+names.reduce((sum,name)=>sum+92+2*Buffer.byteLength(name),0);
+test('ZIP32 accepts the last safe byte including headers, descriptors and central directory',async()=>{
+  const {run,stats}=simulatedZipContext((name,stats)=>[
+    name==='xl/worksheets/sheet1.xml'?zip32Max-1-overhead(stats.names)-stats.compressed:2
+  ]);
+  await run();
+  assert.equal(stats.emitted,zip32Max-1);
+  assert.equal(stats.archives,1);assert.equal(stats.ends,1);assert.equal(stats.terminated,1);assert.equal(stats.active.size,0);
+  const end=Buffer.from(stats.directory).subarray(-22);
+  assert.equal(end.readUInt32LE(16)+end.readUInt32LE(12)+22,zip32Max-1);
+});
+test('ZIP32 rejects metadata overhead at and beyond capacity before finalization',async t=>{
+  for(const extra of [0,1,22,200])await t.test('overflow '+extra,async()=>{
+    const {run,stats}=simulatedZipContext((name,stats)=>[
+      name==='xl/worksheets/sheet1.xml'?zip32Max+extra-overhead(stats.names)-stats.compressed:2
+    ]);
+    await assert.rejects(run(),{code:'ZIP32_LIMIT'});
+    assert.ok(stats.compressed<zip32Max);
+    assert.equal(stats.ends,0);assert.equal(stats.archives,0);assert.equal(stats.terminated,1);assert.equal(stats.active.size,0);
+  });
+});
+test('ZIP32 rejects cumulative offsets from individually eligible chunks and files',async()=>{
+  const {run,stats}=simulatedZipContext(()=>[450000000,450000000]);
+  await assert.rejects(run(),{code:'ZIP32_LIMIT'});
+  assert.ok(stats.names.length>1);assert.ok(stats.names.length<6);
+  assert.equal(stats.ends,0);assert.equal(stats.archives,0);assert.equal(stats.terminated,1);assert.equal(stats.active.size,0);
+});
+test('ZIP32 reserves the next file metadata before starting its compressor',async()=>{
+  const {run,stats}=simulatedZipContext((name,stats)=>[zip32Max-1-overhead(stats.names)]);
+  await assert.rejects(run(),{code:'ZIP32_LIMIT'});
+  assert.equal(stats.names.length,1);assert.equal(stats.emitted+46+Buffer.byteLength(stats.names[0])+22,zip32Max-1);
+  assert.equal(stats.ends,0);assert.equal(stats.archives,0);assert.equal(stats.terminated,1);assert.equal(stats.active.size,0);
+});
+test('ZIP32 checks uncompressed entry size before starting compression',async t=>{
+  for(const inputSize of [zip32Max-1,zip32Max,zip32Max+1])await t.test('size '+inputSize,async()=>{
+    const {run,stats}=simulatedZipContext(()=>[2],{inputSize});
+    if(inputSize<zip32Max){await run();assert.equal(stats.archives,1);}
+    else{await assert.rejects(run(),{code:'ZIP32_LIMIT'});assert.equal(stats.names.length,0);assert.equal(stats.archives,0);}
+    assert.equal(stats.terminated,1);assert.equal(stats.active.size,0);
+  });
+});

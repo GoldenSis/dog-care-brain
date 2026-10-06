@@ -133,7 +133,7 @@
       if(exporting||S.unavailable())return;exporting=true;exportButton.disabled=true;
       const copy=w.FinanceCopy[state.language]||w.FinanceCopy.en;
       try{const blob=await FinanceExport.archive(S.snapshot(),key=>copy[key],S.document);FinanceExport.download(blob,'comptabilite.zip');}
-      catch{showError('exportError');}
+      catch(error){showError(error?.code==='ZIP32_LIMIT'?'exportSizeError':'exportError');}
       finally{exporting=false;const button=document.querySelector('#finance-export');if(button)button.disabled=S.unavailable();}
     };
     document.querySelectorAll('[data-finance-tab]').forEach(b=>b.onclick=()=>{leaveEditor();tab=b.dataset.financeTab;draw();});

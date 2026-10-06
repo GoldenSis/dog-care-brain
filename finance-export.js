@@ -5,15 +5,17 @@
   const cellText=s=>xml(String(s).replace(/_(?=x[0-9a-fA-F]{4}_)/g,'_x005F_'));
   const column=n=>{let s='';for(n++;n;n=Math.floor((n-1)/26))s=String.fromCharCode(65+(n-1)%26)+s;return s;};
   async function zip(files){
-    const parts=[];let failure;
+    const parts=[];let failure,size=22;
+    const check=size=>{if(size>=0xffffffff)throw Object.assign(Error('ZIP32 capacity exceeded'),{code:'ZIP32_LIMIT'});};
     const archive=new fflate.Zip((error,chunk)=>{if(error)failure=error;else parts.push(new Blob([chunk]));});
     try{
       for await(const [name,bytes] of files){
+        check(bytes.length);check(size+=30+16+46+2*fflate.strToU8(name).length);
         await new Promise((resolve,reject)=>{
           const file=new fflate.AsyncZipDeflate(name,{level:6});archive.add(file);
           const ondata=file.ondata;
           file.ondata=(error,chunk,final)=>{
-            try{ondata(error,chunk,final);if(failure)throw failure;if(final)resolve();}catch(error){reject(error);}
+            try{if(failure)throw failure;if(!error)check(size+=chunk.length);ondata(error,chunk,final);if(failure)throw failure;if(final)resolve();}catch(error){failure=error;reject(error);}
           };
           file.push(bytes,true);
         });

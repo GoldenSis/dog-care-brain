@@ -142,6 +142,14 @@ class FinanceBrowserTest(BrowserFixture):
               if(window.exportFailure==='compression'&&this.filename.includes(second)){
                 queueMicrotask(()=>this.ondata(Error('Compressor failed'),null,false));return;
               }
+              if((window.exportFailure==='capacity'&&this.filename.includes(second))||
+                 (window.exportFailure==='workbook-capacity'&&this.filename==='xl/styles.xml')){
+                const ondata=this.ondata;
+                this.ondata=(error,chunk,last)=>{
+                  if(!error)Object.defineProperty(chunk,'length',{value:0xffffffff});
+                  ondata(error,chunk,last);
+                };
+              }
               super.push(bytes,final);
             }
           };
@@ -158,8 +166,11 @@ class FinanceBrowserTest(BrowserFixture):
         }''')
         downloads = []
         self.page.on('download', lambda item: downloads.append(item))
-        for failure in ('missing', 'size', 'hash', 'read', 'compression'):
-            with self.subTest(failure=failure):
+        cases = [(failure, 'en') for failure in ('missing', 'size', 'hash', 'read', 'compression', 'workbook-capacity')]
+        cases.extend(('capacity', language) for language in ('fr', 'en', 'it', 'de', 'es'))
+        for failure, language in cases:
+            with self.subTest(failure=failure, language=language):
+                await self.page.select_option('#language-picker', language)
                 await self.page.evaluate('''failure=>{
                   window.exportFailure=failure;window.exportChunks=0;
                   document.querySelector('#finance-error').hidden=true;
@@ -170,8 +181,10 @@ class FinanceBrowserTest(BrowserFixture):
                 self.assertEqual(await self.page.evaluate('exportWorkers.size'), 0)
                 self.assertEqual(downloads, [])
                 self.assertTrue(await self.page.locator('#finance-error').is_visible())
+                error_key = 'exportSizeError' if 'capacity' in failure else 'exportError'
                 self.assertEqual(await self.page.inner_text('#finance-error'),
-                                 await self.page.evaluate("FinanceUI.text('exportError')"))
+                                 await self.page.evaluate('key=>FinanceUI.text(key)', error_key))
+                self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth>innerWidth'))
                 self.assertEqual(await self.page.input_value('[name="party"]'), '  Editable after failure 🐾  ')
                 self.assertEqual(await self.snapshot(), saved)
         await self.page.evaluate('window.exportFailure=null')
@@ -180,6 +193,10 @@ class FinanceBrowserTest(BrowserFixture):
         with zipfile.ZipFile(await (await info.value).path()) as archive:
             self.assertEqual(len(archive.namelist()), 5)
             self.assertIsNone(archive.testzip())
+            self.assertEqual(json.loads(archive.read('records.json')), saved)
+            for meta in saved['documents']:
+                original = archive.read('originals/' + meta['id'] + '.pdf')
+                self.assertEqual(hashlib.sha256(original).hexdigest(), meta['sha256'])
         self.assertEqual(await self.page.evaluate('exportWorkers.size'), 0)
         self.assertEqual(await self.page.input_value('[name="party"]'), '  Editable after failure 🐾  ')
         self.assertEqual(self.console_errors, [])
