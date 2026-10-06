@@ -22,7 +22,7 @@
         const p=await pdf.getPage(n), natural=p.getViewport({scale:1}), scale=Math.min(2,2400/Math.max(natural.width,natural.height)), view=p.getViewport({scale});
         const c=canvas(Math.ceil(view.width),Math.ceil(view.height));await p.render({canvasContext:c.getContext('2d'),viewport:view}).promise;
         result.push({canvas:c,page:n,regions:[{page:n,x:0,y:0,width:1,height:1}]});p.cleanup();
-      }return result;}finally{await pdf.destroy();}
+      }return result;}finally{await task.destroy();}
     }
     const bitmap=await createImageBitmap(file);try{if(bitmap.width*bitmap.height>40000000)throw Error('Image too large');const scale=Math.min(1,3000/Math.max(bitmap.width,bitmap.height));const c=canvas(Math.round(bitmap.width*scale),Math.round(bitmap.height*scale));c.getContext('2d').drawImage(bitmap,0,0,c.width,c.height);return [{canvas:c,page:1,regions:detect(c)}];}finally{bitmap.close();}
   }
@@ -41,12 +41,13 @@
   }
   async function recognize(items,language,onProgress){
     await script('tesseract.js/tesseract.min.js');
-    const lang={fr:'fra',en:'eng',de:'deu',it:'ita',es:'spa'}[language]||'fra';let worker;
-    try{worker=await Tesseract.createWorker(lang,1,{workerPath:base+'tesseract.js/worker.min.js',corePath:base+'tesseract.js-core',langPath:base+'tessdata',workerBlobURL:false,logger:m=>onProgress(m.progress||0)});
+    const deadline=(promise,ms=120000)=>{let timer;return Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Reader timed out')),ms);})]).finally(()=>clearTimeout(timer));};
+    const lang={fr:'fra',en:'eng',de:'deu',it:'ita',es:'spa'}[language]||'fra';let worker,finished=false;
+    try{worker=await deadline(Tesseract.createWorker(lang,1,{workerPath:base+'tesseract.js/worker.min.js',corePath:base+'tesseract.js-core',langPath:base+'tessdata',workerBlobURL:false,logger:m=>onProgress(m.progress||0)}).then(value=>{if(finished){value.terminate();throw Error('Reader stopped');}return value;}));
       const result=[];for(const item of items){const c=item.canvas,r=item.region,rectangle={left:Math.floor(r.x*c.width),top:Math.floor(r.y*c.height),width:Math.max(1,Math.floor(r.width*c.width)),height:Math.max(1,Math.floor(r.height*c.height))};
         rectangle.width=Math.min(rectangle.width,c.width-rectangle.left);rectangle.height=Math.min(rectangle.height,c.height-rectangle.top);
-        const output=await worker.recognize(c,{rectangle});result.push(output.data.text.slice(0,20000));}return result;
-    }finally{if(worker)await worker.terminate();}
+        const output=await deadline(worker.recognize(c,{rectangle}));result.push(output.data.text.slice(0,20000));}return result;
+    }finally{finished=true;if(worker)await worker.terminate();}
   }
   w.FinanceDocuments={inspect,pages,recognize,script,sha};
 })(window);

@@ -5,7 +5,7 @@
   const empty=()=>({version:1,profile:{name:'',address:'',taxId:''},entries:[],documents:[]});
   const check=(ok)=>{if(!ok)throw Error('Invalid accounting record');};
   const fields=(v,keys)=>check(v&&typeof v==='object'&&!Array.isArray(v)&&Object.keys(v).sort().join(' ')===keys.split(' ').sort().join(' '));
-  const text=(v,n,required=false)=>typeof v==='string'&&[...v].length<=n&&(!required||v.trim().length>0)&&!/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(v);
+  const text=(v,n,required=false)=>typeof v==='string'&&[...v].length<=n&&(!required||v.trim().length>0)&&!/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(v)&&![...v].some(c=>c.codePointAt(0)>=0xd800&&c.codePointAt(0)<=0xdfff);
   const ident=v=>typeof v==='string'&&/^[A-Za-z0-9][A-Za-z0-9_-]{0,80}(?![\s\S])/.test(v);
   const date=v=>typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v)&&v>='0001-01-01'&&Number.isFinite(Date.parse(v+'T00:00:00Z'))&&new Date(v+'T00:00:00Z').toISOString().slice(0,10)===v;
   const minor=v=>Number.isSafeInteger(v)&&v>=0&&v<=100000000;
@@ -36,7 +36,7 @@
       if(e.status==='confirmed'){check(date(e.date)&&e.party.trim()&&e.currency&&amount!==null&&e.lines.every(l=>l.description.trim()));if(e.kind==='sale')check(e.number.trim()&&e.address.trim()&&e.issuer.trim()&&e.issuerAddress.trim());}
       if(e.status==='cancelled')check(e.cancelReason.trim()&&!e.payments.length);
       if(e.kind==='sale'&&e.status!=='draft'&&e.number.trim()){check(!numbers.has(e.number.trim()));numbers.add(e.number.trim());}
-      if(e.sourceId&&e.region&&e.status!=='cancelled'){const key=e.sourceId+JSON.stringify(e.region);check(!regions.has(key));regions.add(key);}
+      if(e.sourceId&&e.region&&e.status!=='cancelled'){const key=e.sourceId+JSON.stringify(['page','x','y','width','height'].map(k=>e.region[k]));check(!regions.has(key));regions.add(key);}
     }
     if(previous){
       for(const old of previous.documents)check(value.documents.some(d=>JSON.stringify(d)===JSON.stringify(old)));

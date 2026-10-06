@@ -107,7 +107,8 @@ window.FinanceCopy={
     "readme": "À lire",
     "savePayment": "Enregistrer ce paiement",
     "profile": "Coordonnées de facturation",
-    "keepProfile": "Réutiliser ces coordonnées pour les prochaines factures"
+    "keepProfile": "Réutiliser ces coordonnées pour les prochaines factures",
+    "adjustAreas": "Ajuster les zones"
   },
   "en": {
     "title": "Accounting",
@@ -216,7 +217,8 @@ window.FinanceCopy={
     "readme": "Read me",
     "savePayment": "Save payment",
     "profile": "Billing details",
-    "keepProfile": "Reuse these details for future invoices"
+    "keepProfile": "Reuse these details for future invoices",
+    "adjustAreas": "Adjust areas"
   },
   "it": {
     "title": "Contabilità",
@@ -325,7 +327,8 @@ window.FinanceCopy={
     "readme": "Leggimi",
     "savePayment": "Salva pagamento",
     "profile": "Dati fatturazione",
-    "keepProfile": "Riutilizza dati per prossime fatture"
+    "keepProfile": "Riutilizza dati per prossime fatture",
+    "adjustAreas": "Regola le aree"
   },
   "de": {
     "title": "Buchhaltung",
@@ -434,7 +437,8 @@ window.FinanceCopy={
     "readme": "Hinweise",
     "savePayment": "Zahlung speichern",
     "profile": "Rechnungsangaben",
-    "keepProfile": "Angaben für künftige Rechnungen verwenden"
+    "keepProfile": "Angaben für künftige Rechnungen verwenden",
+    "adjustAreas": "Bereiche anpassen"
   },
   "es": {
     "title": "Contabilidad",
@@ -543,6 +547,7 @@ window.FinanceCopy={
     "readme": "Léeme",
     "savePayment": "Guardar pago",
     "profile": "Datos de facturación",
-    "keepProfile": "Reutilizar datos en próximas facturas"
+    "keepProfile": "Reutilizar datos en próximas facturas",
+    "adjustAreas": "Ajustar zonas"
   }
 };

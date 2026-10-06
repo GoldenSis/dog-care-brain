@@ -24,7 +24,7 @@ def require(ok):
 
 def text(value, limit, required=False):
     require(isinstance(value, str) and len(value) <= limit and (not required or value.strip()) and
-            not any((ord(x) < 32 and x not in '\r\n\t') or ord(x) == 127 for x in value))
+            not any((ord(x) < 32 and x not in '\r\n\t') or ord(x) == 127 or 0xd800 <= ord(x) <= 0xdfff for x in value))
 
 
 def calendar(value):

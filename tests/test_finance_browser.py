@@ -2,6 +2,8 @@
 import base64
 import io
 import json
+import os
+from pathlib import Path
 import threading
 import zipfile
 from functools import partial
@@ -50,6 +52,8 @@ class FinanceBrowserTest(BrowserFixture):
         async with self.page.expect_download() as info:
             await self.page.click('#finance-export')
         download = await info.value
+        if os.environ.get('DOGCARE_EVIDENCE_DIR'):
+            await download.save_as(str(Path(os.environ['DOGCARE_EVIDENCE_DIR']) / f'finance-export-{self.api_mode}.zip'))
         with zipfile.ZipFile(await download.path()) as archive:
             records = json.loads(archive.read('records.json'))
             self.assertEqual(records, data)
@@ -83,6 +87,7 @@ class FinanceBrowserTest(BrowserFixture):
         await self.page.set_input_files('#finance-files', {'name': 'synthetic-two-receipts.png', 'mimeType': 'image/png', 'buffer': photo})
         await self.page.wait_for_selector('#finance-recognize')
         self.assertEqual(await self.page.locator('.finance-region').count(), 2)
+        await self.capture_evidence(f'finance-two-paper-areas-{self.api_mode}.png')
         await self.page.click('#finance-recognize')
         await self.page.wait_for_function('!savePending', timeout=120000)
         data = await self.snapshot()
@@ -102,7 +107,10 @@ class FinanceBrowserTest(BrowserFixture):
         self.assertEqual(sum(e['status']=='confirmed' for e in data['entries']), 1)
         async with self.page.expect_download() as info:
             await self.page.click('#finance-export')
-        with zipfile.ZipFile(await (await info.value).path()) as archive:
+        download = await info.value
+        if os.environ.get('DOGCARE_EVIDENCE_DIR'):
+            await download.save_as(str(Path(os.environ['DOGCARE_EVIDENCE_DIR']) / f'finance-receipts-{self.api_mode}.zip'))
+        with zipfile.ZipFile(await download.path()) as archive:
             original = [n for n in archive.namelist() if n.startswith('originals/')]
             self.assertEqual(len(original), 1)
             self.assertEqual(archive.read(original[0]), photo)
@@ -113,6 +121,72 @@ class FinanceBrowserTest(BrowserFixture):
         self.assertEqual(await self.snapshot(), data)
         self.assertEqual(self.console_errors, [])
         self.assertEqual(self.page_errors, [])
+
+    async def test_stale_tab_keeps_draft_and_does_not_overwrite(self):
+        other = await self.context.new_page()
+        await other.goto(self.url)
+        await other.wait_for_function("document.querySelector('#app-content')?.dataset.ready === 'true'")
+        await other.click('[data-page="business"]')
+        await other.click('#finance-new-expense')
+        await other.fill('[name="party"]', 'Unsaved other tab')
+        await self.page.click('#finance-new-expense')
+        await self.page.fill('[name="party"]', 'Saved first tab')
+        await self.save_entry()
+        await other.click('#finance-form button[value="draft"]')
+        await other.wait_for_function('!savePending')
+        self.assertTrue(await other.locator('#finance-error').is_visible())
+        self.assertEqual(await other.input_value('[name="party"]'), 'Unsaved other tab')
+        await self.page.reload()
+        await self.wait_ready()
+        self.assertEqual([e['party'] for e in (await self.snapshot())['entries']], ['Saved first tab'])
+        await other.close()
+
+    async def test_pdf_pages_manual_fallback_and_atomic_storage_failure(self):
+        # Valid two-page synthetic PDF; no user document or external fetch.
+        objects = [b'<< /Type /Catalog /Pages 2 0 R >>', b'<< /Type /Pages /Kids [3 0 R 5 0 R] /Count 2 >>',
+                   b'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 500 700] /Resources << >> /Contents 4 0 R >>',
+                   b'<< /Length 0 >>\nstream\n\nendstream',
+                   b'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 500 700] /Resources << >> /Contents 6 0 R >>',
+                   b'<< /Length 0 >>\nstream\n\nendstream']
+        pdf = b'%PDF-1.4\n'; offsets = [0]
+        for i, obj in enumerate(objects, 1):
+            offsets.append(len(pdf)); pdf += f'{i} 0 obj\n'.encode() + obj + b'\nendobj\n'
+        start = len(pdf)
+        pdf += b'xref\n0 7\n0000000000 65535 f \n' + b''.join(f'{v:010d} 00000 n \n'.encode() for v in offsets[1:])
+        pdf += f'trailer\n<< /Size 7 /Root 1 0 R >>\nstartxref\n{start}\n%%EOF'.encode()
+        await self.page.evaluate("() => { window.pdfRead=FinanceDocuments.pages;FinanceDocuments.pages=async(...args)=>{try{return await pdfRead(...args)}catch(e){window.pdfReadError=e.message;throw e}}; }")
+        await self.page.click('#finance-import')
+        await self.page.set_input_files('#finance-files', {'name': 'two-pages.pdf', 'mimeType': 'application/pdf', 'buffer': pdf})
+        await self.page.wait_for_function('!savePending')
+        self.assertEqual(await self.page.locator('#finance-recognize').count(), 1, await self.page.evaluate('window.pdfReadError'))
+        self.assertEqual(await self.page.locator('[data-finance-canvas]').count(), 2)
+        await self.page.evaluate("() => { window.originalRecognize=FinanceDocuments.recognize;FinanceDocuments.recognize=async()=>{throw Error('Reader unavailable')}; }")
+        await self.page.click('#finance-recognize')
+        await self.page.wait_for_function('!savePending')
+        self.assertTrue(await self.page.locator('#finance-error').is_visible())
+        self.assertEqual((await self.snapshot())['documents'], [])
+        if self.api_mode:
+            await self.page.route('**/api/finance', lambda route: route.fulfill(status=507, json={'ok': False}))
+        else:
+            await self.page.evaluate("() => { window.originalPut=IDBObjectStore.prototype.put;IDBObjectStore.prototype.put=function(...args){if(this.name==='state')throw new DOMException('Quota','QuotaExceededError');return originalPut.apply(this,args)}; }")
+        await self.page.click('#finance-manual-import')
+        await self.page.wait_for_function('!savePending')
+        self.assertTrue(await self.page.locator('#finance-error').is_visible())
+        self.assertEqual((await self.snapshot())['documents'], [])
+        self.assertEqual(await self.page.locator('[data-finance-canvas]').count(), 2)
+        if self.api_mode:
+            await self.page.unroute('**/api/finance')
+        else:
+            await self.page.evaluate('() => { IDBObjectStore.prototype.put=window.originalPut; }')
+        await self.page.click('#finance-manual-import')
+        await self.page.wait_for_function('!savePending')
+        data = await self.snapshot()
+        self.assertEqual(len(data['documents']), 1)
+        self.assertEqual([e['region']['page'] for e in data['entries']], [1, 2])
+        self.assertTrue(all(e['lines'][0]['unitMinor'] is None for e in data['entries']))
+        await self.page.reload()
+        await self.wait_ready()
+        self.assertEqual(await self.snapshot(), data)
 
     async def test_localized_views_routes_and_unsaved_literal_draft(self):
         await self.page.click('#finance-new-expense')
@@ -128,6 +202,7 @@ class FinanceBrowserTest(BrowserFixture):
         await self.save_entry()
         await self.page.click('#finance-back')
         await self.page.select_option('#language-picker', 'fr')
+        await self.page.wait_for_function("!document.querySelector('#toast').classList.contains('show')")
         for width,height in ((1440,900),(1024,768),(390,844)):
             await self.page.set_viewport_size({'width':width,'height':height})
             for tab in ('journal','invoices','expenses','review','rates'):

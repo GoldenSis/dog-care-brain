@@ -32,8 +32,8 @@
       const tx=db.transaction(['state','documents'],'readwrite'), done=complete(tx), stateStore=tx.objectStore('state');
       const read=stateStore.get('current');let stale=false;
       read.onsuccess=()=>{if((read.result||null)!==baseline){stale=true;tx.abort();return;}
-        for(const [id,blob] of files)tx.objectStore('documents').add(blob,id);
-        stateStore.put(JSON.stringify(next),'current');};
+        try{for(const [id,blob] of files)tx.objectStore('documents').add(blob,id);
+        stateStore.put(JSON.stringify(next),'current');}catch{tx.abort();}};
       try{await done;}catch{if(stale)failed=true;return false;}
       data=structuredClone(next);baseline=JSON.stringify(next);return true;
     }catch{return false;}
