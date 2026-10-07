@@ -13,4 +13,4 @@ No current-day claims are made from these recordings. No external publication or
 
 `good-company.jpg` is an exact frame at 1 second from [this public @bus_destoutous post](https://www.instagram.com/p/DYknTgAFPMo/), retrieved 2026-09-14. The reel holds a still photograph of two golden retrievers. The unmodified source frame includes a caption; CSS crops to the dogs. Neither individual is assigned a profile identity from this shared image.
 
-The dashboard pairs this clearer two-dog image with a woodland view. The outdoor journal uses two different frames, and the gallery retains the full woodland reel. The large doorstep and indoor portraits are no longer displayed.
+The gallery retains this two-dog photograph and the full woodland reel. The dashboard's outdoor journal uses the pack-on-the-trail and Adine-in-the-woods frames; its former paired-photo hero has been replaced by daily-work shortcuts. The large doorstep and indoor portraits are no longer displayed.

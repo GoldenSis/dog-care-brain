@@ -83,3 +83,37 @@ CREATE TABLE IF NOT EXISTS pref (
   user_id INTEGER PRIMARY KEY REFERENCES user(id),
   language TEXT NOT NULL DEFAULT 'en'
 );
+
+-- Additive operational records; existing accounts start without invented activity.
+CREATE TABLE IF NOT EXISTS business_daily (
+  business_id INTEGER PRIMARY KEY REFERENCES business(id),
+  snapshot TEXT NOT NULL
+);
+
+-- Never exposed through the public static tree; downloads require the owning account.
+CREATE TABLE IF NOT EXISTS daily_document (
+  business_id INTEGER NOT NULL REFERENCES business(id),
+  id TEXT NOT NULL,
+  mime TEXT NOT NULL,
+  contents BLOB NOT NULL,
+  PRIMARY KEY (business_id, id)
+);
+
+-- User-entered experience remains private and separate from sourced education.
+CREATE TABLE IF NOT EXISTS business_knowledge (
+  business_id INTEGER PRIMARY KEY REFERENCES business(id),
+  snapshot TEXT NOT NULL
+);
+
+-- Private accounting originals are immutable and scoped to their business.
+CREATE TABLE IF NOT EXISTS business_finance (
+  business_id INTEGER PRIMARY KEY REFERENCES business(id),
+  snapshot TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS finance_document (
+  business_id INTEGER NOT NULL REFERENCES business(id),
+  id TEXT NOT NULL,
+  mime TEXT NOT NULL,
+  contents BLOB NOT NULL,
+  PRIMARY KEY (business_id, id)
+);

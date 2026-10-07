@@ -1,9 +1,12 @@
 /* Adapter behind window.DOGCARE_API (the API server injects "/api").
    Flag off (undefined/falsy) → no storage or network access from this file.
-   Flag on → hydrate account state, optionally import the three dogcare-* storage
-   keys once per business, then save through /api with a session cookie.
-   Browser copies remain unchanged; observations/invites are full replacements,
-   language is per user, and care writes bind to the loaded business/revision.
+   Flag on → hydrate account state, optionally import dogcare-observations,
+   dogcare-invites and dogcare-language once per business; daily records,
+   experiences and accounting records/originals are excluded. Save through /api
+   with a session cookie; browser copies stay intact. Observations/invites/daily
+   records/experiences/accounting use full replacement snapshots; accounting
+   writes retain existing records and commit new originals atomically. Language
+   is per user, and care writes bind to the loaded business/revision.
    See README.md's Slice 1 API section for the request and recovery contracts. */
 (function (w) {
   const base = w.DOGCARE_API;
@@ -11,8 +14,12 @@
 
   const cache = {
     observations: null,
+    dogs: [],
     invites: [],
     language: "fr",
+    daily: null,
+    knowledge: null,
+    finance: null,
   };
 
   function url(path) {
@@ -132,15 +139,19 @@
     businessId = data.business_id;
     revision = data.revision;
     cache.observations = data.observations;
+    cache.dogs = data.dogs || [];
     cache.invites = data.invites;
     cache.language = data.language || "en";
+    cache.daily = data.daily ?? null;
+    cache.knowledge = data.knowledge || {version:1,experiences:[]};
+    cache.finance = data.finance ?? null;
     return true;
   }
 
   const ready = (async function hydrate() {
     const state = await req("/state");
     if (state.status === 401) {
-      loadError = "Sign in using your magic link, then reload to open your account.";
+      loadError = "Open your sign-in link in this browser to access your account. If the link has expired or was already used, request a new one from the person who gave you access.";
       return false;
     }
     if (!state.ok || !acceptState(state.data)) return false;
@@ -189,11 +200,65 @@
     getObservations() {
       return cache.observations || {};
     },
+    getDogs() { return JSON.parse(JSON.stringify(cache.dogs)); },
     getInvites() {
       return cache.invites || [];
     },
     getLanguage() {
       return cache.language || "en";
+    },
+    getFinance() { return JSON.parse(JSON.stringify(cache.finance)); },
+    reloadFinance() {
+      return enqueue(async()=>{
+        const result=await req('/state');
+        if(!result.ok || !result.data.ok || result.data.business_id!==businessId || result.data.revision!==revision || !result.data.finance)return false;
+        cache.finance=result.data.finance;return true;
+      });
+    },
+    saveFinance(finance, uploads=[]) {
+      if(!cache.finance)return Promise.resolve(false);
+      const snapshot=JSON.parse(JSON.stringify({finance,uploads}));
+      return enqueue(async()=>{const result=await putJson('/finance',snapshot);return result.ok&&acceptState(result.data);});
+    },
+    async getFinanceDocument(id) {
+      if(!hydrated || writeBlocked || !/^[a-f0-9]{64}$/.test(id))return null;
+      const controller=new AbortController(), timer=setTimeout(()=>controller.abort(),requestTimeout);
+      try{const response=await fetch(url('/finance-documents/'+id),{credentials:'include',signal:controller.signal});return response.ok?await response.blob():null;}
+      catch{return null;}finally{clearTimeout(timer);}
+    },
+    getKnowledge() { return JSON.parse(JSON.stringify(cache.knowledge)); },
+    saveKnowledge(knowledge) {
+      const snapshot = JSON.parse(JSON.stringify(knowledge));
+      return enqueue(async () => {
+        const result = await putJson("/knowledge", {knowledge: snapshot});
+        return result.ok && acceptState(result.data);
+      });
+    },
+    getDaily() { return JSON.parse(JSON.stringify(cache.daily)); },
+    saveDaily(daily) {
+      const snapshot = JSON.parse(JSON.stringify(daily));
+      return enqueue(async () => {
+        const result = await putJson("/daily", {daily: snapshot});
+        return result.ok && acceptState(result.data);
+      });
+    },
+    saveDocument(document) {
+      const snapshot = JSON.parse(JSON.stringify(document));
+      return enqueue(async () => {
+        const result = await postJson("/documents", snapshot);
+        return result.ok && acceptState(result.data);
+      });
+    },
+    async getDocument(id) {
+      if (!hydrated || writeBlocked || !/^[a-f0-9]{32}$/.test(id)) return null;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), requestTimeout);
+      try {
+        const response = await fetch(url("/documents/" + id), {credentials:"include",signal:controller.signal});
+        if (!response.ok) return null;
+        return await response.blob();
+      } catch { return null; }
+      finally { clearTimeout(timer); }
     },
     saveObservations(obs) {
       if (!hydrated) return enqueue(() => false);

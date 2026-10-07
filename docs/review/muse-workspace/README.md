@@ -1,6 +1,8 @@
 # Muse workspace design review
 
-The workspace uses the Bivouac Club reference’s typography, compact navigation and joined photo/action layout, adapted to Le Bus des Toutous. French remains the default for the local demo; orange accents and Adine-Sophie’s original photographs and film carry through the care screens.
+Historical review of the 14 September 2026 design. Its masthead, collapsible menu, screenshots, and navigation measurements are superseded by the [compact-navigation review](../muse-compact-navigation/README.md); the results below describe the recorded revision.
+
+This revision used the Bivouac Club reference’s typography, compact navigation and joined photo/action layout, adapted to Le Bus des Toutous. French remains the default for the local demo; orange accents and Adine-Sophie’s original photographs and film carry through the care screens.
 
 Captured on 2026-09-14 using isolated local servers, seeded demo records, French UI, Chromium, and device scale 1. No live account data was used.
 
@@ -23,7 +25,7 @@ node --check api.js
 git diff --check
 ```
 
-The shared browser journeys select English explicitly, with separate coverage for the French demo default and saved language preference. Account preferences remain authoritative. Empty care logs still open capture for Billie, and record ID `0` retains its evidence link. The desktop invitation test now opens the grouped navigation before selecting Invite; all prior assertions remain.
+The shared browser journeys select English explicitly, with separate coverage for the French demo default and saved language preference. Account preferences remain authoritative. Empty care logs still open capture for Billie, and record ID `0` retains its evidence link. At this revision, the desktop invitation test opened the grouped menu before selecting Invite. Current tests select Invite directly from persistent navigation.
 
 Relative to PR #4 at `9b31e69`, API code, application state, care calculations, event handlers and persistence are unchanged. Independent review found no remaining blockers. Dashboard date/progress and business snapshot claims remain removed; planning and business screens still disclose sample data.
 
