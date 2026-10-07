@@ -1142,7 +1142,12 @@ class FinanceBrowserTest(BrowserFixture):
             self.assertEqual(proposed[field], '')
         self.assertIsNone(proposed['vatMinor'])
         await self.page.click('[data-finance-edit]')
-        await self.capture_evidence(f'finance-sparse-card-slip-{self.api_mode}.png')
+        await self.page.locator('#finance-form summary').click()
+        self.assertEqual(await self.page.locator('.finance-raw').text_content(), proposed['raw'])
+        for width, height in ((390, 844), (1440, 900)):
+            await self.page.set_viewport_size({'width': width, 'height': height})
+            self.assertLessEqual(await self.page.evaluate('document.documentElement.scrollWidth'), width)
+            await self.capture_evidence(f'finance-sparse-card-slip-{width}-{self.api_mode}.png')
         await self.page.click('#finance-form button[value="confirmed"]')
         self.assertEqual(await self.page.input_value('[name="party"]'), '')
         self.assertEqual((await self.snapshot())['entries'][0]['status'], 'draft')
@@ -1153,10 +1158,23 @@ class FinanceBrowserTest(BrowserFixture):
         await self.page.click('[data-page="business"]')
         saved = await self.snapshot()
         self.assertEqual(saved['entries'][0]['party'], 'Fournisseur vérifié — démo')
-        self.assertEqual(saved['entries'][0]['raw'], proposed['raw'])
+        self.assertEqual(saved['entries'][0]['status'], 'confirmed')
+        for field in ('raw', 'sourceId', 'region', 'date', 'currency', 'lines', 'number', 'taxId', 'vatMinor'):
+            self.assertEqual(saved['entries'][0][field], proposed[field])
+        await self.page.click('[data-finance-edit]')
+        self.assertEqual(await self.page.input_value('[name="party"]'), 'Fournisseur vérifié — démo')
+        await self.page.locator('#finance-form summary').click()
+        self.assertEqual(await self.page.locator('.finance-raw').text_content(), proposed['raw'])
+        for width, height in ((390, 844), (1440, 900)):
+            await self.page.set_viewport_size({'width': width, 'height': height})
+            self.assertLessEqual(await self.page.evaluate('document.documentElement.scrollWidth'), width)
+            await self.capture_evidence(f'finance-reviewed-card-slip-{width}-{self.api_mode}.png')
+        await self.page.click('#finance-back')
         async with self.page.expect_download() as info:
             await self.page.click('#finance-export')
         download = await info.value
+        if directory := os.environ.get('DOGCARE_EVIDENCE_DIR'):
+            await download.save_as(str(Path(directory) / f'finance-card-slip-{self.api_mode}.zip'))
         with zipfile.ZipFile(await download.path()) as archive:
             original = 'originals/' + hashlib.sha256(photo).hexdigest() + '.png'
             self.assertEqual(archive.read(original), photo)
