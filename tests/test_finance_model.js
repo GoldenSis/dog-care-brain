@@ -50,6 +50,35 @@ test('draft unknowns stay unknown; invoice totals and partial payments use exact
 test('issued invoice detail, numbering, payments and source identities cannot be rewritten',()=>{const old=M.empty();old.entries.push(invoice());for(const key of ['party','number','currency','issuer']){const next=structuredClone(old);next.entries[0][key]='CHANGED';assert.throws(()=>M.validate(next,old));}const next=structuredClone(old);next.entries.push({...invoice(),id:'duplicate'});assert.throws(()=>M.validate(next));assert.throws(()=>M.validate(M.empty(),old));const paid=structuredClone(old);paid.entries[0].payments.push({id:'p',date:'2026-10-06',amountMinor:1,note:''});assert.throws(()=>M.validate(old,paid));});
 test('literal Unicode notes survive validation, malformed values reject, separate currencies remain explicit',()=>{const v=M.empty();v.entries.push(invoice());v.entries[0].note='  café 🐾\n=1+1  ';assert.equal(M.validate(v),true);assert.equal(v.entries[0].note,'  café 🐾\n=1+1  ');for(const patch of [{date:'2026-02-30'},{currency:'CHF\n'},{vatMinor:20000},{status:'paid'},{payments:[{id:'p',date:'2026-10-06',amountMinor:14000,note:''}]}]){const n=structuredClone(v);Object.assign(n.entries[0],patch);assert.throws(()=>M.validate(n));}});
 test('OCR provides review proposals and leaves conflicting dates, totals and currencies unknown',()=>{const p=M.propose('Fournisseur Test\nFacture F-123\n06.10.2026\nCroquettes\nTOTAL CHF 42.50');assert.deepEqual(p,{date:'2026-10-06',party:'Fournisseur Test',number:'F-123',currency:'CHF',amount:4250,category:'food'});const q=M.propose('Company\n06.10.2026\n07.10.2026\nTOTAL 10.00 CHF\nTOTAL 20.00 EUR');assert.equal(q.amount,null);assert.equal(q.date,'');assert.equal(q.currency,'');});
+test('OCR reference proposals leave field labels and ambiguous values blank',()=>{
+  for(const raw of [
+    'Invoice\nDate 06.10.2026','Facture\nTOTAL CHF 42.50',
+    'Invoice Date 06.10.2026','Facture TOTAL CHF 42.50',
+    'Invoice No.\nDate 06.10.2026','Facture n°\nTOTAL CHF 42.50',
+    'Rechnung\r\nDatum 06.10.2026','Fattura\nTotale EUR 42.50','Factura\nFecha 06.10.2026',
+    'Invoice COPY','Invoice\n2026-10-06','Factura\n06/10/2026',
+    'Invoice\n123 Main Street','NotInvoice F-701','Invoice F-701_unreadable',
+    'Facture F-701\nFacture F-702'
+  ])assert.equal(M.propose(raw).number,'',raw);
+  assert.equal(M.propose('Invoice\nDate 06.10.2026').date,'2026-10-06');
+  const total=M.propose('Facture\nTOTAL CHF 42.50');
+  assert.equal(total.amount,4250);assert.equal(total.currency,'CHF');
+});
+test('OCR reference proposals preserve clear references in supported languages and layouts',()=>{
+  for(const label of ['Facture','Invoice','Rechnung','Fattura','Factura']){
+    for(const layout of [' F-701','\tF-701',' : F-701','\nF-701','\r\nF-701',' n° F-701',' No. F-701',' Nr. F-701',' #F-701',' n°\nF-701','\nNr. F-701']){
+      const raw=label+layout;assert.equal(M.propose(raw).number,'F-701',raw);
+    }
+  }
+  for(const [raw,expected] of [
+    ['Invoice 00701','00701'],['Facture n°F-701','F-701'],['Invoice N701','N701'],
+    ['Invoice #ABCD','ABCD'],['Rechnung Nr. ABC/DEF','ABC/DEF'],
+    ['Facture n°\nF-701 du 06.10.2026','F-701'],['Rechnung Nr.\nF-701 Datum 06.10.2026','F-701'],
+    ['Invoice F-701.','F-701'],['Invoice\nF-701.','F-701'],['Invoice F-701, Date 06.10.2026','F-701'],
+    ['Invoice F-701 Date 06.10.2026','F-701'],['Facture F-701\nFacture F-701','F-701'],
+    ['Invoice\nDate 06.10.2026\nInvoice F-701','F-701']
+  ])assert.equal(M.propose(raw).number,expected,raw);
+});
 test('OCR does not turn partial grouped amounts into an apparently valid smaller total',()=>{for(const total of ["1'234.50",'1 234.50','1,234.50','1.234,50'])assert.equal(M.propose('TOTAL CHF '+total).amount,null);});
 test('card-network headings leave supplier unknown without losing supported receipt fields',()=>{
   for(const heading of ['MASTERCARD','Master Card','visa','VISA DEBIT','Maestro','AMEX','American Express','Carte bancaire','CB']){

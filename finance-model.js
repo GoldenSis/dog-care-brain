@@ -51,6 +51,21 @@
     }
     return true;
   }
+  function proposeReference(lines){
+    const references=new Set(),prefix=/^(?:(nr\b\.?|no\b\.?|n[°.]|n\b|#)\s*)?[:#]?\s*/i;
+    for(let i=0;i<lines.length;i++){
+      const label=lines[i].match(/\b(?:facture|invoice|rechnung|fattura|factura)\b\s*(.*)$/i);if(!label)continue;
+      let value=label[1],start=value.match(prefix),marked=Boolean(start[1]);value=value.slice(start[0].length);
+      const wrapped=!value;
+      if(wrapped){value=lines[i+1]||'';start=value.match(prefix);marked=marked||Boolean(start[1]);value=value.slice(start[0].length);}
+      const candidate=value.match(/^([A-Z0-9][A-Z0-9/-]{2,40})(?:[.,;](?=\s|$))?(?=\s|$)/i);if(!candidate||(wrapped&&!marked&&candidate[0]!==value))continue;
+      const ref=candidate[1];
+      if(!/\d/.test(ref)&&(!marked||/^(?:date|datum|data|fecha|total|ttc|gesamt|totale|importe|chf|eur|gbp|usd)$/i.test(ref)))continue;
+      if(!marked&&/^(?:\d{4}-\d{2}-\d{2}|\d{2}[/-]\d{2}[/-]\d{4})$/.test(ref))continue;
+      references.add(ref);
+    }
+    return references.size===1?[...references][0]:'';
+  }
   /* Conservative OCR proposals. No amount/date/category becomes confirmed here. */
   function propose(raw){
     const result={date:'',party:'',number:'',currency:'',amount:null,category:'other'};
@@ -62,7 +77,7 @@
     const currencies=[...new Set(raw.match(/\b(?:CHF|EUR|GBP|USD)\b/g)||[])];if(currencies.length===1)result.currency=currencies[0];
     const dates=[...raw.matchAll(/\b(\d{2})[./](\d{2})[./](\d{4})\b/g)].map(m=>`${m[3]}-${m[2]}-${m[1]}`).filter(date);
     const iso=[...raw.matchAll(/\b\d{4}-\d{2}-\d{2}\b/g)].map(m=>m[0]).filter(date);if(new Set([...dates,...iso]).size===1)result.date=[...dates,...iso][0];
-    const ref=raw.match(/(?:facture|invoice|rechnung|fattura|factura)\s*(?:n[°o.]?|#|nr\.?)?\s*[:#]?\s*([A-Z0-9][A-Z0-9/-]{2,40})\b/i);if(ref)result.number=ref[1];
+    result.number=proposeReference(lines);
     const totals=lines.filter(l=>/\b(total|ttc|gesamt|totale|importe)\b/i.test(l)&&!/sous|sub|subtotal|hors|ht\b|tax/i.test(l)).map(l=>{const m=l.match(/^(?:total(?:\s+ttc)?|ttc|gesamt(?:betrag)?|totale|importe)\s*[:=]?\s*(?:CHF|EUR|GBP|USD|€)?\s*([0-9]+[.,][0-9]{2})(?:\s*(?:CHF|EUR|GBP|USD|€))?\s*$/i);try{return m?parseMinor(m[1]):null;}catch{return null;}}).filter(x=>x!==null);
     if(new Set(totals).size===1)result.amount=totals[0];
     const rules={food:/croquettes|alimentation|kibble|pet food/i,transport:/carburant|essence|fuel|parking|péage/i,health:/vétérin|veterin|vaccin/i,insurance:/assurance|insurance/i};

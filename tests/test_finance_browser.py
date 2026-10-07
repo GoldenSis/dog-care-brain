@@ -1034,6 +1034,84 @@ class FinanceBrowserTest(BrowserFixture):
         self.assertEqual(self.console_errors, [])
         self.assertEqual(self.page_errors, [])
 
+    async def test_ocr_references_leave_labels_blank_and_preserve_reviewed_values(self):
+        await self.page.select_option('#language-picker', 'fr')
+        await self.page.click('#finance-new-expense')
+        await self.page.fill('[name="number"]', '  Date  ')
+        await self.save_entry()
+        previous = (await self.snapshot())['entries'][0]
+        await self.page.click('#finance-back')
+        encoded = await self.page.evaluate('''() => [
+          ['Invoice','Date 06.10.2026'],
+          ['Facture','TOTAL CHF 42.50'],
+          ['FOURNISSEUR DEMO','Facture F-701','06.10.2026','TOTAL CHF 42.50']
+        ].map(lines=>{
+          const c=document.createElement('canvas');c.width=900;c.height=900;
+          const x=c.getContext('2d');x.fillStyle='white';x.fillRect(0,0,900,900);
+          x.fillStyle='black';x.font='32px sans-serif';
+          lines.forEach((text,i)=>x.fillText(text,65,100+i*150));
+          return c.toDataURL('image/png').split(',')[1];
+        })''')
+        photos = [base64.b64decode(value) for value in encoded]
+        await self.page.click('#finance-import')
+        await self.page.set_input_files('#finance-files', [
+            {'name': f'reference-{i}.png', 'mimeType': 'image/png', 'buffer': photo}
+            for i, photo in enumerate(photos)
+        ])
+        await self.page.click('#finance-recognize')
+        await self.page.wait_for_function('!savePending', timeout=120000)
+        proposed = await self.snapshot()
+        self.assertEqual(proposed['entries'][0], previous)
+        entries = proposed['entries'][1:]
+        self.assertEqual([e['number'] for e in entries], ['', '', 'F-701'])
+        self.assertEqual([e['status'] for e in entries], ['draft'] * 3)
+        self.assertIn('Date 06.10.2026', entries[0]['raw'])
+        self.assertEqual(entries[0]['date'], '2026-10-06')
+        self.assertIn('TOTAL CHF 42.50', entries[1]['raw'])
+        self.assertEqual(entries[1]['currency'], 'CHF')
+        self.assertEqual(entries[1]['lines'][0]['unitMinor'], 4250)
+        await self.page.click(f'[data-finance-edit="{entries[0]["id"]}"]')
+        self.assertEqual(await self.page.input_value('[name="number"]'), '')
+        for width, height in ((390, 844), (1440, 900)):
+            await self.page.set_viewport_size({'width': width, 'height': height})
+            self.assertLessEqual(await self.page.evaluate('document.documentElement.scrollWidth'), width)
+            await self.capture_evidence(f'finance-reference-review-{width}-{self.api_mode}.png')
+        await self.page.fill('[name="number"]', '  TOTAL  ')
+        await self.page.fill('[name="party"]', 'Reviewed supplier')
+        await self.page.fill('[name="currency"]', 'CHF')
+        await self.page.fill('[name="unit-0"]', '42.50')
+        await self.save_entry('confirmed')
+        await self.page.reload()
+        await self.wait_ready()
+        await self.page.click('[data-page="business"]')
+        saved = await self.snapshot()
+        self.assertEqual(saved['entries'][0], previous)
+        self.assertEqual([e['number'] for e in saved['entries'][1:]], ['  TOTAL  ', '', 'F-701'])
+        self.assertEqual(saved['entries'][1]['status'], 'confirmed')
+        for before, after in zip(entries, saved['entries'][1:]):
+            for key in ('raw', 'sourceId', 'region'):
+                self.assertEqual(after[key], before[key])
+        async with self.page.expect_download() as info:
+            await self.page.click('#finance-export')
+        download = await info.value
+        with zipfile.ZipFile(await download.path()) as archive:
+            self.assertEqual(json.loads(archive.read('records.json')), saved)
+            originals = ['originals/' + hashlib.sha256(photo).hexdigest() + '.png' for photo in photos]
+            for photo, original, entry in zip(photos, originals, entries):
+                self.assertEqual(entry['sourceId'], hashlib.sha256(photo).hexdigest())
+                self.assertEqual(archive.read(original), photo)
+            with zipfile.ZipFile(io.BytesIO(archive.read('comptabilite.xlsx'))) as workbook:
+                ns = {'s': 'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}
+                sheet = ET.fromstring(workbook.read('xl/worksheets/sheet1.xml'))
+                for row, reference in enumerate(['  Date  ', '  TOTAL  ', '', 'F-701'], 2):
+                    cell = sheet.find(f'.//s:c[@r="A{row}"]', ns)
+                    self.assertEqual(''.join(cell.itertext()), reference)
+                for row, original in enumerate(originals, 3):
+                    cell = sheet.find(f'.//s:c[@r="M{row}"]', ns)
+                    self.assertEqual(''.join(cell.itertext()), original)
+        self.assertEqual(self.console_errors, [])
+        self.assertEqual(self.page_errors, [])
+
     async def test_card_slip_ocr_keeps_supplier_missing_until_review_and_exports_original(self):
         await self.page.select_option('#language-picker', 'fr')
         encoded = await self.page.evaluate('''() => {
