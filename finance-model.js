@@ -55,7 +55,10 @@
   function propose(raw){
     const result={date:'',party:'',number:'',currency:'',amount:null,category:'other'};
     const lines=raw.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
-    result.party=lines[0]?.slice(0,160)||'';
+    const heading=lines[0]||'';
+    // A payment network identifies the card, not the supplier. Leave review open.
+    const cardNetwork=/^(?:master\s*card|visa(?:\s+(?:debit|credit|electron))?|maestro|amex|american\s+express|carte\s+bancaire|cb)[®™]?$/i;
+    result.party=cardNetwork.test(heading)?'':heading.slice(0,160);
     const currencies=[...new Set(raw.match(/\b(?:CHF|EUR|GBP|USD)\b/g)||[])];if(currencies.length===1)result.currency=currencies[0];
     const dates=[...raw.matchAll(/\b(\d{2})[./](\d{2})[./](\d{4})\b/g)].map(m=>`${m[3]}-${m[2]}-${m[1]}`).filter(date);
     const iso=[...raw.matchAll(/\b\d{4}-\d{2}-\d{2}\b/g)].map(m=>m[0]).filter(date);if(new Set([...dates,...iso]).size===1)result.date=[...dates,...iso][0];

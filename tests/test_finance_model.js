@@ -51,3 +51,10 @@ test('issued invoice detail, numbering, payments and source identities cannot be
 test('literal Unicode notes survive validation, malformed values reject, separate currencies remain explicit',()=>{const v=M.empty();v.entries.push(invoice());v.entries[0].note='  café 🐾\n=1+1  ';assert.equal(M.validate(v),true);assert.equal(v.entries[0].note,'  café 🐾\n=1+1  ');for(const patch of [{date:'2026-02-30'},{currency:'CHF\n'},{vatMinor:20000},{status:'paid'},{payments:[{id:'p',date:'2026-10-06',amountMinor:14000,note:''}]}]){const n=structuredClone(v);Object.assign(n.entries[0],patch);assert.throws(()=>M.validate(n));}});
 test('OCR provides review proposals and leaves conflicting dates, totals and currencies unknown',()=>{const p=M.propose('Fournisseur Test\nFacture F-123\n06.10.2026\nCroquettes\nTOTAL CHF 42.50');assert.deepEqual(p,{date:'2026-10-06',party:'Fournisseur Test',number:'F-123',currency:'CHF',amount:4250,category:'food'});const q=M.propose('Company\n06.10.2026\n07.10.2026\nTOTAL 10.00 CHF\nTOTAL 20.00 EUR');assert.equal(q.amount,null);assert.equal(q.date,'');assert.equal(q.currency,'');});
 test('OCR does not turn partial grouped amounts into an apparently valid smaller total',()=>{for(const total of ["1'234.50",'1 234.50','1,234.50','1.234,50'])assert.equal(M.propose('TOTAL CHF '+total).amount,null);});
+test('card-network headings leave supplier unknown without losing supported receipt fields',()=>{
+  for(const heading of ['MASTERCARD','Master Card','visa','VISA DEBIT','Maestro','AMEX','American Express','Carte bancaire','CB']){
+    const p=M.propose(`${heading}\nPAIEMENT ACCEPTE\n07.10.2026\nTOTAL EUR 12.50\nCARTE **** 1234`);
+    assert.deepEqual(p,{date:'2026-10-07',party:'',number:'',currency:'EUR',amount:1250,category:'other'});
+  }
+  for(const party of ['Visa Services','Mastercard Supplies','Fournisseur Démo'])assert.equal(M.propose(`${party}\nTOTAL EUR 12.50`).party,party);
+});

@@ -1034,6 +1034,72 @@ class FinanceBrowserTest(BrowserFixture):
         self.assertEqual(self.console_errors, [])
         self.assertEqual(self.page_errors, [])
 
+    async def test_card_slip_ocr_keeps_supplier_missing_until_review_and_exports_original(self):
+        await self.page.select_option('#language-picker', 'fr')
+        encoded = await self.page.evaluate('''() => {
+          const c=document.createElement('canvas');c.width=900;c.height=1050;
+          const x=c.getContext('2d');x.fillStyle='white';x.fillRect(0,0,900,1050);
+          x.fillStyle='black';x.font='32px sans-serif';
+          ['MASTERCARD','PAIEMENT ACCEPTE','07.10.2026','TOTAL EUR 12.50','CARTE **** 1234']
+            .forEach((text,i)=>x.fillText(text,65,100+i*150));
+          return c.toDataURL('image/png').split(',')[1];
+        }''')
+        photo = base64.b64decode(encoded)
+        await self.page.click('#finance-import')
+        camera = self.page.get_by_label('Prendre une photo', exact=True)
+        self.assertEqual(await camera.get_attribute('capture'), 'environment')
+        self.assertEqual(await camera.get_attribute('accept'), 'image/jpeg,image/png')
+        self.assertTrue(await self.page.get_by_label('Choisir des photos ou PDF', exact=True).is_visible())
+        await camera.set_input_files({'name': 'synthetic-card-slip.png', 'mimeType': 'image/png', 'buffer': photo})
+        await self.page.click('#finance-recognize')
+        await self.page.wait_for_function('!savePending', timeout=120000)
+        proposed = (await self.snapshot())['entries'][0]
+        self.assertIn('MASTERCARD', proposed['raw'])
+        self.assertEqual(proposed['party'], '')
+        self.assertEqual(proposed['date'], '2026-10-07')
+        self.assertEqual(proposed['currency'], 'EUR')
+        self.assertEqual(proposed['lines'][0]['unitMinor'], 1250)
+        self.assertEqual(proposed['status'], 'draft')
+        for field in ('address', 'number', 'taxId'):
+            self.assertEqual(proposed[field], '')
+        self.assertIsNone(proposed['vatMinor'])
+        await self.page.click('[data-finance-edit]')
+        await self.capture_evidence(f'finance-sparse-card-slip-{self.api_mode}.png')
+        await self.page.click('#finance-form button[value="confirmed"]')
+        self.assertEqual(await self.page.input_value('[name="party"]'), '')
+        self.assertEqual((await self.snapshot())['entries'][0]['status'], 'draft')
+        await self.page.fill('[name="party"]', 'Fournisseur vérifié — démo')
+        await self.save_entry('confirmed')
+        await self.page.reload()
+        await self.wait_ready()
+        await self.page.click('[data-page="business"]')
+        saved = await self.snapshot()
+        self.assertEqual(saved['entries'][0]['party'], 'Fournisseur vérifié — démo')
+        self.assertEqual(saved['entries'][0]['raw'], proposed['raw'])
+        async with self.page.expect_download() as info:
+            await self.page.click('#finance-export')
+        download = await info.value
+        with zipfile.ZipFile(await download.path()) as archive:
+            original = 'originals/' + hashlib.sha256(photo).hexdigest() + '.png'
+            self.assertEqual(archive.read(original), photo)
+            self.assertEqual(json.loads(archive.read('records.json')), saved)
+            with zipfile.ZipFile(io.BytesIO(archive.read('comptabilite.xlsx'))) as workbook:
+                ns = {'s': 'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}
+                sheet = ET.fromstring(workbook.read('xl/worksheets/sheet1.xml'))
+                row = sheet.findall('s:sheetData/s:row', ns)[1]
+                cells = {cell.get('r'): cell for cell in row}
+                self.assertEqual(''.join(cells['D2'].itertext()), '2026-10-07')
+                self.assertEqual(''.join(cells['F2'].itertext()), 'Fournisseur vérifié — démo')
+                self.assertEqual(''.join(cells['H2'].itertext()), 'EUR')
+                self.assertIsNone(cells['I2'].get('t'))
+                self.assertEqual(float(cells['I2'].find('s:v', ns).text), 12.5)
+                self.assertEqual(''.join(cells['J2'].itertext()), '')
+                self.assertEqual(''.join(cells['M2'].itertext()), original)
+                links = ET.fromstring(workbook.read('xl/worksheets/_rels/sheet1.xml.rels'))
+                self.assertEqual(list(links)[0].get('Target'), original)
+        self.assertEqual(self.console_errors, [])
+        self.assertEqual(self.page_errors, [])
+
     async def test_stale_tab_keeps_draft_and_does_not_overwrite(self):
         other = await self.context.new_page()
         await other.goto(self.url)
