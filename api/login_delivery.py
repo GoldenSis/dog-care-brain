@@ -1,11 +1,31 @@
 """Explicit login transport. No production debug-outbox fallback."""
 import os
+import logging
 import re
 import smtplib
 import ssl
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from email.message import EmailMessage
 from email.utils import formatdate, make_msgid, parseaddr
 from urllib.parse import urlparse
+
+_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix='login-delivery')
+_capacity = threading.BoundedSemaphore(128)
+
+
+def enqueue(operation, *args):
+    if not _capacity.acquire(blocking=False):
+        logging.getLogger(__name__).error('Login delivery queue is full; request not queued')
+        return None
+    try:
+        job = _executor.submit(operation, *args)
+    except RuntimeError:
+        _capacity.release()
+        logging.getLogger(__name__).error('Login delivery queue is unavailable')
+        return None
+    job.add_done_callback(lambda _: _capacity.release())
+    return job
 
 
 class DeliveryUnavailable(RuntimeError):

@@ -53,7 +53,7 @@ sudo -u dogcare /usr/bin/python3 /opt/dogcare/current/scripts/private_backup.py 
   /var/lib/dogcare/backups/<snapshot>
 ```
 
-The helper uses SQLite's online backup API, including committed WAL records, then copies the app's immutable audio blobs. Client, health and accounting documents are stored in SQLite and included. Each snapshot has an inventory and SHA-256 checksums. Credentials, app code and development outbox are excluded. Symlinks are rejected. Unknown or corrupt backup directories are retained for inspection rather than pruned.
+The helper uses SQLite's online backup API, including committed WAL records, then copies the immutable recordings referenced by that copied database. Upload staging files and unreferenced recordings are excluded. Missing referenced recordings fail verification before publishing or pruning snapshots, even if the manifest omits those files. Client, health and accounting documents, private dog media and owner artwork are stored in SQLite and included. Media byte lengths, hashes, cover references and published artwork references are verified before publication or pruning. Each snapshot has an inventory and SHA-256 checksums. Credentials, app code and development outbox are excluded. Symlinks in copied content are rejected. Unknown or corrupt backup directories are retained for inspection rather than pruned.
 
 Before the first real account, drill restoration into a **new** private directory, not over the running store:
 

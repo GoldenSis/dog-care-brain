@@ -10,12 +10,16 @@ from datetime import datetime, timezone
 import hashlib
 import json
 from pathlib import Path
+import re
 import shutil
 import sqlite3
+import sys
 import tempfile
 import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'api'))
+import media
 
 
 def private_path(value):
@@ -46,6 +50,41 @@ def integrity(database):
     with closing(sqlite3.connect(database.as_uri() + '?mode=ro&immutable=1', uri=True)) as connection:
         if connection.execute('PRAGMA integrity_check').fetchall() != [('ok',)]:
             raise ValueError('database integrity check failed')
+        media.verify_database(connection)
+
+
+def recording_paths(database):
+    paths = set()
+    with closing(sqlite3.connect(database.as_uri() + '?mode=ro&immutable=1', uri=True)) as connection:
+        if not connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='observation'").fetchone():
+            return paths
+        for business_id, reference, audio_json in connection.execute(
+                'SELECT business_id, voice_blob_ref, audio_json FROM observation'):
+            references = {reference} if reference else set()
+            if audio_json:
+                try:
+                    audio = json.loads(audio_json)
+                except (TypeError, ValueError):
+                    raise ValueError('invalid recording metadata') from None
+                url = audio.get('url') if isinstance(audio, dict) else None
+                if isinstance(url, str) and url.startswith('/api/blobs/'):
+                    references.add(url[len('/api/blobs/'):])
+            for reference in references:
+                if (not isinstance(business_id, int) or business_id < 1 or
+                        not isinstance(reference, str) or
+                        not re.fullmatch(r'[a-f0-9]{32}\.(webm|ogg|m4a|wav|mp3)', reference)):
+                    raise ValueError('invalid recording reference')
+                paths.add(f'blobs/{business_id}/{reference}')
+    return paths
+
+
+def recording_source(root, relative):
+    path = root / relative
+    if any(parent.is_symlink() for parent in (path, *path.parents) if parent != root and root in parent.parents):
+        raise ValueError('symbolic links are not supported in private backups')
+    if not path.is_file():
+        raise ValueError('referenced recording is missing')
+    return path
 
 
 def verify(snapshot):
@@ -62,6 +101,8 @@ def verify(snapshot):
     if any(digest(path) != expected[name] for name, path in actual.items()):
         raise ValueError('backup checksum mismatch')
     integrity(actual['dogcare.db'])
+    if not recording_paths(actual['dogcare.db']).issubset(actual):
+        raise ValueError('referenced recording is missing from backup')
     return actual
 
 
@@ -78,16 +119,14 @@ def backup(data, destination, keep=14):
     name = 'dogcare-' + datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ-') + uuid.uuid4().hex[:8]
     staging = Path(tempfile.mkdtemp(prefix='.backup-', dir=destination))
     try:
-        # Snapshot first. Audio is content-addressed and never mutated/deleted by
-        # the app: copying afterwards includes every file referenced by this DB.
         with closing(sqlite3.connect(database.as_uri() + '?mode=ro', uri=True)) as source:
             with closing(sqlite3.connect(staging / 'dogcare.db')) as target:
                 source.backup(target)
-        if blobs.exists():
-            for relative, source in files(blobs).items():
-                target = staging / 'blobs' / relative
-                target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-                shutil.copyfile(source, target)
+        for relative in recording_paths(staging / 'dogcare.db'):
+            source = recording_source(data, relative)
+            target = staging / relative
+            target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+            shutil.copyfile(source, target)
         inventory = files(staging)
         for path in inventory.values():
             path.chmod(0o600)

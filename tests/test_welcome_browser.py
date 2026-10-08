@@ -198,7 +198,8 @@ class WelcomeJourneyTest(BrowserFixture):
         with patch('login_delivery.configuration',return_value={'mode':'smtp','origin':'https://dogs.example.com'}),patch('login_delivery.send') as send:
             await self.page.fill('#access-email',unknown)
             await self.page.click('#access-form button')
-            await self.page.wait_for_function("document.querySelector('#access-result').textContent.includes('Si votre accès est enregistré')")
+            await self.page.wait_for_function("document.querySelector('#access-result').textContent.startsWith('Demande reçue.')")
+            self.assertIn('Si votre accès existe et que l’envoi est disponible',await self.page.inner_text('#access-result'))
             self.assertNotIn('a été envoyé',await self.page.inner_text('#access-result'))
             send.assert_not_called()
         with self.server_mod.connection() as connection:

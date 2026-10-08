@@ -1,11 +1,34 @@
 """No real SMTP traffic: delivery and failure semantics use a mocked transport."""
 import os
+import threading
+from urllib.parse import parse_qs, urlparse
 from unittest.mock import patch, MagicMock
 
 from tests.test_tenant_isolation import ApiServerTestCase, _http
 
 
 class LoginDeliveryTest(ApiServerTestCase):
+    def setUp(self):
+        import login_delivery
+        self.delivery_jobs = []
+        enqueue = login_delivery.enqueue
+
+        def tracked_enqueue(*args):
+            job = enqueue(*args)
+            if job is not None:
+                self.delivery_jobs.append(job)
+            return job
+
+        tracker = patch.object(login_delivery, 'enqueue', side_effect=tracked_enqueue)
+        tracker.start()
+        self.addCleanup(tracker.stop)
+        self.addCleanup(self.finish_delivery)
+
+    def finish_delivery(self):
+        for job in self.delivery_jobs:
+            job.result(timeout=5)
+        self.delivery_jobs.clear()
+
     def smtp(self):
         return patch.dict(os.environ,{'DC_AUTH_MODE':'smtp','DC_ALLOW_DEMO_SIGNUP':'0','DC_PUBLIC_ORIGIN':'https://dogs.example.com',
             'DC_INSECURE_COOKIE':'0','DC_SMTP_HOST':'smtp.example.com','DC_SMTP_USER':'access@example.com','DC_SMTP_PASSWORD':'synthetic-test-only',
@@ -19,6 +42,7 @@ class LoginDeliveryTest(ApiServerTestCase):
             magic_before=c.execute('SELECT count(*) FROM magic').fetchone()[0]
         with self.smtp(),patch.object(login_delivery,'send') as send:
             status,body,_=_http(self.port,'POST','/api/auth/request',{'email':'unknown-no-owner@example.com'})
+            self.finish_delivery()
             self.assertEqual((status,body),(200,{'ok':True,'mailed':True}))
             send.assert_not_called()
             with self.server_mod.connection() as c:
@@ -32,12 +56,47 @@ class LoginDeliveryTest(ApiServerTestCase):
                 self.assertEqual(c.execute('SELECT count(*) FROM dog WHERE business_id=?',(bid,)).fetchone()[0],0)
         self.assertEqual(_http(self.port,'GET','/api/state',cookie=cookie)[0],200)
 
+    def test_public_acknowledgment_does_not_wait_for_smtp(self):
+        import login_delivery
+        self.login('slow-smtp@example.com')
+        entered, release = threading.Event(), threading.Event()
+        replies, tokens = [], []
+
+        def slow_send(*args):
+            tokens.append(parse_qs(urlparse(args[2]).query)['t'][0])
+            entered.set()
+            release.wait(3)
+
+        def request():
+            replies.append(_http(self.port, 'POST', '/api/auth/access', {'email': 'slow-smtp@example.com'})[:2])
+
+        with self.smtp(), patch.object(login_delivery, 'send', side_effect=slow_send):
+            caller = threading.Thread(target=request)
+            caller.start()
+            try:
+                self.assertTrue(entered.wait(2))
+                self.assertEqual(self.server_mod.do_auth_verify({'t': [tokens[0]]}), (None, 'expired'))
+                caller.join(timeout=0.5)
+                self.assertFalse(caller.is_alive(), 'public acknowledgment waited for SMTP')
+                self.assertEqual(replies, [(200, {'ok': True, 'mailed': True})])
+                unknown = _http(self.port, 'POST', '/api/auth/access', {'email': 'slow-unknown@example.com'})[:2]
+                self.assertEqual(unknown, replies[0])
+            finally:
+                release.set()
+                caller.join(timeout=3)
+                self.finish_delivery()
+            session, error = self.server_mod.do_auth_verify({'t': [tokens[0]]})
+            self.assertTrue(session)
+            self.assertIsNone(error)
+            self.assertEqual(self.server_mod.do_auth_verify({'t': [tokens[0]]}), (None, 'expired'))
+
     def test_smtp_uses_canonical_origin_tls_and_never_an_outbox(self):
         import login_delivery
         self.login('smtp-owner@example.com')
         smtp=MagicMock();smtp.__enter__.return_value=smtp;smtp.send_message.return_value={}
         with self.smtp(),patch('login_delivery.smtplib.SMTP_SSL',return_value=smtp) as factory,patch.object(self.server_mod,'write_outbox') as outbox:
             status,body,_=_http(self.port,'POST','/api/auth/access',{'email':'smtp-owner@example.com','service':'walk'},headers={'Host':'attacker.example'})
+            self.finish_delivery()
             self.assertEqual((status,body),(200,{'ok':True,'mailed':True}))
             factory.assert_called_once()
             self.assertTrue(factory.call_args.kwargs['context'].check_hostname)
@@ -66,11 +125,13 @@ class LoginDeliveryTest(ApiServerTestCase):
             outbox.assert_not_called()
         with self.server_mod.connection() as c:
             before=c.execute('SELECT count(*) FROM magic').fetchone()[0]
-        with self.smtp(),patch.object(login_delivery,'send',side_effect=login_delivery.DeliveryUnavailable('fixture failure')),patch.object(self.server_mod,'write_outbox') as outbox:
+        with self.smtp(),patch.object(login_delivery,'send',side_effect=login_delivery.DeliveryUnavailable('fixture failure')),patch.object(self.server_mod,'write_outbox') as outbox,self.assertLogs('server',level='ERROR') as logs:
             status,body,_=_http(self.port,'POST','/api/auth/access',{'email':'smtp-failed@example.com'})
-            self.assertEqual(status,503)
+            self.finish_delivery()
+            self.assertEqual((status,body),(200,{'ok':True,'mailed':True}))
             self.assertNotIn('fixture failure',str(body))
             outbox.assert_not_called()
+        self.assertEqual(logs.output,['ERROR:server:Login delivery failed'])
         with self.server_mod.connection() as c:
             self.assertEqual(c.execute('SELECT count(*) FROM magic').fetchone()[0],before)
         with patch.dict(os.environ,{'DC_AUTH_MODE':'disabled'}):
@@ -90,6 +151,21 @@ class LoginDeliveryTest(ApiServerTestCase):
             for _ in range(5):
                 self.assertEqual(_http(self.port,'POST','/api/auth/access',{'email':'limited@example.com'})[0],200)
             self.assertEqual(_http(self.port,'POST','/api/auth/access',{'email':'limited@example.com'})[0],429)
+            self.finish_delivery()
+
+    def test_full_delivery_queue_keeps_acknowledgment_independent_of_membership(self):
+        import login_delivery
+        self.login('queue-owner@example.com')
+        with self.server_mod.connection() as c:
+            before = c.execute('SELECT count(*) FROM magic').fetchone()[0]
+        with self.smtp(), patch.object(login_delivery._capacity, 'acquire', return_value=False), self.assertLogs('login_delivery', level='ERROR') as logs:
+            known = _http(self.port, 'POST', '/api/auth/access', {'email':'queue-owner@example.com'})[:2]
+            unknown = _http(self.port, 'POST', '/api/auth/access', {'email':'queue-unknown@example.com'})[:2]
+        self.assertEqual(known, (200, {'ok':True, 'mailed':True}))
+        self.assertEqual(known, unknown)
+        self.assertEqual(len(logs.output), 2)
+        with self.server_mod.connection() as c:
+            self.assertEqual(c.execute('SELECT count(*) FROM magic').fetchone()[0], before)
 
     def test_anonymous_home_and_script_aliases_do_not_ship_workspace_demo_payload(self):
         status,body,_=_http(self.port,'GET','/')

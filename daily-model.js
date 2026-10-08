@@ -149,7 +149,11 @@
     return true;
   }
 
-  function monthlySummary(daily, month) {
+  function bookingClientId(booking, dog, associations = {}) {
+    return Object.hasOwn(associations, booking.id) ? associations[booking.id] : dog?.clientId ?? null;
+  }
+
+  function monthlySummary(daily, month, associations = {}) {
     validateDaily(daily);
     requireValue(typeof month === 'string' && /^\d{4}-\d{2}$/.test(month) && validDate(month + '-01'), 'Invalid summary month');
     const dogs = new Map(daily.dogs.map(dog => [dog.id, dog]));
@@ -158,9 +162,10 @@
     for (const booking of daily.bookings) {
       const count = serviceDates(booking).filter(date => date.slice(0, 7) === month).length;
       if (!count) continue;
-      const client = clients.get(dogs.get(booking.dogId).clientId);
-      const key = JSON.stringify([client.id, booking.service, booking.currency]);
-      if (!rows.has(key)) rows.set(key, { clientId: client.id, clientName: client.name, service: booking.service, currency: booking.currency, bookingCount: 0, units: 0, knownMinor: 0, unknownUnits: 0 });
+      const clientId = bookingClientId(booking, dogs.get(booking.dogId), associations);
+      const client = clients.get(clientId);
+      const key = JSON.stringify([clientId, booking.service, booking.currency]);
+      if (!rows.has(key)) rows.set(key, { clientId, clientName: client?.name || '', service: booking.service, currency: booking.currency, bookingCount: 0, units: 0, knownMinor: 0, unknownUnits: 0 });
       const row = rows.get(key);
       row.bookingCount++;
       row.units += count;
@@ -188,5 +193,5 @@
     return renewal <= current + 30 ? 'due' : 'later';
   }
 
-  return { empty, validDate, serviceDates, units, amount, parseMinor, monthlySummary, extension, documentStatus, validateDaily, validateDocument };
+  return { empty, validDate, serviceDates, units, amount, parseMinor, bookingClientId, monthlySummary, extension, documentStatus, validateDaily, validateDocument };
 }));

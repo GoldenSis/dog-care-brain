@@ -1545,7 +1545,7 @@ function rememberCaptureDraft() {
 }
 function escapeHtml(value) { return String(value).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
 function showToast(message) { const toast=document.querySelector('#toast'); toast.textContent=message; toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'),2500); }
-function dogAvatar(key) { const d=dogs[key]; return `<div class="dog-avatar ${d.colour}">${!window.DogCareAPI && key==='billie'?`<img src="assets/photos/billie-pines.jpg" alt="Billie Blue" width="960" height="1280">`:`<span class="dog-initials" aria-hidden="true">${escapeHtml(d.name.split(/\s+/).slice(0,2).map(part=>part[0] || '').join('').toUpperCase())}</span><small>${t('Photo to add')}</small>`}</div>`; }
+function dogAvatar(key) { const d=dogs[key], cover=window.MediaUI?.avatar(key,d.name); if(cover)return cover; return `<div class="dog-avatar ${d.colour}">${!window.DogCareAPI && key==='billie'?`<img src="assets/photos/billie-pines.jpg" alt="Billie Blue" width="960" height="1280">`:`<span class="dog-initials" aria-hidden="true">${escapeHtml(d.name.split(/\s+/).slice(0,2).map(part=>part[0] || '').join('').toUpperCase())}</span><small>${t('Photo to add')}</small>`}</div>`; }
 Object.entries({fr:'Comptabilité',en:'Accounting',it:'Contabilità',de:'Buchhaltung',es:'Contabilidad'}).forEach(([lang,label])=>{translations[lang]??={};translations[lang].Accounting=label;});
 function t(text) { return translations[state.language]?.[text] || text; }
 function formatLocale(formatter) {
@@ -1916,10 +1916,17 @@ function navigate(page) {
   document.querySelectorAll('.nav-item').forEach(n=>{const active=n.dataset.page===page;n.classList.toggle('active',active);if(active)n.setAttribute('aria-current','page');else n.removeAttribute('aria-current');});
   const needsDog=['capture','handoff','story'].includes(page) && !Object.keys(dogs).length;
   if(needsDog)setHeader('',t('Dogs'),true);
+  window.MediaUI?.prepare();
   content.innerHTML=PortalUI.client()?PortalUI.render(page):needsDog?DailyUI.dogControls():page==='dashboard'?PortalUI.ownerHome():views[page]();
   if(PortalUI.owner() && page==='schedule')content.insertAdjacentHTML('beforeend',QuoteUI.bookings());
   if(!PortalUI.client() && page==='dogs')content.insertAdjacentHTML('beforeend',PortalUI.sharedTools());
-  localizeContent();bindView();PortalUI.bind();window.scrollTo({top:0});revealActiveNavigation();
+  if(window.DogCareAPI && page==='dogs') {
+    if(PortalUI.client())content.insertAdjacentHTML('beforeend',MediaUI.gallery());
+    else if(state.dog && dogs[state.dog])content.querySelector('.profile-hero')?.insertAdjacentHTML('afterend',MediaUI.album(state.dog,dogs[state.dog].name));
+  }
+  if(window.DogCareAPI && page==='gallery')content.insertAdjacentHTML('afterbegin',MediaUI.gallery());
+  if(window.DogCareAPI && PortalUI.owner() && page==='settings')content.insertAdjacentHTML('beforeend',MediaUI.settings());
+  localizeContent();bindView();PortalUI.bind();window.MediaUI?.bind();window.scrollTo({top:0});revealActiveNavigation();
 }
 function configureWorkspace() {
   const client=PortalUI.client(),owner=PortalUI.owner();

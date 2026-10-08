@@ -5,7 +5,7 @@ const { test } = require('node:test');
 
 const source = fs.readFileSync(require('node:path').join(__dirname, '..', 'api.js'), 'utf8');
 const serverState = { ok: true, business_id: 1, revision: 0, imported: false, observations: { billie: [{ id: 1, text: 'Server history' }] }, invites: [], language: 'en' };
-const response = (data, status = 200) => ({ ok: status < 400, status, text: async () => JSON.stringify(data) });
+const response = (data, status = 200) => ({ ok: status < 400, status, text: async () => JSON.stringify(data), json: async () => data });
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
 test('missing accounting stays unavailable and retry preserves business and revision guards', async () => {
@@ -26,22 +26,23 @@ test('missing accounting stays unavailable and retry preserves business and revi
   assert.equal(JSON.stringify(h.api.getFinance()),JSON.stringify(finance));
 });
 
-function adapter({ local = {}, fetcher, confirm = () => true, enabled = true, timers = {}, identity = {ok:true,email:'fixture@example.test',role:'owner'} } = {}) {
+function adapter({ local = {}, fetcher, confirm = () => true, enabled = true, timers = {}, xhr, identity = {ok:true,email:'fixture@example.test',role:'owner'} } = {}) {
   const storage = new Map(Object.entries(local));
-  const calls = [], identityCalls = [], toasts = [], notices = [];
+  const calls = [], identityCalls = [], toasts = [], notices = [], reloads = [];
   const window = {
     DOGCARE_API: enabled ? '/api' : undefined,
     localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) },
     showToast: text => toasts.push(text),
     confirm: text => { notices.push(text); return confirm(text); },
+    location: { reload: () => reloads.push(true) },
   };
-  vm.runInNewContext(source, { window, AbortController, setTimeout, clearTimeout, ...timers, fetch: async (url, options) => {
+  vm.runInNewContext(source, { window, AbortController, URLSearchParams, XMLHttpRequest: xhr, setTimeout, clearTimeout, ...timers, fetch: async (url, options) => {
     if (url.endsWith('/auth/me')) {identityCalls.push(url);return response(identity);}
     const call = { url, ...options, payload: options.body && JSON.parse(options.body) };
     calls.push(call);
     return fetcher ? fetcher(call, calls) : response(serverState);
   } });
-  return { api: window.DogCareAPI, storage, calls, identityCalls, toasts, notices };
+  return { api: window.DogCareAPI, storage, calls, identityCalls, toasts, notices, reloads };
 }
 
 test('flag off leaves storage and network untouched', () => {
@@ -86,6 +87,20 @@ test('stale or switched accounts stop queued writes and retain the hydrated iden
   assert.deepEqual(results, [false, false, false]);
   assert.equal(h.calls.filter(call => call.method === 'PUT').length, 1);
   assert.match(h.toasts[0], /reload/i);
+});
+
+test('logout works after a stale save and stays bound to the loaded business', async () => {
+  const h = adapter({ fetcher: async call => call.method === 'PUT'
+    ? response({ ok: false, reload_required: true }, 409)
+    : call.url.endsWith('/auth/logout') ? response({ ok: true }) : response(serverState) });
+  assert.equal(await h.api.ready, true);
+  assert.equal(await h.api.saveLanguage('fr'), false);
+  assert.equal(await h.api.logout(), true);
+  const logout = h.calls.find(call => call.url.endsWith('/auth/logout'));
+  assert.equal(logout.headers['X-DogCare-Business'], '1');
+  assert.equal(h.reloads.length, 1);
+  assert.equal(await h.api.saveInvites([]), false);
+  assert.equal(h.calls.filter(call => call.method === 'PUT').length, 1);
 });
 
 test('failed hydration blocks all persistence', async () => {
@@ -314,4 +329,49 @@ test('client hydration never imports owner browser data', async () => {
   assert.equal(h.api.getUser().role,'client');
   assert.equal(h.calls.length,1);
   assert.equal(h.calls[0].url,'/api/state');
+});
+
+test('media reloads and mutations bind responses to the loaded business', async () => {
+  const media = { items: [{ id: 'retained' }], covers: {}, branding: { hero: null, services: {} } };
+  let returnedBusiness = 1;
+  const h = adapter({ fetcher: async call => call.url.includes('/media')
+    ? response({ ok: true, business_id: returnedBusiness, media: { ...media, items: [{ id: 'unexpected' }] } })
+    : response({ ...serverState, imported: true, media }) });
+  assert.equal(await h.api.ready, true);
+  for (const returned of [2, undefined]) {
+    returnedBusiness = returned;
+    await assert.rejects(h.api.reloadMedia(), /compte|espace/i);
+    await assert.rejects(h.api.saveMedia('cover', { dogId: 'dog', mediaId: 'image' }), /compte|espace/i);
+    assert.equal(h.api.getMedia().items[0].id, 'retained');
+  }
+  assert.ok(h.calls.filter(call => call.url.includes('/media')).every(call => call.headers['X-DogCare-Business'] === '1'));
+  returnedBusiness = 1;
+  assert.equal((await h.api.reloadMedia()).items[0].id, 'unexpected');
+});
+
+test('raw media uploads reject responses for another business without replacing the album', async () => {
+  const media = { items: [{ id: 'retained' }], covers: {}, branding: { hero: null, services: {} } };
+  let returnedBusiness = 2;
+  const uploads = [];
+  class Upload {
+    constructor() { this.headers = {}; this.upload = {}; uploads.push(this); }
+    open(method, url) { this.method = method; this.url = url; }
+    setRequestHeader(name, value) { this.headers[name] = value; }
+    send(file) {
+      this.file = file;
+      queueMicrotask(() => {
+        this.status = 200;
+        this.responseText = JSON.stringify({ ok: true, business_id: returnedBusiness, uploadedId:'uploaded', media: { ...media, items: [{ id: 'uploaded' }] } });
+        this.onload();
+      });
+    }
+  }
+  const h = adapter({ xhr: Upload, fetcher: async () => response({ ...serverState, imported: true, media }) });
+  assert.equal(await h.api.ready, true);
+  const file = { name: 'synthetic.png', type: 'image/png' };
+  await assert.rejects(h.api.uploadMedia(file, { dogId: 'dog' }), /compte|espace/i);
+  assert.equal(h.api.getMedia().items[0].id, 'retained');
+  assert.equal(uploads[0].headers['X-DogCare-Business'], '1');
+  returnedBusiness = 1;
+  assert.equal((await h.api.uploadMedia(file, { dogId: 'dog' })).media.items[0].id, 'uploaded');
 });

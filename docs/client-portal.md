@@ -28,19 +28,23 @@ Delivery is disabled unless configured. No production request falls back to a de
 | `DC_AUTH_MODE=disabled` (default) | Login requests fail with 503 until delivery is configured. |
 | `DC_AUTH_MODE=development` | Loopback bind only. Writes a local, private outbox; never sends email. |
 | `DC_ALLOW_DEMO_SIGNUP=1` | Only effective with development mode on loopback. The legacy `/api/auth/request` can create isolated demo businesses. The public `/api/auth/access` still accepts known members only. Never enable this for a beta or production service. |
-| `DC_AUTH_MODE=smtp` | Sends through explicitly configured SMTP with certificate-verified TLS; delivery errors invalidate the new token. |
+| `DC_AUTH_MODE=smtp` | Acknowledges requests before checking membership or sending through certificate-verified SMTP. Delivery errors invalidate the new token and are logged privately. |
 | `DC_PUBLIC_ORIGIN` | Required HTTPS origin for SMTP links; never inferred from the request's Host header. |
 | `DC_INSECURE_COOKIE=0` | Required with SMTP so sessions use secure cookies. |
 | `DC_SMTP_HOST`, `DC_SMTP_USER`, `DC_SMTP_PASSWORD`, `DC_SMTP_FROM` | Required SMTP connection and sender configuration. Supply secrets through the deployment's private environment. |
 | `DC_SMTP_TLS` / `DC_SMTP_PORT` | `ssl` / 465 by default; `starttls` / 587 also supported; the deployment template explicitly selects the authorized Infomaniak transport on port 2525. Unencrypted delivery is not supported. |
 
-Links are single-use with a 15-minute lifetime. Production attempts are bounded per address and source IP. Messages use the authenticated mailbox as envelope sender, matching the visible From address, with Date, Message-ID and Auto-Submitted headers. Unknown addresses receive the same conditional acknowledgment as known members without receiving a token or acquiring an account. Tokens, credentials and SMTP response details are not returned in API bodies. Tests mock both TLS transports; they do not establish that an actual host can deliver email. Deployment, real credentials, sender authorization, mailbox receipt and HTTPS must be verified separately before inviting real users.
+Links are single-use with a 15-minute lifetime. Production attempts are bounded per address and source IP. Two delivery workers handle at most 128 queued or active requests; an exhausted queue is logged privately and keeps the same public acknowledgment. Tokens remain unusable until delivery succeeds. Messages use the authenticated mailbox as envelope sender, matching the visible From address, with Date, Message-ID and Auto-Submitted headers. Unknown addresses receive the same conditional acknowledgment as known members without receiving a token or acquiring an account. SMTP latency and delivery failure never change that acknowledgment. Tokens, credentials and SMTP response details are not returned in API bodies. Tests mock both TLS transports; they do not establish that an actual host can deliver email. Deployment, real credentials, sender authorization, mailbox receipt and HTTPS must be verified separately before inviting real users.
 
 ## Prices and options
 
 Existing **Comptabilité → Réservations et tarifs** remains the rate editor. `DC_PUBLIC_BUSINESS=<business-id>` explicitly selects the business whose three base rates may be published by `/api/public/services`. Without this binding no account's rates are published. This endpoint contains only currency and the three rate values, never dogs or financial records. No prices are bundled with this design.
 
 Money reuses the daily/accounting integer-hundredths contract, displayed with two decimal places. Unknown is distinct from zero. Day/walk ranges count inclusive calendar dates; nights count departure minus arrival. The UI makes no promised schedule or availability. A request snapshots the configured unit rate; changing the rate list does not reprice existing requests or bookings. Completing an unknown rate requires an explicit owner action. The amount is a quoted price, not an automatic charge.
+
+Trusted carers create bookings with the owner's configured rate applied by the server. Their form shows a read-only estimate and submits a null price for new bookings; an unconfigured service stays unknown. They cannot supply prices, change base rates or alter an existing agreement.
+
+Booking family attribution comes from the saved `booking_client` association. Reassigning the dog does not move historical monthly totals or invoice defaults to the new family. The frontend uses current dog ownership only for legacy bookings without a saved association; an unavailable historical family name stays unknown.
 
 **Options et tarif** lets the owner add a named option immediately, with unit price, currency and integer quantity. Line and revised totals are visible, saved and editable; options can be removed. **Garder pour une prochaine fois** saves a reusable choice but does not change previous options. Each quote uses one currency; unlike currencies are never added together. Clients see the options and total for their own linked booking/request, without owner controls or accounting records.
 
@@ -61,7 +65,7 @@ All `/api/portal/*` writes use the business/revision contract from the README an
 - `POST /api/portal/quote`: `{targetId, unitMinor, currency}` completes an unknown base price; owner only.
 - `POST /api/portal/extras`: `{targetId, id, label, unitMinor, currency, quantity, reusable}`; empty `id` creates a line. Owner only. `extra-remove` takes `{targetId,id}`.
 
-`portal` in the state contains requests, shared news/documents, quote totals, and owner-only member/reusable-option lists. Requests and extras use additive tables. Existing care, daily and finance snapshot formats are retained.
+`portal` in the state contains requests, shared news/documents, quote totals, visible bookings' `bookingClients` associations, and owner-only member/reusable-option lists. Requests and extras use additive tables. Existing care, daily and finance snapshot formats are retained.
 
 ## Isolated verification
 

@@ -52,6 +52,7 @@ def snapshot(c, user, current):
     prices = {r['id']: quotes.quote(c, bid, r) for r in requests}
     prices.update({b['id']: quotes.quote(c, bid, b, booking=True) for b in visible_bookings})
     return {"updates": updates, "requests": requests, "documents": documents, "members": members,
+            "bookingClients": {b['id']: audiences[b['id']] for b in visible_bookings if b['id'] in audiences},
             "quotes": prices, "extras": quotes.templates(c, bid) if user['role'] == 'owner' else []}
 
 

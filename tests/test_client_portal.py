@@ -222,6 +222,8 @@ class ClientPortalTest(ApiServerTestCase):
         changed=owner['daily']
         next(d for d in changed['dogs'] if d['id']=='nino')['clientId']='two'
         self.assertEqual(_http(self.port,'PUT','/api/daily',{'daily':changed},cookie=self.owner)[0],200)
+        _,saved,_=_http(self.port,'GET','/api/state',cookie=self.owner)
+        self.assertEqual(saved['portal']['bookingClients'], {ident:'one'})
         self.member(other_family_email,'client','two')
         sibling=self.login(other_family_email)
         _,other,_=_http(self.port,'GET','/api/state',cookie=sibling)
@@ -231,4 +233,30 @@ class ClientPortalTest(ApiServerTestCase):
         self.assertEqual(other['portal']['documents'],[])
         self.assertEqual(other['portal']['updates'],[])
         self.assertEqual(other['portal']['quotes'],{})
+        self.assertEqual(other['portal']['bookingClients'],{})
         self.assertEqual(_http(self.port,'GET','/api/client-documents/'+doc['id'],cookie=sibling)[0],404)
+
+    def test_carer_bookings_receive_stored_rates_without_price_editing(self):
+        import copy
+        value = copy.deepcopy(self.daily)
+        value['bookings'] = [
+            {'id': 'priced', 'dogId': 'nino', 'service': 'day', 'start': '2026-11-02', 'end': '2026-11-02', 'unitMinor': None, 'currency': 'CHF'},
+            {'id': 'unknown', 'dogId': 'nino', 'service': 'walk', 'start': '2026-11-02', 'end': '2026-11-02', 'unitMinor': None, 'currency': 'CHF'},
+        ]
+        forged = copy.deepcopy(value)
+        forged['bookings'][0]['unitMinor'] = 99123
+        self.assertEqual(_http(self.port, 'PUT', '/api/daily', {'daily': forged}, cookie=self.carer)[0], 400)
+        status, state, _ = _http(self.port, 'PUT', '/api/daily', {'daily': value}, cookie=self.carer)
+        self.assertEqual(status, 200, state)
+        self.assertEqual([b['unitMinor'] for b in state['daily']['bookings']], [99123, None])
+        value = state['daily']
+        value['rates']['day'] = 12345
+        self.assertEqual(_http(self.port, 'PUT', '/api/daily', {'daily': value}, cookie=self.owner)[0], 200)
+        value['bookings'][0]['end'] = '2026-11-03'
+        status, state, _ = _http(self.port, 'PUT', '/api/daily', {'daily': value}, cookie=self.carer)
+        self.assertEqual(status, 200, state)
+        self.assertEqual(state['daily']['bookings'][0]['unitMinor'], 99123)
+        for amount in (0, None, 12345):
+            forged = copy.deepcopy(state['daily'])
+            forged['bookings'][0]['unitMinor'] = amount
+            self.assertEqual(_http(self.port, 'PUT', '/api/daily', {'daily': forged}, cookie=self.carer)[0], 400)

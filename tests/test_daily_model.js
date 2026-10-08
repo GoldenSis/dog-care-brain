@@ -113,6 +113,23 @@ test('monthly rows separate client, service and currency; unknown amounts stay e
   assert.equal(rows.find(row => row.currency === 'EUR').knownMinor, 2468);
 });
 
+test('historical client attribution survives dog reassignment without guessing missing families', () => {
+  const value = records();
+  value.clients.push({ id: 'client-2', name: 'New family' });
+  value.dogs[0].clientId = 'client-2';
+  const associations = { 'booking-1': 'client-1' };
+  const historical = model.monthlySummary(value, '2026-02', associations)[0];
+  assert.equal(historical.clientId, 'client-1');
+  assert.equal(historical.clientName, 'Client fixture');
+  assert.equal(historical.knownMinor, 2468);
+  assert.equal(model.monthlySummary(value, '2026-02')[0].clientId, 'client-2');
+  value.clients = value.clients.filter(client => client.id !== 'client-1');
+  const missing = model.monthlySummary(value, '2026-02', associations)[0];
+  assert.equal(missing.clientId, 'client-1');
+  assert.equal(missing.clientName, '');
+  assert.equal(model.monthlySummary(value, '2026-02', { 'booking-1': null })[0].clientId, null);
+});
+
 test('extensions retain recorded agreement after configuration changes', () => {
   const value = records();
   value.rates.day = 9999;

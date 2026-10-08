@@ -20,6 +20,7 @@
     daily: null,
     knowledge: null,
     finance: null,
+    media: {items:[],covers:{},branding:{hero:null,services:{}}},
     portal: {updates:[],requests:[],documents:[],members:[]},
   };
 
@@ -45,7 +46,7 @@
   async function req(path, opts) {
     const writing = opts && opts.method && opts.method !== "GET";
     if (writing) {
-      if (writeBlocked || businessId === null) { failed(); return { ok: false, status: 0, data: {} }; }
+      if ((writeBlocked && path !== '/auth/logout') || businessId === null) { failed(); return { ok: false, status: 0, data: {} }; }
       opts = { ...opts, headers: { ...opts.headers, "X-DogCare-Business": String(businessId), "If-Match": `"${revision}"` } };
     }
     const controller = new AbortController();
@@ -149,6 +150,7 @@
     cache.daily = data.daily ?? null;
     cache.knowledge = data.knowledge || {version:1,experiences:[]};
     cache.finance = data.finance ?? null;
+    cache.media = data.media || {items:[],covers:{},branding:{hero:null,services:{}}};
     cache.portal = data.portal || {updates:[],requests:[],documents:[],members:[]};
     return true;
   }
@@ -198,6 +200,32 @@
     return writes;
   }
 
+  function acceptMedia(result, expectedBusiness) {
+    if (!result?.ok || !Array.isArray(result.media?.items)) throw Error(result?.error || "Le média n’a pas été enregistré. Réessayez.");
+    if (businessId !== expectedBusiness || result.business_id !== expectedBusiness) throw Error("Le compte actif a changé. Rechargez votre espace avant de réessayer.");
+    cache.media = result.media;
+    return JSON.parse(JSON.stringify(cache.media));
+  }
+
+  async function mediaRequest(action, payload) {
+    if (!hydrated || businessId === null) throw Error("Rechargez votre espace avant de réessayer.");
+    const expectedBusiness = businessId;
+    const controller = new AbortController(), timer = setTimeout(() => controller.abort(), requestTimeout);
+    try {
+      const response = await fetch(url('/media' + (action ? '/' + action : '')), {
+        credentials:'include', signal:controller.signal,
+        headers:{'X-DogCare-Business':String(expectedBusiness),...(action ? {'Content-Type':'application/json'} : {})},
+        ...(action ? {method:'POST',body:JSON.stringify(payload)} : {})
+      });
+      const result = await response.json();
+      if (!response.ok) throw Error(result.error || "Le média n’a pas été enregistré. Réessayez.");
+      return acceptMedia(result, expectedBusiness);
+    } catch (error) {
+      if (error.name === 'AbortError' || error instanceof TypeError) throw Error("Connexion interrompue. Rechargez l’album avant de réessayer.");
+      throw error;
+    } finally { clearTimeout(timer); }
+  }
+
   // Await ready's boolean before using cached getters or saving. Valid save calls
   // resolve to booleans in call order; whenSaved waits for writes already queued.
   // Observation saves reconcile uploaded data URLs into the supplied objects.
@@ -206,6 +234,33 @@
     isAnonymous() { return anonymous; },
     getUser() { return sessionUser && {...sessionUser}; },
     getLoadError() { return loadError; },
+    getMedia() { return JSON.parse(JSON.stringify(cache.media)); },
+    reloadMedia() { return mediaRequest(); },
+    saveMedia(action, payload) { return mediaRequest(action, payload); },
+    uploadMedia(file, target, progress) {
+      return new Promise((resolve, reject) => {
+        if (!hydrated || businessId === null) { reject(Error("Rechargez votre espace avant de réessayer.")); return; }
+        const expectedBusiness = businessId;
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', url('/media/upload?' + new URLSearchParams(target)));
+        xhr.withCredentials = true;
+        xhr.timeout = 180000;
+        xhr.setRequestHeader('X-DogCare-Business', String(expectedBusiness));
+        xhr.setRequestHeader('X-DogCare-Filename', encodeURIComponent(file.name));
+        xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+        xhr.upload.onprogress = event => { if (event.lengthComputable) progress?.(Math.round(event.loaded / event.total * 100)); };
+        xhr.onload = () => {
+          try {
+            const result = JSON.parse(xhr.responseText);
+            if (xhr.status < 200 || xhr.status >= 300) throw Error(result.error || "Le fichier n’a pas été ajouté.");
+            if (typeof result.uploadedId !== 'string' || !result.media?.items?.some(item => item.id === result.uploadedId)) throw Error("Le fichier ajouté n’a pas été identifié. Rechargez l’album avant de réessayer.");
+            resolve({media:acceptMedia(result, expectedBusiness), uploadedId:result.uploadedId});
+          } catch (error) { reject(error); }
+        };
+        xhr.onerror = xhr.ontimeout = xhr.onabort = () => reject(Error("Transfert interrompu. Rechargez l’album avant de réessayer."));
+        xhr.send(file);
+      });
+    },
     getPortal() { return JSON.parse(JSON.stringify(cache.portal)); },
     savePortal(action, payload) {
       const snapshot = JSON.parse(JSON.stringify(payload));

@@ -198,3 +198,28 @@ CREATE TABLE IF NOT EXISTS booking_client (
   client_id TEXT NOT NULL,
   PRIMARY KEY (business_id,id)
 );
+
+CREATE TABLE IF NOT EXISTS media_asset (
+  id TEXT PRIMARY KEY,
+  business_id INTEGER NOT NULL REFERENCES business(id),
+  dog_id TEXT,
+  client_id TEXT,
+  purpose TEXT NOT NULL CHECK (purpose IN ('dog','branding')),
+  mime TEXT NOT NULL,
+  name TEXT NOT NULL,
+  size INTEGER NOT NULL,
+  sha256 TEXT NOT NULL,
+  contents BLOB NOT NULL,
+  created INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS media_business ON media_asset(business_id);
+CREATE TABLE IF NOT EXISTS dog_cover (
+  business_id INTEGER NOT NULL REFERENCES business(id),
+  dog_id TEXT NOT NULL,
+  media_id TEXT NOT NULL REFERENCES media_asset(id),
+  PRIMARY KEY (business_id,dog_id)
+);
+CREATE TABLE IF NOT EXISTS business_branding (
+  business_id INTEGER PRIMARY KEY REFERENCES business(id),
+  snapshot TEXT NOT NULL
+);

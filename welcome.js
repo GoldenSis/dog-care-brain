@@ -13,10 +13,27 @@
   let loadedRates = false;
   const keys = ['day','night','walk'];
   const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  function illustration(service) {
-    const prop = service === 'day' ? '<rect x="76" y="84" width="37" height="31" rx="4" fill="white"/><path d="M77 93h35m-29-14v9m23-9v9m-21 14 7 6 11-11"/>' : service === 'night' ? '<path d="m81 97 17-15 18 15v24H81Z" fill="#eee"/><path d="M93 121v-17h10v17"/>' : '<path d="M37 80Q8 90 18 108t19-10" fill="none"/>';
-    return `<svg class="service-dog" viewBox="0 0 140 140" aria-hidden="true"><g stroke="#39332e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M54 73Q87 66 99 89l6 34H94l-9-23H66l-5 23H50Z" fill="#c58a52"/><path d="M95 94q29-29 26-4t-23 15" fill="none"/><path d="M39 35q22-22 51 0l4 28q-5 23-29 22Q37 83 35 62Z" fill="#e7bb80"/><path d="M41 33Q16 30 21 63q8 17 20-2Zm45 0q24-6 24 24t-20 10Z" fill="#c58a52"/><ellipse cx="65" cy="64" rx="21" ry="14" fill="#fff2d7"/><path d="m59 59 12 0-6 8Z" fill="#39332e"/><path d="M65 67q2 11 12 6" fill="none"/><circle cx="53" cy="48" r="2" fill="#39332e"/><circle cx="78" cy="48" r="2" fill="#39332e"/><path d="m46 80 40 0-21 17Z" fill="#f2851e"/>${prop}</g></svg>`;
+  let branding=null, loadedBranding=false;
+  const faces={day:'terrier',night:'pug',walk:'dalmatian'};
+  function face(kind) {
+    const shapes={
+      terrier:'<path d="M31 56 24 17l35 20m21 0 36-20-8 43" fill="#b28d68"/><path d="M34 44q34-26 72 2l-4 46-30 28-34-24Z" fill="#e5c49c"/><path d="m37 72 21 2-14 10m58-14-21 4 14 10" fill="#fff7ed"/><path d="m49 94 9 20 13-6 12 6 12-22" fill="#fff7ed"/>',
+      dalmatian:'<path d="M41 34Q14 19 19 67l17 16m61-48q27-16 25 31l-14 18" fill="#343331"/><path d="M36 46q1-27 35-28 33 3 35 30l-4 43q-9 27-31 26-25 0-34-26Z" fill="#fffaf1"/><path d="M72 20q-14 32 9 42 16 5 24-18-5-21-33-24Z" fill="#343331"/><ellipse cx="44" cy="83" rx="7" ry="10" fill="#343331"/><circle cx="83" cy="99" r="4" fill="#343331"/>',
+      pug:'<path d="M43 30Q4 17 29 68l21-17m40-23q38-12 23 36L90 52" fill="#51453b"/><path d="M36 39q33-25 65 2 18 49-4 65-28 25-53 0-20-18-8-67Z" fill="#cfb493"/><ellipse cx="70" cy="86" rx="28" ry="26" fill="#51453b"/><path d="M48 42q22-9 44 1m-38 9q14-8 31 0" fill="none"/><ellipse cx="48" cy="64" rx="8" ry="9" fill="#fffaf1"/><ellipse cx="91" cy="63" rx="8" ry="9" fill="#fffaf1"/>'
+    };
+    return `<svg class="service-dog" viewBox="0 0 140 140" aria-hidden="true"><g stroke="#39332e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">${shapes[kind] || shapes.terrier}<circle cx="49" cy="64" r="3" fill="#242424"/><circle cx="90" cy="63" r="3" fill="#242424"/><path d="M62 81q8-5 16 0l-8 8Z" fill="#242424"/><path d="M70 89v7m-13-2q13 16 26 0" fill="none"/><path d="M70 101q-2 16 8 13 10-4 5-16" fill="#eb9986"/><path d="m48 114 22 12 22-12" fill="none" stroke="#f2851e" stroke-width="7"/></g></svg>`;
   }
+  function illustration(service) {
+    const art=branding?.services?.[service];
+    return art?.url?`<img class="service-dog" src="${esc(art.url)}" alt="">`:face(art?.face || faces[service]);
+  }
+  function applyBranding(root) {
+    const hero=root.querySelector('.welcome-photo img'),chosen=branding?.hero;
+    hero.src=chosen?.url || 'assets/photos/good-company.jpg';
+    hero.style.objectFit=chosen?.fit || 'cover';hero.style.objectPosition='50% '+(chosen?.position ?? 65)+'%';
+    root.querySelectorAll('[data-service]').forEach(button=>{const art=button.querySelector('.service-dog');if(art)art.outerHTML=illustration(button.dataset.service);});
+  }
+
   function price(language) {
     const pc=w.PortalCopy[language] || w.PortalCopy.fr, amount=publicRates?.[selected];
     if(!Number.isInteger(amount))return pc.priceUnknown;
@@ -30,6 +47,8 @@
     if (!root) { root = document.createElement('div'); root.id='public-welcome'; document.body.prepend(root); }
     document.body.classList.add('public-mode'); root.hidden=false;
     root.innerHTML = `<header class="welcome-header"><div class="welcome-brand-block"><a class="welcome-brand" href="#"><span aria-hidden="true"><svg viewBox="0 0 32 32" fill="currentColor"><ellipse cx="8" cy="11" rx="3" ry="4"/><ellipse cx="15" cy="7" rx="3" ry="4"/><ellipse cx="23" cy="10" rx="3" ry="4"/><path d="M6 23Q6 18 12 16Q16 12 20 17Q28 22 23 26Q20 28 16 25Q10 29 7 25Z"/></svg></span>Le Bus des Toutous</a><a class="welcome-credit" href="https://plusdefun.ch" target="_blank" rel="noopener">by <strong>Plus de Fun</strong></a></div><nav aria-label="${esc(c[0])}"><a href="#welcome-services">${c[0]}</a><a href="#welcome-about">${c[1]}</a><a href="https://www.instagram.com/bus_destoutous/" target="_blank" rel="noopener" aria-label="${c[2]} · Instagram @bus_destoutous">${c[2]}</a><button class="welcome-space" data-access>${c[3]} ↗</button></nav></header><main class="welcome-main"><section class="welcome-intro"><div><p class="welcome-kicker">${c[4]}</p><h1>${c[5].split('\n').join('<br>')}</h1><p>${c[6]}</p></div><div class="welcome-photo"><img src="assets/photos/good-company.jpg" alt="Deux chiens ensemble" width="720" height="1280"></div></section><section id="welcome-services" class="welcome-services"><div class="welcome-section-heading"><h2>${c[7]}</h2></div><div class="welcome-choices">${keys.map((key,i)=>`<button data-service="${key}" aria-pressed="${selected===key}">${illustration(key)}<span><strong>${c[9+i]}</strong></span><span class="service-check" aria-hidden="true">${selected===key?'✓':''}</span></button>`).join('')}</div><div id="service-detail" class="service-detail" aria-live="polite"><p>${esc(pc['detail'+suffix])}</p><strong>${esc(price(language))}</strong></div><div class="welcome-request"><button class="primary" data-request>${c[13]} →</button></div></section><section id="welcome-about"><div><p class="welcome-kicker">${c[16]}</p><h2>${c[17]}</h2><p>${c[18]}</p></div><ol>${c.slice(19,22).map(x=>`<li>${x}</li>`).join('')}</ol></section></main><dialog class="welcome-dialog"><button class="welcome-close" aria-label="${c[28]}">×</button><h2>${c[22]}</h2>${w.DogCareAPI ? `<p>${c[23]}</p><form id="access-form"><label for="access-email">${c[24]}</label><input type="email" id="access-email" required autocomplete="email" maxlength="255"><button class="primary">${c[25]}</button><p role="status" id="access-result"></p></form><details class="first-contact"><summary>${esc(pc.firstVisit)}</summary><p>${esc(pc.firstContact)}</p><textarea id="contact-draft" readonly aria-label="${esc(pc.copyContact)}">${esc(pc.contactDraft.replace('{service}',c[9+keys.indexOf(selected)]))}</textarea><div><button type="button" id="copy-contact">${esc(pc.copyContact)}</button><a href="https://www.instagram.com/bus_destoutous/" target="_blank" rel="noopener">Instagram @bus_destoutous ↗</a></div><p role="status" id="contact-result"></p></details>` : `<p>${c[30]}</p><button class="primary" id="enter-local">${c[29]}</button>`}</dialog>`;
+    applyBranding(root);
+    if(w.DogCareAPI && !loadedBranding){loadedBranding=true;fetch('/api/public/branding').then(response=>response.ok?response.json():null).then(result=>{branding=result?.branding || null;if(!root.hidden)applyBranding(root);}).catch(()=>{});}
     root.querySelectorAll('[data-service]').forEach(b=>b.onclick=()=>{selected=b.dataset.service;const url=new URL(location.href);url.searchParams.set('service',selected);history.replaceState(null,'',url);show(language,enter);root.querySelector(`[data-service="${selected}"]`).focus({preventScroll:true});});
     const dialog=root.querySelector('dialog');
     if(['bad','expired'].includes(new URLSearchParams(location.search).get('signin'))){dialog.showModal();root.querySelector('#access-result').textContent=pc.signInExpired;}  root.querySelector('.welcome-close').onclick=()=>dialog.close();
@@ -40,5 +59,5 @@
     const form=root.querySelector('#access-form');
     if(form)form.onsubmit=async e=>{e.preventDefault();const b=form.querySelector('button');b.disabled=true;try{const r=await fetch('/api/auth/access',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:form.querySelector('input').value,service:selected})});const result=await r.json();form.querySelector('[role=status]').textContent=r.ok?(result.mailed?pc.linkSent:c[26]):c[27];}catch{form.querySelector('[role=status]').textContent=c[27];}finally{b.disabled=false;}};
   }
-  w.WelcomeUI={show,hide(){loadedRates=false;publicRates=null;document.body.classList.remove('public-mode');const root=document.querySelector('#public-welcome');if(root)root.hidden=true;},illustration};
+  w.WelcomeUI={show,hide(){loadedRates=false;publicRates=null;loadedBranding=false;branding=null;document.body.classList.remove('public-mode');const root=document.querySelector('#public-welcome');if(root)root.hidden=true;},illustration,face};
 })(window);
