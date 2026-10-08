@@ -1,4 +1,4 @@
-/* Client screens use only the server's client projection; staff actions are explicit. */
+/* Client/professional screens use server-projected records; staff sharing is explicit. */
 (function (w) {
   const text = key => (w.PortalCopy[state.language] || w.PortalCopy.en)[key] || key;
   const esc = value => escapeHtml(value ?? '');

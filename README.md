@@ -1,6 +1,6 @@
 # DogCare Brain
 
-A polished, build-free MVP for a small dog-care business. This premium **Muse** edition is branded for Adine-Sophie and Le Bus des Toutous. It provides a public service welcome, a private client space and a complete dog-sitter workspace. The static demo retains Billie Blue and Charlie Rose. See [client access, requests, pricing and login delivery](docs/client-portal.md).
+A polished, build-free MVP for a small dog-care business. This premium **Muse** edition is branded for Adine-Sophie and Le Bus des Toutous. It provides a public service welcome, a private client space, [selected read-only professional access](docs/client-portal.md#selected-professional-access) and a complete dog-sitter workspace. The static demo retains Billie Blue and Charlie Rose. See [client access, requests, pricing and login delivery](docs/client-portal.md).
 
 ## Run locally
 
@@ -21,11 +21,12 @@ Static mode stores observations, pending invite previews, and language in the br
 Account mode (SQLite, zero pip dependencies) opens on the public welcome. For an isolated local demo:
 
 ```bash
-DC_AUTH_MODE=development DC_ALLOW_DEMO_SIGNUP=1 python3 api/server.py
+preview_data="$(mktemp -d)"
+DC_DATA_DIR="$preview_data" DC_AUTH_MODE=development DC_ALLOW_DEMO_SIGNUP=1 python3 api/server.py
 # http://127.0.0.1:8787 — explicit local development only
 ```
 
-Create synthetic access with the [preview seeder](docs/client-portal.md#isolated-verification), or request a demo link through `/api/auth/request` in this explicit development mode and open the newest private outbox JSON. Without these flags, unknown emails never create owners. Real accounts require explicit owner bootstrap and configured encrypted login delivery; see [transport configuration](docs/client-portal.md#login-transport). No deployment or real email receipt is implied by local tests.
+Use that same temporary directory for the [preview seeder](docs/client-portal.md#isolated-verification)'s `--data-dir` argument. Create synthetic access with the seeder, or request a demo link through `/api/auth/request` in this explicit development mode and open the newest JSON under `<preview_data>/.dev-outbox`. Without these flags, unknown emails never create owners. Real accounts require explicit owner bootstrap and configured encrypted login delivery; see [transport configuration](docs/client-portal.md#login-transport). No deployment or real email receipt is implied by local tests.
 
 ### Import browser records
 
@@ -41,7 +42,7 @@ curl -X POST http://localhost:4173/api/auth/request \
 
 Use your original scheme, hostname, and port if different. `localhost:4173` and `127.0.0.1:8787` have separate browser storage; the default account URL cannot see records from the static URL. Sign in to an unused business account at the original origin, accept the recording notice if shown, and let the import finish before making account writes. Browser copies stay intact, but an account already used for care writes cannot import them.
 
-Account mode imports whichever of the three browser keys exist, once per unused business. Missing keys leave the corresponding account data unchanged; explicitly empty observations or invites clear those collections. A language-only import also consumes this opportunity. The server's `imported` flag means import eligibility is closed, whether by import or by a successful observation, invite, language, dog, daily-record, document, experience, accounting or portal write, or a media upload. Uploading audio alone does not close it. A browser marker (`dogcare-imported:<business_id>`) also prevents repeat automatic imports; the server flag protects the account across browser profiles. With no browser keys, the account remains eligible until one of those writes. Explicit development demo accounts retain demo data; operator-created real accounts start empty. Clients never import browser owner history.
+Account mode imports whichever of the three browser keys exist, once per unused business. Missing keys leave the corresponding account data unchanged; explicitly empty observations or invites clear those collections. A language-only import also consumes this opportunity. The server's `imported` flag means import eligibility is closed, whether by import or by a successful observation, invite, language, dog, daily-record, document, experience, accounting or portal write, or a media upload. Uploading audio alone does not close it. A browser marker (`dogcare-imported:<business_id>`) also prevents repeat automatic imports; the server flag protects the account across browser profiles. With no browser keys, the account remains eligible until one of those writes. Explicit development demo accounts retain demo data; operator-created real accounts start empty. Only owners can import browser history; clients and professionals receive `imported: true` in their projected state.
 
 **Daily dog names and owner associations, bookings, rates, clients, documents, private experiences and accounting records/originals are not imported by this legacy three-key process.** Imported observations retain their dog identifiers, but do not transfer daily profile details. The excluded records and files remain in their original browser storage; see [daily storage and migration](docs/daily-workflows.md#storage-and-migration), [experience storage](docs/maison-sante.md#storage-and-compatibility) and [accounting storage](docs/comptabilite.md#storage-and-contracts).
 
@@ -58,7 +59,7 @@ Listener and storage configuration uses these environment variables. See [login 
 | `DC_TRUSTED_PROXY` | Unset | Only `127.0.0.1` enables the dedicated local proxy's client-IP header for login limits, with a matching loopback bind and peer. See the [deployment trust contract](docs/private-beta-release.md#https-browser-permissions-and-public-verification). Leave unset for direct access. |
 | `DC_ROOT` | Repository root | Root for the explicit frontend allowlist; the API server injects `window.DOGCARE_API="/api"` into served HTML. |
 | `DC_DATA_DIR` | `~/.local/share/dogcare-brain` | Base directory for private runtime files. |
-| `DC_DB` | `<DC_DATA_DIR>/dogcare.db` | SQLite database, including daily records, documents, private experiences, accounting, client access/requests and media/artwork bytes, using WAL mode. |
+| `DC_DB` | `<DC_DATA_DIR>/dogcare.db` | SQLite database, including daily records, documents, private experiences, accounting, client access/requests, professional grants/shared versions and media/artwork bytes, using WAL mode. |
 | `DC_OUTBOX` | `<DC_DATA_DIR>/.dev-outbox` | Private magic-link JSON files in explicit development mode only. |
 | `DC_BLOBS` | `<DC_DATA_DIR>/blobs` | Audio files, under a directory per business ID. |
 | `DC_INSECURE_COOKIE` | `1` | `1` uses HTTP development links and omits `Secure` on the cookie; other values use HTTPS development links and a `Secure` cookie. SMTP requires `0` and links use `DC_PUBLIC_ORIGIN`. |
@@ -96,11 +97,11 @@ The API uses JSON objects and a `dc_s` session cookie. JSON responses, protected
 | `PUT /api/daily` | `{ "daily": <snapshot> }`; replaces the full operational snapshot, preserving uploaded document identities. Returns full account state; see the [daily contract](docs/daily-workflows.md#api-contract). |
 | `PUT /api/knowledge` | `{ "knowledge": <snapshot> }`; replaces all private experience drafts. Returns full account state; see the [experience contract](docs/maison-sante.md#api-contract). |
 | `PUT /api/finance` | `{ "finance": <snapshot>, "uploads": [] }`; saves the full accounting snapshot and any new originals atomically. Returns full account state; see the [accounting contract](docs/comptabilite.md#api-contract). |
-| `GET /api/finance-documents/<sha256>` | Business-scoped private accounting original; session required. |
+| `GET /api/finance-documents/<sha256>` | Business-scoped private accounting original; owner session required. |
 | `POST /api/documents` | Dog, label, renewal (`""` when unset), filename, supported MIME type and base64 file; returns full state. See [daily contract](docs/daily-workflows.md#api-contract). |
-| `GET /api/documents/<id>` | Business-scoped private document attachment; session required. |
-| `GET /api/dogs` | `{ "ok": true, "dogs": [{ "id": 1, "slug": "billie", "name": "Billie Blue" }, …] }`. |
-| `GET /api/dogs/<id>` | `{ "ok": true, "dog": { "id": …, "slug": "…", "name": "…" } }`; numeric ID, scoped to the signed-in business. |
+| `GET /api/documents/<id>` | Business-scoped private document attachment; staff session or an individual professional grant required. |
+| `GET /api/dogs` | `{ "ok": true, "dogs": […] }`; staff receive care-dog rows such as `{ "id": 1, "slug": "billie", "name": "Billie Blue" }`. Clients/professionals receive only allowed daily dogs, with both `id` and `slug` set to the daily string identifier. |
+| `GET /api/dogs/<id>` | `{ "ok": true, "dog": { "id": …, "slug": "…", "name": "…" } }`; numeric care-dog row ID, scoped to the signed-in business and the client/professional's allowed dogs. Daily string IDs from their list response are not accepted here. |
 | `POST /api/dogs` | `{ "slug": "new-dog", "name": "New Dog" }`; creates a care-note dog and returns `ok`, `business_id`, `revision`, and `dog`. Slugs are trimmed but preserve case; see identifier rules below. Name is optional, defaults to the slug, and is trimmed to 80 characters. This does not register a daily client/dog relationship. |
 | `GET /api/observations` | `{ "ok": true, "observations": { "billie": […], "charlie": […] } }`. |
 | `PUT /api/observations` | `{ "observations": { "billie": […], "charlie": […] } }`; replaces all observations for the business. |
@@ -109,9 +110,9 @@ The API uses JSON objects and a `dc_s` session cookie. JSON responses, protected
 | `PUT /api/prefs` | `{ "language": "fr" }`; saves the signed-in user's language. Read preferences through `/api/state`. |
 | `POST /api/import` | Any nonempty selection of `observations`, `invites`, and `language`; applies supplied collections once, atomically. Returns the full state plus `skipped`. |
 | `POST /api/blobs` | `{ "type": "audio/webm", "data": "<base64 bytes, without data-URL prefix>" }`; returns `{ "ok": true, "ref": "<filename>" }`. No revision required. |
-| `GET /api/blobs/<ref>` | Returns the current business's recording bytes; another business's file is not accessible. |
+| `GET /api/blobs/<ref>` | Returns the current business's recording bytes to staff; clients and professionals cannot access raw audio. |
 
-Except for health, public service prices, explicitly published branding/media and request/access/verify/me auth routes, endpoints require a valid session and the appropriate role. See [portal API additions](docs/client-portal.md#api-additions) and [media routes](docs/media.md#stockage-et-api) for their contracts. Legacy invite previews still grant no access; the owner-only [membership controls](docs/client-portal.md#accounts-and-access) provide explicit client/carer access. Dogs registered directly in **Dogs / Chiens** or through Planning join the daily registry via `PUT /api/daily` and become available to the care-note UI. They appear in `daily.dogs` within `/api/state`; registration alone does not create a `/api/dogs` row. Only explicit development signup seeds Billie and Charlie; real owner bootstrap is empty.
+Except for health, public service prices, explicitly published branding/media and request/access/verify/me auth routes, endpoints require a valid session and the appropriate role. See [portal API additions](docs/client-portal.md#api-additions) and [media routes](docs/media.md#stockage-et-api) for their contracts. Legacy invite previews still grant no access; the owner-only [membership controls](docs/client-portal.md#accounts-and-access) provide explicit client/carer access and separate [professional selections](docs/client-portal.md#selected-professional-access). Dogs registered directly in **Dogs / Chiens** or through Planning join the daily registry via `PUT /api/daily` and become available to the care-note UI. They appear in `daily.dogs` within `/api/state`; registration alone does not create a care-dog row. Only explicit development signup seeds Billie and Charlie; real owner bootstrap is empty.
 
 ### Mutation contract
 
@@ -143,7 +144,7 @@ The shell keeps one **Le Bus des Toutous · by Plus de Fun** header. The staff d
 | Primary navigation | Home (dashboard), Schedule, Dogs, Capture |
 | All my tools | Handoff, Care & wellbeing (Maison de la Santé in French), Muse assistant, Daily story, Gallery, Invite, Accounting (Comptabilité in French), Settings |
 
-The primary buttons wrap within the page at desktop and phone widths. The header and navigation scroll with the page; the tools dialog scrolls independently when needed. Trusted carers have the same care navigation but no Invite, Accounting or Settings. Clients have a separate four-button space: **My dogs**, **Reservations**, **Updates** and **Documents**, with no staff tools or capture shortcut.
+The primary buttons wrap within the page at desktop and phone widths. The header and navigation scroll with the page; the tools dialog scrolls independently when needed. Trusted carers have the same care navigation but no Invite, Accounting or Settings. Clients have a separate four-button space: **My dogs**, **Reservations**, **Updates** and **Documents**, with no staff tools or capture shortcut. Professionals have one **Shared records / Dossiers partagés** destination for selected dogs and records, with language and sign-out controls but no staff tools or capture shortcut.
 
 Buttons have at least 44px targets, visible keyboard focus, and an active state exposed as `aria-current="page"`. Use Tab to reach a destination and Enter or Space to activate it. Selecting a tool closes the dialog and returns the page to its heading. Handoff evidence links open the source note in the dog's timeline.
 
@@ -159,7 +160,7 @@ Sourced everyday-care guides, labelled provider videos and saved private experie
 
 ## Try the core flow
 
-1. Open **Tous mes outils → Muse assistant** and ask for today’s briefing, recorded items needing attention, or an owner handoff. Muse lists the loaded dogs with today’s note counts and counts today’s saved bookings; it is not connected to a remote AI service.
+1. Open **Tous mes outils → Muse assistant** and ask for today’s briefing, recorded items needing attention, or an owner handoff. Muse lists the loaded dogs with today’s note counts and counts today’s active saved bookings; it is not connected to a remote AI service.
 2. Use a quick action or open **Capture update** from the dashboard or navigation.
 3. Choose a dog and type a note, or use **Dictate** to see a voice note transcribed live into the care-note field.
 4. Edit the text if needed, review the detected tags, and save the observation.
@@ -227,7 +228,7 @@ node --test tests/*.js
 for file in *.js; do node --check "$file" || exit 1; done
 ```
 
-The full Python discovery command below also includes portal, login-delivery/rate-limit, account-registry, cancellation, billing, media, backup and static-boundary regressions. Browser checks need Playwright and its matching Chromium binary; Crawl4AI is not required. Real media checks need FFmpeg/ffprobe with the codecs described in [media verification](docs/media.md), including the test-only libx265 encoder for synthetic HEVC fixtures. Real HEIC conversion checks need `heif-convert`; a skipped check does not establish support. Using `uv` and the Playwright version in `requirements-crawler.txt` (reuse matching cached Chromium when available):
+The full Python discovery command below also includes portal, professional-access, login-delivery/rate-limit, account-registry, cancellation, billing, media, backup and static-boundary regressions. Browser checks need Playwright and its matching Chromium binary; Crawl4AI is not required. Real media checks need FFmpeg/ffprobe with the codecs described in [media verification](docs/media.md), including the test-only libx265 encoder for synthetic HEVC fixtures. Real HEIC conversion checks need `heif-convert`; a skipped check does not establish support. Using `uv` and the Playwright version in `requirements-crawler.txt` (reuse matching cached Chromium when available):
 
 ```bash
 uv run --python 3.12 --with playwright==1.61.0 python -m playwright install chromium
@@ -243,6 +244,8 @@ Knowledge checks cover guide search and provider links, topic choices, five loca
 Accounting checks cover invoice/extra/payment save/reload, local receipt OCR and PDF/manual intake, immutable originals, duplicate rejection, ZIP/XLSX contents, literal cells, failed-save recovery and stale-tab protection in both storage modes. Synthetic raster OCR checks also cover sparse card slips with no supplier, conservative invoice references, reviewed values after reload, numeric workbook cells and links to byte-identical originals. Camera file inputs are exercised with synthetic files; physical-camera operation remains unverified. See [accounting checks](docs/comptabilite.md#local-readers-and-checks) for focused commands; the full Python discovery command above includes the finance browser suite.
 
 Navigation checks reach all 12 owner destinations through the primary buttons and tools dialog, in five locales at 1440 × 900, 1024 × 768, and 390 × 844. They cover keyboard activation, active state, 44px targets, a single business brand, heading visibility after switching from scrolled content, and return to the selected tool.
+
+Professional-access checks cover individual grants and file denial, shared note versions, stale selections, dog reassignment/removal, revocation and concurrent authorization changes. The browser journey checks owner selection/review, professional self-login, reload and revocation at desktop and phone widths; see [selected professional access](docs/client-portal.md#selected-professional-access).
 
 Account recovery checks cover French initial copy, all five recovery languages, no account or browser-setting writes when switching languages, and no fallback to demo history. They also check overflow and the reload button's 44px target at the three viewports above.
 

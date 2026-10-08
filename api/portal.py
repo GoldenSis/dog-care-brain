@@ -1,4 +1,4 @@
-"""Explicit client projections and mutations; never expose internal care snapshots."""
+"""Project client/professional access; keep unshared internal records private."""
 import secrets
 import re
 import time
