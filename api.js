@@ -226,6 +226,14 @@
     } finally { clearTimeout(timer); }
   }
 
+  function mediaType(file) {
+    if (file.type && file.type !== 'application/octet-stream') return file.type;
+    const extension = String(file.name || '').split('.').pop().toLowerCase();
+    const types = {jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp',heic:'image/heic',heif:'image/heif',
+      mp4:'video/mp4',mov:'video/quicktime',webm:'video/webm'};
+    return Object.hasOwn(types, extension) ? types[extension] : 'application/octet-stream';
+  }
+
   // Await ready's boolean before using cached getters or saving. Valid save calls
   // resolve to booleans in call order; whenSaved waits for writes already queued.
   // Observation saves reconcile uploaded data URLs into the supplied objects.
@@ -235,6 +243,7 @@
     getUser() { return sessionUser && {...sessionUser}; },
     getLoadError() { return loadError; },
     getMedia() { return JSON.parse(JSON.stringify(cache.media)); },
+    mediaType,
     reloadMedia() { return mediaRequest(); },
     saveMedia(action, payload) { return mediaRequest(action, payload); },
     uploadMedia(file, target, progress) {
@@ -247,7 +256,7 @@
         xhr.timeout = 180000;
         xhr.setRequestHeader('X-DogCare-Business', String(expectedBusiness));
         xhr.setRequestHeader('X-DogCare-Filename', encodeURIComponent(file.name));
-        xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+        xhr.setRequestHeader('Content-Type', mediaType(file));
         xhr.upload.onprogress = event => { if (event.lengthComputable) progress?.(Math.round(event.loaded / event.total * 100)); };
         xhr.onload = () => {
           try {

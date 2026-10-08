@@ -37,7 +37,9 @@
   function price(language) {
     const pc=w.PortalCopy[language] || w.PortalCopy.fr, amount=publicRates?.[selected];
     if(!Number.isInteger(amount))return pc.priceUnknown;
-    return new Intl.NumberFormat(language,{style:'currency',currency:publicRates.currency,minimumFractionDigits:2,maximumFractionDigits:2}).format(amount/100)+' · '+pc['unit'+selected[0].toUpperCase()+selected.slice(1)];
+    let locale='en';
+    try { locale=Intl.NumberFormat.supportedLocalesOf(language)[0] || 'en'; } catch {}
+    return new Intl.NumberFormat(locale,{style:'currency',currency:publicRates.currency,minimumFractionDigits:2,maximumFractionDigits:2}).format(amount/100)+' · '+pc['unit'+selected[0].toUpperCase()+selected.slice(1)];
   }
   function show(language = 'fr', enter) {
     const c = copy[language] || copy.fr;

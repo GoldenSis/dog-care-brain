@@ -40,6 +40,10 @@ def snapshot(c, user, current):
     requests = [dict(row) for row in c.execute(
         "SELECT id,client_id AS clientId,dog_id AS dogId,service,start,end,note,status FROM booking_request WHERE business_id=? ORDER BY created DESC,id", (bid,))
         if row["dogId"] in allowed and (staff or row["clientId"] == cid)]
+    cancelled = {b['id'] for b in current['bookings'] if b.get('status') == 'cancelled'}
+    for request in requests:
+        if request['status'] == 'accepted' and request['id'] in cancelled:
+            request['status'] = 'cancelled'
     documents = [dict(row) for row in c.execute(
         "SELECT id,dog_id AS dogId,client_id AS clientId,label,name,mime AS type FROM client_document WHERE business_id=?", (bid,))
         if row["dogId"] in allowed and (staff or row["clientId"] == cid)]
@@ -145,6 +149,17 @@ def mutate(c, user, route, payload):
             daily.validate(current, daily.load(c, bid))
             daily.save(c, bid, current)
         c.execute("UPDATE booking_request SET status=? WHERE id=? AND business_id=?", (payload["status"], request["id"], bid))
+    elif route == 'cancel-booking':
+        if user['role'] != 'owner':
+            raise PermissionError('only the owner can cancel a booking')
+        daily.fields(payload, 'id')
+        daily.identifier(payload['id'])
+        booking = next((b for b in current['bookings'] if b['id'] == payload['id']), None)
+        if not booking:
+            raise ValueError('booking unavailable')
+        booking['status'] = 'cancelled'
+        daily.validate(current, daily.load(c, bid), cancelling=True)
+        daily.save(c, bid, current)
     elif route in ("extras", "extra-remove", "quote"):
         quotes.mutate(c, bid, current, route, payload)
     elif route == "updates":

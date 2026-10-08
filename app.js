@@ -1219,7 +1219,7 @@ Object.assign(translations.it, { "Speech-to-text is not available in this browse
 Object.assign(translations.de, { "Speech-to-text is not available in this browser. Recording still saves an audio note; you can also type your update.": "Spracherkennung ist in diesem Browser nicht verfügbar. Die Aufnahme speichert trotzdem eine Audionotiz; du kannst deine Notiz auch tippen." });
 Object.assign(translations.es, { "Speech-to-text is not available in this browser. Recording still saves an audio note; you can also type your update.": "El reconocimiento de voz no está disponible en este navegador. La grabación guarda igualmente una nota de audio; también puedes escribir tu actualización." });
 
-let state = { page: 'dashboard', dog: 'billie', handoffAudience: 'carer', language: 'fr', observations: window.DogCareAPI ? {billie:[],charlie:[]} : structuredClone(baseObservations), invites: [], assistantMessages: [] };
+let state = { page: 'dashboard', dog: 'billie', handoffAudience: 'carer', language: 'fr', observations: window.DogCareAPI ? {} : structuredClone(baseObservations), invites: [], assistantMessages: [] };
 let audioDraft = null;
 const captureDrafts = {};
 const SAVE_FAILED = 'Note not saved. Browser storage is unavailable or full. Your draft is still here; copy it before closing this page, or free space and retry.';
@@ -1651,7 +1651,7 @@ function handoffSummary(key) {
 function assistantBriefing() {
   const c=PortalCopy[state.language] || PortalCopy.fr, registered=Object.entries(dogs);
   const notes=registered.map(([key,dog])=>`${dog.name} : ${todayObservations(key).length} ${c.briefNotes}`).join(' · ');
-  const daily=DailyUI.snapshot(), count=daily?.bookings.filter(b=>dogs[b.dogId] && DailyModel.serviceDates(b).includes(localDay())).length;
+  const daily=DailyUI.snapshot(), count=daily?.bookings.filter(b=>DailyModel.activeBooking(b) && dogs[b.dogId] && DailyModel.serviceDates(b).includes(localDay())).length;
   return (notes || c.briefEmpty)+'\n'+(daily ? c.briefBookings.replace('{count}',String(count)) : c.briefUnavailable);
 }
 
@@ -2055,15 +2055,15 @@ async function boot() {
   if (window.DogCareAPI) {
     state.language = window.DogCareAPI.getLanguage() || 'fr';
     const obs = window.DogCareAPI.getObservations();
-    state.observations = {billie:[],charlie:[], ...obs};
+    state.observations = obs || {};
     state.invites = window.DogCareAPI.getInvites() || [];
   } else {
     state.language = localStorage.getItem('dogcare-language') || 'fr';
     state.observations = loadObservations();
     state.invites = loadInvites();
   }
+  DailyUI.load();
   if(!PortalUI.client()) {
-    DailyUI.load();
     KnowledgeUI.load();
     if(PortalUI.owner())await FinanceStore.load();
   }

@@ -5,6 +5,10 @@ from tests.test_tenant_isolation import _http
 
 
 class BillingBrowserTest(BrowserFixture):
+    async def asyncSetUp(self):
+        self.sid = self.login('billing-' + uuid.uuid4().hex + '@example.test')
+        await super().asyncSetUp()
+
     def seed(self, bookings=None):
         daily = {'version': 1, 'clients': [{'id': 'first', 'name': 'Original family'}, {'id': 'second', 'name': 'Current family'}],
                  'dogs': [{'id': 'synthetic-dog', 'name': 'Synthetic dog', 'clientId': 'first'}],
@@ -89,4 +93,15 @@ class BillingBrowserTest(BrowserFixture):
             saved = await self.page.evaluate('(service) => DogCareAPI.getDaily().bookings.find(b=>b.service===service)', service)
             self.assertEqual(saved['unitMinor'], expected)
             self.assertEqual(saved['dogId'], 'synthetic-dog')
+            await self.open_route('schedule')
+            await self.page.fill('#daily-month', '2026-10')
+            await self.page.locator('#daily-month').dispatch_event('change')
+            await self.page.click(f'[data-edit-booking="{saved["id"]}"]')
+            self.assertTrue(await self.page.locator('#booking-form [name="service"]').is_disabled())
+            self.assertTrue(await self.page.locator('#booking-form [name="dogId"]').is_disabled())
+            await self.page.fill('#booking-form [name="end"]', '2026-10-09')
+            await self.page.click('#booking-form [type="submit"]')
+            await self.page.wait_for_selector('#booking-form', state='detached')
+            extended = await self.page.evaluate('(id)=>DogCareAPI.getDaily().bookings.find(b=>b.id===id)', saved['id'])
+            self.assertEqual(extended, {**saved, 'end': '2026-10-09'})
         self.assertEqual(self.console_errors, [])

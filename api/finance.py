@@ -142,6 +142,18 @@ def validate(value, previous):
 def save(c, business_id, value, uploads):
     previous = load(c, business_id)
     validate(value, previous)
+    cancelled = {b['id'] for b in daily.load(c, business_id)['bookings'] if b.get('status') == 'cancelled'}
+    old_entries = {e['id']: e for e in previous['entries']}
+    for entry in value['entries']:
+        linked = [line for line in entry['lines'] if line['bookingId'] in cancelled]
+        if not linked:
+            continue
+        old = old_entries.get(entry['id'])
+        require(old is not None and not (old['status'] == 'draft' and entry['status'] == 'confirmed'))
+        retained = list(old['lines'])
+        for line in linked:
+            require(line in retained)
+            retained.remove(line)
     require(isinstance(uploads, list) and len(uploads) <= 10)
     oldids = {d['id'] for d in previous['documents']}
     additions = {d['id']: d for d in value['documents'] if d['id'] not in oldids}

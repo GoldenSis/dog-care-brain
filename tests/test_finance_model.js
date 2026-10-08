@@ -1,5 +1,21 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const M=require('../finance-model.js');
+test('cancelled bookings cannot add invoice lines or issue a saved draft',()=>{
+  const saved=M.empty(),entry=M.draft('invoice','sale');
+  entry.lines[0]={description:'Day',quantity:1,unitMinor:2500,bookingId:'cancelled'};saved.entries.push(entry);
+  const bookings=[{id:'cancelled',status:'cancelled'}];
+  assert.doesNotThrow(()=>M.validateBookings(saved,M.empty(),[null,{}]));
+  assert.doesNotThrow(()=>M.validateBookings(saved,saved,bookings));
+  const next=structuredClone(saved);next.entries[0].status='confirmed';
+  assert.throws(()=>M.validateBookings(next,saved,bookings));
+  next.entries[0].status='draft';next.entries[0].lines.push({...entry.lines[0]});
+  assert.throws(()=>M.validateBookings(next,saved,bookings));
+  next.entries[0].lines=entry.lines;next.entries[0].id='new';
+  assert.throws(()=>M.validateBookings(next,saved,bookings));
+  saved.entries[0].status='confirmed';next.entries=structuredClone(saved.entries);
+  next.entries[0].payments.push({id:'cash',date:'2026-10-08',amountMinor:10,note:''});
+  assert.doesNotThrow(()=>M.validateBookings(next,saved,bookings));
+});
 function documents(count){return Array.from({length:count},(_,i)=>{const id=i.toString(16).padStart(64,'0');return {id,name:`Original ${i}.pdf`,type:'application/pdf',size:100,sha256:id};});}
 test('retained document comparison stays linear at the 5000-document limit',t=>{
   const stringify=JSON.stringify;

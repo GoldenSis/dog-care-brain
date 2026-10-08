@@ -396,7 +396,7 @@ def replace_observations(c, bid, uid, observations, dog_ids=None):
         dog_ids = {r["slug"]: r["id"] for r in
                    c.execute("SELECT id, slug FROM dog WHERE business_id=?", (bid,))}
     for slug in observations or {}:
-        if slug not in dog_ids:
+        if slug not in dog_ids and observations[slug]:
             if not SLUG_RE.fullmatch(slug):
                 continue
             c.execute(
@@ -769,7 +769,8 @@ class Handler(BaseHTTPRequestHandler):
                         old = {b['id']: b for b in previous['bookings']}
                         if current['rates'] != previous['rates'] or any(
                             b['unitMinor'] != (old[b['id']]['unitMinor'] if b['id'] in old else None) or
-                            b['currency'] != (old[b['id']]['currency'] if b['id'] in old else current['rates']['currency'])
+                            b['currency'] != (old[b['id']]['currency'] if b['id'] in old else current['rates']['currency']) or
+                            (b['id'] in old and any(b[key] != old[b['id']][key] for key in ('dogId', 'service')))
                             for b in current['bookings']):
                             raise ValueError('only the owner can set prices')
                         for booking in current['bookings']:
@@ -821,15 +822,16 @@ class Handler(BaseHTTPRequestHandler):
                             remaining -= len(chunk)
                     finally:
                         self.connection.settimeout(None)
-                    media.validate_file(stream, mime, length)
                     name = unquote(self.headers.get('X-DogCare-Filename', 'media'))
-                    with _lock, connection() as c:
-                        c.execute('BEGIN IMMEDIATE')
-                        current = user_of(self, c)
-                        if not current or current['business_id'] != user['business_id']:
-                            raise PermissionError('Accès expiré. Rechargez votre espace.')
-                        uploaded_id = media.store(c, current, stream, mime, length, name, dog_id, purpose)
-                        out = media.snapshot(c, current)
+                    with media.normalize_upload(stream, mime, length, name, os.path.dirname(db_path())) as normalized:
+                        content, content_type, content_size, content_name = normalized
+                        with _lock, connection() as c:
+                            c.execute('BEGIN IMMEDIATE')
+                            current = user_of(self, c)
+                            if not current or current['business_id'] != user['business_id']:
+                                raise PermissionError('Accès expiré. Rechargez votre espace.')
+                            uploaded_id = media.store(c, current, content, content_type, content_size, content_name, dog_id, purpose)
+                            out = media.snapshot(c, current)
             else:
                 payload = self._read_json()
                 if payload is None:
@@ -1212,19 +1214,22 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error(404)
             return
         full = os.path.realpath(os.path.join(root, rel.lstrip("/")))
-        if not full.startswith(root + os.sep) and full != root:
-            self.send_error(404)
-            return
-        if os.path.relpath(full, root).replace(os.sep, "/") not in STATIC_FILES:
-            self.send_error(404)
-            return
         if full in (os.path.join(root, "index.html"), os.path.join(root, "app.js")):
             user = user_of(self)
             authenticated = user and user['role'] in ('owner', 'trusted-carer', 'client')
             if not authenticated:
                 if full == os.path.join(root, "app.js"):
                     return self._send({"ok": False, "error": "sign in required"}, 401)
-                full = os.path.join(root, "public.html")
+                full = os.path.realpath(os.path.join(root, "public.html"))
+                if full in (os.path.join(root, "index.html"), os.path.join(root, "app.js")):
+                    self.send_error(404)
+                    return
+        if not full.startswith(root + os.sep) and full != root:
+            self.send_error(404)
+            return
+        if os.path.relpath(full, root).replace(os.sep, "/") not in STATIC_FILES:
+            self.send_error(404)
+            return
         banned = ("/.git/", "/.dev-outbox/", "/api/blobs/", "/api/dogcare.db")
         if any(b in full.replace("\\", "/") for b in banned) or full.endswith(".db"):
             self.send_error(404)

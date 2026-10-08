@@ -19,7 +19,7 @@ class PrivateBackupTest(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
         self.data = self.root / 'data'
-        self.voice = 'a' * 32 + '.webm'
+        self.voice = hashlib.sha256(b'synthetic audio').hexdigest()[:32] + '.webm'
         (self.data / 'blobs' / '1').mkdir(parents=True)
         (self.data / 'blobs' / '1' / self.voice).write_bytes(b'synthetic audio')
         (self.data / '.dev-outbox').mkdir()
@@ -85,6 +85,28 @@ class PrivateBackupTest(unittest.TestCase):
             backup.backup(self.data, self.backups, keep=1)
         self.assertEqual([path.resolve() for path in self.backups.iterdir()], [complete])
         backup.verify(complete)
+
+    def test_corrupt_source_audio_never_publishes_or_prunes_intact_snapshot(self):
+        complete = backup.backup(self.data, self.backups, keep=1)
+        (self.data / 'blobs' / '1' / self.voice).write_bytes(b'corrupted before backup')
+        with self.assertRaisesRegex(ValueError, 'recording checksum'):
+            backup.backup(self.data, self.backups, keep=1)
+        self.assertEqual([path.resolve() for path in self.backups.iterdir()], [complete])
+        restored = backup.restore(complete, self.root / 'restored-intact')
+        self.assertEqual((restored / 'blobs/1' / self.voice).read_bytes(), b'synthetic audio')
+
+    def test_fresh_manifest_cannot_hide_corrupt_recording(self):
+        snapshot = backup.backup(self.data, self.backups)
+        relative = 'blobs/1/' + self.voice
+        (snapshot / relative).write_bytes(b'corrupted before manifest')
+        manifest = json.loads((snapshot / 'manifest.json').read_text())
+        manifest['files'][relative] = backup.digest(snapshot / relative)
+        (snapshot / 'manifest.json').write_text(json.dumps(manifest))
+        with self.assertRaisesRegex(ValueError, 'recording checksum'):
+            backup.verify(snapshot)
+        with self.assertRaises(ValueError):
+            backup.restore(snapshot, self.root / 'corrupt-restore')
+        self.assertFalse((self.root / 'corrupt-restore').exists())
 
     def test_manifest_cannot_hide_a_missing_database_recording(self):
         snapshot = backup.backup(self.data, self.backups)

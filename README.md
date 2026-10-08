@@ -214,7 +214,7 @@ python3.12 -m venv /tmp/dogcare-crawler
 
 ## Acceptance checks
 
-Account photo/video albums and owner artwork settings are documented in [Photos, vidéos et personnalisation](docs/media.md), including supported formats, private/public boundaries and backup behavior. The API and backup tools require Python 3.11 or later.
+Account photo/video albums and owner artwork settings are documented in [Photos, vidéos et personnalisation](docs/media.md), including supported formats, private/public boundaries and backup behavior. The API and backup tools require Python 3.11 or later. Phone-media conversion also requires local FFmpeg/ffprobe and libheif’s `heif-convert`; the [media runtime gate](docs/private-beta-release.md#media-runtime-gate) checks real decoding before production startup.
 
 Run the API regressions with the standard library and the adapter regressions with Node:
 

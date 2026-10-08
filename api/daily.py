@@ -93,13 +93,15 @@ def collection(value):
     return ids
 
 
-def validate(value, previous):
+def validate(value, previous, cancelling=False):
     fields(value, "version clients dogs bookings rates documents")
     if type(value["version"]) is not int or value["version"] != 1:
         raise ValueError("bad version")
     clients = collection(value["clients"])
     dogs = collection(value["dogs"])
-    collection(value["bookings"])
+    bookings = collection(value["bookings"])
+    if not {item['id'] for item in previous['bookings']} <= bookings:
+        raise ValueError('saved bookings must be retained')
     collection(value["documents"])
     for client in value["clients"]:
         fields(client, "id name")
@@ -119,7 +121,10 @@ def validate(value, previous):
     dog_clients = {item["id"]: item["clientId"] for item in value["dogs"]}
     old_bookings = {item["id"]: item for item in previous["bookings"]}
     for booking in value["bookings"]:
-        fields(booking, "id dogId service start end unitMinor currency")
+        fields(booking, "id dogId service start end unitMinor currency" + (" status" if 'status' in booking else ''))
+        status = booking.get('status', 'planned')
+        if status not in ('planned', 'cancelled'):
+            raise ValueError('bad booking status')
         identifier(booking["dogId"])
         if booking["dogId"] not in dogs:
             raise ValueError("unknown dog")
@@ -134,6 +139,11 @@ def validate(value, previous):
         amount(booking["unitMinor"])
         currency(booking["currency"])
         old = old_bookings.get(booking["id"])
+        if old and old.get('status', 'planned') == 'cancelled' and booking != old:
+            raise ValueError('cancelled booking history must be retained')
+        if status == 'cancelled' and (not old or old.get('status', 'planned') != 'cancelled'):
+            if not cancelling or not old or {**old, 'status': 'cancelled'} != booking:
+                raise ValueError('use explicit booking cancellation')
         if old and old["service"] == booking["service"] and old["unitMinor"] is not None and any(
                 old[key] != booking[key] for key in ("unitMinor", "currency")):
             raise ValueError("existing booking agreement must be retained")

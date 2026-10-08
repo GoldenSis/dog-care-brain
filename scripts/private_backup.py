@@ -98,11 +98,15 @@ def verify(snapshot):
         raise ValueError('backup inventory mismatch')
     if any(name != 'dogcare.db' and not name.startswith('blobs/') for name in actual):
         raise ValueError('unexpected backup content')
-    if any(digest(path) != expected[name] for name, path in actual.items()):
+    checksums = {name: digest(path) for name, path in actual.items()}
+    if checksums != expected:
         raise ValueError('backup checksum mismatch')
     integrity(actual['dogcare.db'])
-    if not recording_paths(actual['dogcare.db']).issubset(actual):
+    recordings = recording_paths(actual['dogcare.db'])
+    if not recordings.issubset(actual):
         raise ValueError('referenced recording is missing from backup')
+    if any(not checksums[name].startswith(Path(name).stem) for name in recordings):
+        raise ValueError('recording checksum mismatch')
     return actual
 
 

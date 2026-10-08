@@ -84,5 +84,19 @@
     const found=Object.keys(rules).filter(k=>rules[k].test(raw));if(found.length===1)result.category=found[0];
     return result;
   }
-  return {empty,draft,validate,total,paid,incoming,parseMinor,propose,kinds,categories,date};
+  function validateBookings(value,previous,bookings){
+    const cancelled=new Set(bookings.filter(b=>b?.status==='cancelled').map(b=>b.id)),oldEntries=new Map(previous.entries.map(e=>[e.id,e]));
+    for(const entry of value.entries){
+      const linked=entry.lines.filter(line=>cancelled.has(line.bookingId));if(!linked.length)continue;
+      const old=oldEntries.get(entry.id);
+      if(!old || (old.status==='draft'&&entry.status==='confirmed'))throw Error('Cancelled bookings cannot be invoiced');
+      const retained=[...old.lines];
+      for(const line of linked){
+        const index=retained.findIndex(prior=>['description','quantity','unitMinor','bookingId'].every(key=>prior[key]===line[key]));
+        if(index<0)throw Error('Cancelled booking lines must be retained');
+        retained.splice(index,1);
+      }
+    }
+  }
+  return {empty,draft,validate,validateBookings,total,paid,incoming,parseMinor,propose,kinds,categories,date};
 }));

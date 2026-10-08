@@ -52,6 +52,8 @@ def target(c, bid, current, ident):
     daily.identifier(ident)
     item = next((b for b in current['bookings'] if b['id'] == ident), None)
     if item:
+        if item.get('status') == 'cancelled':
+            raise ValueError('cancelled booking history must be retained')
         return item, True
     row = c.execute("SELECT id,dog_id AS dogId,service,start,end FROM booking_request WHERE business_id=? AND id=? AND status='requested'", (bid, ident)).fetchone()
     if not row or row['dogId'] not in {d['id'] for d in current['dogs']}:

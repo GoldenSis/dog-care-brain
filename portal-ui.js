@@ -15,23 +15,23 @@
   function field(key, html) { return `<label>${esc(text(key))}${html}</label>`; }
   function dogChoice(d=daily()) {return `<select name="dogId" required>${d.dogs.filter(d=>d.clientId).map(d=>`<option value="${esc(d.id)}">${esc(d.name)}</option>`).join('')}</select>`;}
   function rows(items, portal, names, status=false) {
-    return items.map(item=>`<article class="portal-row"><div><strong>${esc(dogName(item.dogId,names))} · ${esc(text(item.service))}</strong><p>${esc(range(item))}</p>${item.note?`<p>${esc(item.note)}</p>`:''}${QuoteUI.summary(portal.quotes?.[item.id])}</div><span class="portal-tag">${esc(text(status?item.status:'booked'))}</span></article>`).join('');
+    return items.map(item=>`<article class="portal-row"><div><strong>${esc(dogName(item.dogId,names))} · ${esc(text(item.service))}</strong><p>${esc(range(item))}</p>${item.note?`<p>${esc(item.note)}</p>`:''}${QuoteUI.summary(portal.quotes?.[item.id])}</div><span class="portal-tag">${esc(text(item.status==='cancelled'?'cancelled':status?item.status:'booked'))}</span></article>`).join('');
   }
   function reservationForm(d) {
     let service='day';try{const v=sessionStorage.getItem('dogcare-request-service');if(['day','night','walk'].includes(v))service=v;}catch{}
     return `<form id="client-request-form" class="portal-form"><div class="portal-fields">${field('dog',dogChoice(d))}${field('service',`<select name="service">${['day','night','walk'].map(key=>`<option value="${key}" ${service===key?'selected':''}>${esc(text(key))}</option>`).join('')}</select>`)}${field('start','<input name="start" type="date" required>')}${field('end','<input name="end" type="date" required>')}</div>${field('note','<textarea name="note" maxlength="2000" rows="2"></textarea>')}<p id="request-details"></p><div id="request-estimate" aria-live="polite"></div>${error()}<button class="primary">${esc(text('send'))}</button></form>`;
   }
   function render(page) {
-    const d=daily(), p=data(), names=dogNames(d);setHeader('', text('workspace'),true);
+    const d=daily(), p=data(), names=dogNames(d), bookedIds=new Set(d.bookings.map(b=>b.id));setHeader('', text('workspace'),true);
     if(!d.dogs.length)return `<section class="portal-card"><p>${esc(text('noDogs'))}</p></section>`;
-    if(page==='reservations')return `<section class="portal-card"><h2>${esc(text('request'))}</h2>${reservationForm(d)}</section><section class="portal-card"><h2>${esc(text('reservations'))}</h2>${rows(d.bookings,p,names) || `<p>${esc(text('noBookings'))}</p>`}${rows(p.requests.filter(r=>r.status!=='accepted'),p,names,true)}</section>`;
+    if(page==='reservations')return `<section class="portal-card"><h2>${esc(text('request'))}</h2>${reservationForm(d)}</section><section class="portal-card"><h2>${esc(text('reservations'))}</h2>${rows(d.bookings,p,names) || `<p>${esc(text('noBookings'))}</p>`}${rows(p.requests.filter(r=>r.status!=='accepted'&&(r.status!=='cancelled'||!bookedIds.has(r.id))),p,names,true)}</section>`;
     if(page==='news')return `<section class="portal-card"><h2>${esc(text('news'))}</h2>${p.updates.map(u=>`<article class="portal-row"><div><strong>${esc(dogName(u.dogId,names))}</strong><p class="portal-message">${esc(u.text)}</p></div></article>`).join('') || `<p>${esc(text('noUpdates'))}</p>`}</section>`;
     if(page==='documents')return `<section class="portal-card"><h2>${esc(text('documents'))}</h2>${p.documents.map(d=>`<a class="portal-row" href="/api/client-documents/${encodeURIComponent(d.id)}"><span><strong>${esc(d.label)}</strong><small>${esc(dogName(d.dogId,names))}</small></span><span aria-hidden="true">↗</span></a>`).join('') || `<p>${esc(text('noDocuments'))}</p>`}</section>`;
-    const next=d.bookings.filter(b=>b.end>=localDay()).sort((a,b)=>a.start.localeCompare(b.start))[0];
+    const next=d.bookings.filter(b=>DailyModel.activeBooking(b)&&b.end>=localDay()).sort((a,b)=>a.start.localeCompare(b.start))[0];
     return `<div class="portal-grid"><section class="portal-card"><h2>${d.dogs.map(d=>esc(d.name)).join(' · ')}</h2>${next?`<p class="portal-kicker">${esc(text('next'))}</p>${rows([next],p,names)}`:`<p>${esc(text('noBookings'))}</p>`}<button class="primary" data-go="reservations">${esc(text('request'))} ↗</button></section><section class="portal-card"><h2>${esc(text('news'))}</h2>${p.updates[0]?`<p class="portal-message">${esc(p.updates[0].text)}</p><button class="link-button" data-go="news">${esc(text('open'))} ↗</button>`:`<p>${esc(text('noUpdates'))}</p>`}</section></div><section class="portal-card portal-document-strip"><h2>${esc(text('documents'))}</h2><button class="link-button" data-go="documents">${esc(text('open'))} ↗</button></section>`;
   }
   function ownerHome() {
-    const d=DailyUI.snapshot() || DailyModel.empty(),next=d.bookings.filter(b=>b.end>=localDay()).sort((a,b)=>a.start.localeCompare(b.start))[0];
+    const d=DailyUI.snapshot() || DailyModel.empty(),next=d.bookings.filter(b=>DailyModel.activeBooking(b)&&b.end>=localDay()).sort((a,b)=>a.start.localeCompare(b.start))[0];
     setHeader('',text('dayHeading'),true);
     const p=w.DogCareAPI?data():null,names=dogNames(d);
     const requestRows=p?p.requests.filter(r=>r.status==='requested'):[];

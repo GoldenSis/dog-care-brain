@@ -10,6 +10,7 @@ import zlib
 
 import daily
 import portal
+from media_normalize import normalize as normalize_upload
 
 IMAGE_LIMIT = 12 * 1024 * 1024
 VIDEO_LIMIT = 80 * 1024 * 1024
@@ -17,10 +18,10 @@ BUSINESS_LIMIT = 2 * 1024 * 1024 * 1024
 ITEM_LIMIT = 1000
 PIXEL_LIMIT = 40_000_000
 FACES = ('terrier', 'dalmatian', 'pug')
-TYPES = {'image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/quicktime', 'video/webm'}
+TYPES = {'image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'video/mp4', 'video/quicktime', 'video/webm'}
 ID = re.compile(r'[a-f0-9]{32}')
 META = 'rowid,id,business_id,dog_id,client_id,purpose,mime,name,size,sha256,created'
-INVALID = 'Fichier incomplet ou format non pris en charge. Choisissez JPEG, PNG, WebP, MP4/MOV H.264 ou WebM VP8/VP9. HEIC et HEVC ne sont pas pris en charge.'
+INVALID = 'Fichier incomplet ou format non pris en charge. Choisissez JPEG, PNG, WebP, HEIC/HEIF, MP4/MOV H.264 ou HEVC, ou WebM VP8/VP9.'
 
 
 def dimensions(width, height):
@@ -225,7 +226,7 @@ def webm(data):
 
 
 def validate_file(stream, mime, size):
-    if mime not in TYPES or not size:
+    if mime not in TYPES - {'image/heic', 'image/heif'} or not size:
         raise ValueError(INVALID)
     if size > (IMAGE_LIMIT if mime.startswith('image/') else VIDEO_LIMIT):
         raise ValueError('Fichier trop volumineux : photo 12 Mio, vidéo 80 Mio maximum.')
@@ -289,6 +290,11 @@ def snapshot(c, user):
     return {'items': items, 'covers': covers, 'branding': branding(c, user['business_id']) if user['role'] == 'owner' else {'hero': None, 'services': {}}}
 
 
+def validate_name(name):
+    if not isinstance(name, str) or not name.strip() or len(name) > 180 or any(ord(ch) < 32 or ord(ch) == 127 or 0xd800 <= ord(ch) <= 0xdfff for ch in name):
+        raise ValueError('Nom de fichier invalide.')
+
+
 def store(c, user, stream, mime, size, name, dog_id, purpose):
     cid = upload_scope(c, user, dog_id, purpose)
     if purpose == 'branding' and not mime.startswith('image/'):
@@ -296,8 +302,7 @@ def store(c, user, stream, mime, size, name, dog_id, purpose):
     total, count = c.execute('SELECT coalesce(sum(size),0),count(*) FROM media_asset WHERE business_id=?', (user['business_id'],)).fetchone()
     if total + size > BUSINESS_LIMIT or count >= ITEM_LIMIT:
         raise ValueError('Espace médias plein : 2 Gio ou 1 000 fichiers maximum. Retirez des fichiers avant de réessayer.')
-    if not isinstance(name, str) or not name.strip() or len(name) > 180 or any(ord(ch) < 32 or ord(ch) == 127 or 0xd800 <= ord(ch) <= 0xdfff for ch in name):
-        raise ValueError('Nom de fichier invalide.')
+    validate_name(name)
     ident = secrets.token_hex(16)
     stream.seek(0)
     digest = hashlib.file_digest(stream, 'sha256').hexdigest()

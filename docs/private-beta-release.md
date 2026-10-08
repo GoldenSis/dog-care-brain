@@ -24,6 +24,24 @@ SMTP always verifies the TLS certificate. The envelope sender matches the authen
 
 The templates use the standard `dogcare.db` and `blobs/` paths. If `DC_DB` or `DC_BLOBS` is overridden, adapt and test the backup contract before deploying; the supplied helper intentionally targets the standard layout.
 
+## Media runtime gate
+
+The Python API remains stdlib-only. Phone media conversion additionally requires maintained local executables `ffmpeg`, `ffprobe` and `heif-convert` on the service PATH, with HEVC/H.264 decoders, libx264/AAC/JPEG encoders and JPEG output from libheif. On Ubuntu 24.04, `libheif-examples` supplies `heif-convert`; `libheif1` alone does not. The reviewed host probe found FFmpeg 6.1.1 and libheif1 but no `heif-convert`, and its FFmpeg could not decode the synthetic HEIC. Install the narrowly scoped `libheif-examples` package only during the separately authorized deployment, after reviewing the package-manager simulation. No installation or target-host conversion is claimed by this code change.
+
+`deploy/dogcare.service` runs `scripts/check_media_runtime.py` before starting the API. This converts the repository's tiny synthetic HEIC photo and HEVC MOV clip through the actual production pipeline and fully validates the generated JPEG/MP4. It fails when dependencies or decoding fail; a version banner is insufficient. The check needs no account, SMTP, network or real media and cleans its private temporary directory. It uses no HEVC encoder, only the required production decoders and output encoders. Run the same check in the intended service sandbox before release:
+
+```sh
+sudo systemd-run --wait --pipe --collect --unit=dogcare-media-check \
+  --property=User=dogcare --property=Group=dogcare \
+  --property=UMask=0077 --property=NoNewPrivileges=true \
+  --property=PrivateTmp=true --property=ProtectSystem=strict \
+  --property=ProtectHome=true --property=ReadWritePaths=/var/lib/dogcare \
+  --working-directory=/opt/dogcare/current \
+  /usr/bin/python3 scripts/check_media_runtime.py --directory /var/lib/dogcare
+```
+
+The sandbox keeps the release read-only and permits conversion scratch only beneath the private data directory. Decoder subprocesses inherit these restrictions, receive no SMTP environment, and run with file/CPU/descriptor limits plus a 2 GiB address-space limit on Linux. The API allows one conversion at a time, a total 120-second deadline, a 200 MiB scratch budget, and bounded photo/video inputs; the exact formats are in [media documentation](media.md). Keep the distribution decoder packages updated. A failed runtime gate must be resolved before claiming HEIC/HEVC support on the host; ordinary JPEG/PNG/WebP and existing WebM behavior do not prove phone normalization works.
+
 ## Pre-public checks and bootstrap
 
 Install the service and backup units, reload systemd and start the API only as part of the separately authorized host action. Verify loopback `GET /api/health` returns `ok: true`; health alone does not prove mail delivery. Check the service journal without copying credentials or login links into reports.
@@ -38,7 +56,7 @@ sudo systemd-run --wait --pipe --collect --unit=dogcare-bootstrap \
   /usr/bin/python3 api/create_owner.py --email '<approved-owner-address>'
 ```
 
-This creates an empty owner business and sends no email. It preserves an existing owner. Record the returned business ID and set `DC_PUBLIC_BUSINESS` to that ID only when its configured service rates should appear publicly. Missing amounts remain “Tarif à convenir”; zero is a real configured free amount. Confirm the actual rates, currency and overnight billing basis with the business before public pricing. Do not use browser-test rates.
+This creates an empty owner business and sends no email. It preserves an existing owner. Record the returned business ID and set `DC_PUBLIC_BUSINESS` to that approved owner business for explicitly published homepage/service artwork and service presentation, even when every rate is unknown. Missing amounts remain “Tarif à convenir”; zero is a real configured free amount. Confirm the actual rates, currency and overnight billing basis with the business before public pricing. Do not use browser-test rates.
 
 The owner registers each family and dog, then links access in **Tous mes outils → Inviter → Accès aux comptes**. A family signs in using **Mon espace**; no invitation email is sent by the linking operation. Unknown email submission never creates an owner or reveals account membership. A first-time visitor can use the verified public Instagram contact route with a selected-service message to copy and send themselves. The app does not claim that external message was sent or that a booking exists.
 
@@ -53,7 +71,7 @@ sudo -u dogcare /usr/bin/python3 /opt/dogcare/current/scripts/private_backup.py 
   /var/lib/dogcare/backups/<snapshot>
 ```
 
-The helper uses SQLite's online backup API, including committed WAL records, then copies the immutable recordings referenced by that copied database. Upload staging files and unreferenced recordings are excluded. Missing referenced recordings fail verification before publishing or pruning snapshots, even if the manifest omits those files. Client, health and accounting documents, private dog media and owner artwork are stored in SQLite and included. Media byte lengths, hashes, cover references and published artwork references are verified before publication or pruning. Each snapshot has an inventory and SHA-256 checksums. Credentials, app code and development outbox are excluded. Symlinks in copied content are rejected. Unknown or corrupt backup directories are retained for inspection rather than pruned.
+The helper uses SQLite's online backup API, including committed WAL records, then copies the immutable recordings referenced by that copied database. Upload staging files and unreferenced recordings are excluded. Missing referenced recordings fail verification before publishing or pruning snapshots, even if the manifest omits those files. Recording bytes must also match the original SHA-256 prefix in their filenames, so a fresh manifest cannot legitimize preexisting audio corruption. Client, health and accounting documents, private dog media and owner artwork are stored in SQLite and included. Media byte lengths, hashes, cover references and published artwork references are verified before publication or pruning. Each snapshot has an inventory and SHA-256 checksums. Credentials, app code and development outbox are excluded. Symlinks in copied content are rejected. Unknown or corrupt backup directories are retained for inspection rather than pruned.
 
 Before the first real account, drill restoration into a **new** private directory, not over the running store:
 

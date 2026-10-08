@@ -53,3 +53,21 @@ class StaticBoundaryTest(ApiServerTestCase):
             (root / 'welcome.js').symlink_to(root / 'internal.md')
             with patch.dict(os.environ, {'DC_ROOT': str(root)}):
                 self.assertEqual(_http(self.port, 'GET', '/welcome.js')[0], 404)
+
+    def test_anonymous_homepage_fallback_cannot_symlink_to_private_content(self):
+        with tempfile.TemporaryDirectory() as directory:
+            parent = Path(directory)
+            root = parent / 'public'
+            root.mkdir()
+            (root / 'index.html').write_text('<head></head>workspace')
+            for target in (root / 'internal.md', parent / 'external.md', root / 'app.js', root / 'index.html'):
+                with self.subTest(target=target.name):
+                    target.write_text('synthetic private data')
+                    (root / 'public.html').symlink_to(target)
+                    try:
+                        with patch.dict(os.environ, {'DC_ROOT': str(root)}):
+                            for path in ('/', '/index.html', '/public.html'):
+                                expected = 401 if target.name == 'app.js' and path == '/public.html' else 404
+                                self.assertEqual(_http(self.port, 'GET', path)[0], expected, path)
+                    finally:
+                        (root / 'public.html').unlink()

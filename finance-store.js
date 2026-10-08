@@ -26,6 +26,8 @@
     if(failed||stale)return false;
     try{
       FinanceModel.validate(next,data);
+      let daily;try{daily=w.DogCareAPI?w.DogCareAPI.getDaily():JSON.parse(localStorage.getItem('dogcare-daily-v1')||'null');}catch{}
+      if(Array.isArray(daily?.bookings))FinanceModel.validateBookings(next,data,daily.bookings);
       if(w.DogCareAPI){
         const uploads=[];for(const [id,blob] of files)uploads.push({id,data:await base64(blob)});
         if(!await w.DogCareAPI.saveFinance(next,uploads))return false;

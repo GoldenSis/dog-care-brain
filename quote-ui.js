@@ -17,7 +17,7 @@
     if(!w.DogCareAPI || !PortalUI.owner() || !DailyUI.snapshot())return '';
     const d=w.DogCareAPI.getDaily();if(!d.bookings.length)return '';
     const portal=data(),names=new Map(d.dogs.map(d=>[d.id,d.name]));
-    return `<section class="portal-card"><h2>${esc(text('extras'))}</h2>${d.bookings.map(b=>`<article class="quote-booking"><h3>${esc(names.get(b.dogId))} · ${esc(text(b.service))} · ${esc(b.start)}</h3>${summary(portal.quotes?.[b.id])}${editor(b.id,portal)}</article>`).join('')}</section>`;
+    return `<section class="portal-card"><h2>${esc(text('extras'))}</h2>${d.bookings.map(b=>`<article class="quote-booking"><h3>${esc(names.get(b.dogId))} · ${esc(text(b.service))} · ${esc(b.start)}${DailyModel.activeBooking(b)?'':` · ${esc(text('cancelled'))}`}</h3>${summary(portal.quotes?.[b.id])}${DailyModel.activeBooking(b)?editor(b.id,portal):''}</article>`).join('')}</section>`;
   }
   function bind(save){
     const panels=document.querySelectorAll('[data-quote]');if(!panels.length)return;

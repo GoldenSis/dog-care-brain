@@ -7,6 +7,7 @@
     logout: ['Sign out','Se déconnecter','Esci','Abmelden','Cerrar sesión'],
     tools: ['All my tools','Tous mes outils','Tutti i miei strumenti','Alle Werkzeuge','Todas mis herramientas'],
     dogs: ['My dogs','Mes chiens','I miei cani','Meine Hunde','Mis perros'],
+    cancelled: ['Cancelled','Annulée','Annullata','Storniert','Cancelada'],
     reservations: ['Reservations','Réservations','Prenotazioni','Reservierungen','Reservas'],
     news: ['Updates','Nouvelles','Novità','Neuigkeiten','Novedades'],
     documents: ['Documents','Documents','Documenti','Dokumente','Documentos'],

@@ -10,6 +10,26 @@ from tests.test_tenant_isolation import _http, _latest_link
 
 
 class WelcomeJourneyTest(BrowserFixture):
+    async def test_legacy_language_keeps_configured_public_prices_and_service_selection(self):
+        _, saved, _ = _http(self.port, 'GET', '/api/state', cookie=self.sid)
+        daily = saved['daily']
+        daily['rates'] = {'currency': 'CHF', 'day': 1234, 'night': 5678, 'walk': 9012}
+        self.assertEqual(_http(self.port, 'PUT', '/api/daily', {'daily': daily}, cookie=self.sid)[0], 200)
+        with patch.dict(os.environ, {'DC_PUBLIC_BUSINESS': str(saved['business_id'])}):
+            for language in ('en_US', 'zz', 'fr'):
+                with self.subTest(language=language):
+                    self.assertEqual(_http(self.port, 'PUT', '/api/prefs', {'language': language}, cookie=self.sid)[0], 200)
+                    await self.page.reload()
+                    await self.wait_ready()
+                    await self.page.click('#public-home')
+                    await self.page.wait_for_function("document.querySelector('#service-detail strong').textContent.includes('CHF')")
+                    for service, amount in (('day', 12.34), ('night', 56.78), ('walk', 90.12)):
+                        await self.page.click(f'[data-service="{service}"]')
+                        expected = await self.page.evaluate('''({locale,amount}) => new Intl.NumberFormat(locale,
+                          {style:'currency',currency:'CHF',minimumFractionDigits:2,maximumFractionDigits:2}).format(amount)''',
+                          {'locale': 'fr' if language == 'fr' else 'en', 'amount': amount})
+                        self.assertIn(expected, await self.page.locator('#service-detail strong').inner_text())
+
     async def asyncSetUp(self):
         prefix=uuid.uuid4().hex
         self.sid=self.login(prefix+'-owner@example.com')

@@ -8,6 +8,17 @@ function records(bookings = [booking()]) {
 }
 const document = (changes = {}) => ({ id: 'document-1', dogId: 'dog-1', label: 'Proof fixture', renewal: '', type: 'application/pdf', name: 'proof.pdf', data: Buffer.from('%PDF-1.4\nfixture').toString('base64'), ...changes });
 
+test('cancelled bookings retain agreements but leave planned summaries', () => {
+  const value=records([booking({status:'cancelled'})]);
+  assert.equal(model.validateDaily(value),true);
+  assert.equal(model.amount(value.bookings[0]),3702);
+  assert.equal(model.activeBooking(value.bookings[0]),false);
+  assert.deepEqual(model.monthlySummary(value,'2026-02'),[]);
+  assert.equal(model.activeBooking(booking()),true);
+  value.bookings[0].status='completed';
+  assert.throws(()=>model.validateDaily(value));
+});
+
 for (const [collection, field, limit] of [['clients', 'name', 120], ['dogs', 'name', 120], ['documents', 'label', 120], ['documents', 'name', 180]]) {
   test(`${collection}.${field} counts Unicode code points without changing text or other validation`, () => {
     const value = records();

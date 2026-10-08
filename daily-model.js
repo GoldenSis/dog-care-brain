@@ -51,6 +51,8 @@
 
   function units(booking) { return serviceDates(booking).length; }
 
+  function activeBooking(booking) { return booking.status !== 'cancelled'; }
+
   function validMinor(value) { return value === null || (Number.isSafeInteger(value) && value >= 0 && value <= 100000000); }
 
   function checkedMinor(value) {
@@ -135,7 +137,8 @@
     const dogClients = new Map(daily.dogs.map(d => [d.id, d.clientId]));
     const totals = new Map();
     for (const booking of daily.bookings) {
-      fields(booking, 'id dogId service start end unitMinor currency');
+      fields(booking, 'id dogId service start end unitMinor currency' + (Object.hasOwn(booking, 'status') ? ' status' : ''));
+      requireValue(!Object.hasOwn(booking, 'status') || ['planned', 'cancelled'].includes(booking.status), 'Invalid booking status');
       requireValue(dogs.has(booking.dogId), 'Booking references an unknown dog');
       requireValue(clients.has(dogClients.get(booking.dogId)), 'Booking needs a recorded client');
       requireValue(typeof booking.currency === 'string' && CURRENCY.test(booking.currency), 'Invalid agreement currency');
@@ -160,6 +163,7 @@
     const clients = new Map(daily.clients.map(client => [client.id, client]));
     const rows = new Map();
     for (const booking of daily.bookings) {
+      if (!activeBooking(booking)) continue;
       const count = serviceDates(booking).filter(date => date.slice(0, 7) === month).length;
       if (!count) continue;
       const clientId = bookingClientId(booking, dogs.get(booking.dogId), associations);
@@ -193,5 +197,5 @@
     return renewal <= current + 30 ? 'due' : 'later';
   }
 
-  return { empty, validDate, serviceDates, units, amount, parseMinor, bookingClientId, monthlySummary, extension, documentStatus, validateDaily, validateDocument };
+  return { empty, validDate, serviceDates, units, activeBooking, amount, parseMinor, bookingClientId, monthlySummary, extension, documentStatus, validateDaily, validateDocument };
 }));

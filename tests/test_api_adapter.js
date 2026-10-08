@@ -374,4 +374,14 @@ test('raw media uploads reject responses for another business without replacing 
   assert.equal(uploads[0].headers['X-DogCare-Business'], '1');
   returnedBusiness = 1;
   assert.equal((await h.api.uploadMedia(file, { dogId: 'dog' })).media.items[0].id, 'uploaded');
+  for (const [name, type, expected] of [
+    ['Phone.MOV', 'application/octet-stream', 'video/quicktime'],
+    ['Phone.HEIC', '', 'image/heic'], ['camera.JPEG', '', 'image/jpeg'],
+    ['unknown.bin', '', 'application/octet-stream'], ['wrong.MOV', 'text/plain', 'text/plain'],
+  ]) {
+    const phone = { name, type };
+    await h.api.uploadMedia(phone, { dogId: 'dog' });
+    assert.equal(uploads.at(-1).headers['Content-Type'], expected);
+    assert.equal(uploads.at(-1).file, phone);
+  }
 });

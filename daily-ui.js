@@ -119,7 +119,7 @@
   function bookingCard(b, associations, dogIndex, clientIndex) {
     const dog=dogIndex.get(b.dogId), clientId=M.bookingClientId(b,dog,associations);
     const family=clientIndex.get(clientId)?.name || text('unknown');
-    return `<article class="daily-record" data-booking-id="${esc(b.id)}"><div><strong translate="no">${esc(dog?.name)} · ${esc(family)}</strong><p>${esc(text(b.service))} · ${esc(date(b.start))}${b.end!==b.start ? ` → ${esc(date(b.end))}` : ''}</p><small>${M.units(b)} ${esc(text('units'))} · ${esc(money(M.amount(b),b.currency))} · ${esc(text('planned'))}</small></div><button class="ghost" data-edit-booking="${esc(b.id)}">${esc(text('edit'))}</button></article>`;
+    return `<article class="daily-record" data-booking-id="${esc(b.id)}"><div><strong translate="no">${esc(dog?.name)} · ${esc(family)}</strong><p>${esc(text(b.service))} · ${esc(date(b.start))}${b.end!==b.start ? ` → ${esc(date(b.end))}` : ''}</p><small>${M.units(b)} ${esc(text('units'))} · ${esc(money(M.amount(b),b.currency))} · ${esc(text(M.activeBooking(b)?'planned':'cancelled'))}</small></div>${M.activeBooking(b)?`<div class="daily-actions"><button class="ghost" data-edit-booking="${esc(b.id)}">${esc(text('edit'))}</button>${w.PortalUI.owner()?`<button class="ghost" data-cancel-booking="${esc(b.id)}">${esc(text('cancelSavedBooking'))}</button>`:''}</div>`:''}</article>`;
   }
   function ownerControls(name='',choose=false) {
     return `${label('client',`<select name="clientId" required>${choose?`<option value="">${esc(text('chooseOwner'))}</option>`:''}<option value=":new">${esc(text('newOwner'))}</option>${daily.clients.map(c=>`<option translate="no" value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}</select>`)}${label('ownerName',input('client','text',name,'required pattern="[\\s\\S]{0,120}"'))}`;
@@ -136,7 +136,8 @@
   function schedule() {
     const associations=w.DogCareAPI?.getPortal()?.bookingClients || {},dogIndex=new Map(daily.dogs.map(d=>[d.id,d])),clientIndex=new Map(daily.clients.map(c=>[c.id,c]));
     const visible=daily.bookings.filter(b=>M.serviceDates(b).some(d=>d.startsWith(month))).sort((a,b)=>a.start.localeCompare(b.start));
-    return `${storage()}${unavailable()}<div class="daily-toolbar"><button class="primary" id="new-booking" ${loadError?'disabled':''}>＋ ${esc(text('newBooking'))}</button></div><div id="booking-editor"></div>${monthControl()}<p class="daily-help">${esc(text('plannedHelp'))}</p><div id="booking-list">${visible.length?visible.map(b=>bookingCard(b,associations,dogIndex,clientIndex)).join(''):`<p class="daily-empty">${esc(text('noBookings'))}</p>`}</div>${followups()}${carer()?'':`<p class="daily-help">${esc(text('ratesLink'))} <button class="link-button" data-go="business" data-finance-rates>${esc(text('rates'))} ↗</button></p>`}`;
+    const active=visible.filter(M.activeBooking),cancelled=visible.filter(b=>!M.activeBooking(b));
+    return `${storage()}${unavailable()}<div class="daily-toolbar"><button class="primary" id="new-booking" ${loadError?'disabled':''}>＋ ${esc(text('newBooking'))}</button></div><div id="booking-editor"></div>${monthControl()}<p class="daily-help">${esc(text('plannedHelp'))}</p><div id="booking-list">${active.length?active.map(b=>bookingCard(b,associations,dogIndex,clientIndex)).join(''):`<p class="daily-empty">${esc(text('noBookings'))}</p>`}</div>${cancelled.length?`<details id="cancelled-bookings"><summary>${esc(text('cancelledBookings'))} (${cancelled.length})</summary>${cancelled.map(b=>bookingCard(b,associations,dogIndex,clientIndex)).join('')}</details>`:''}${followups()}${carer()?'':`<p class="daily-help">${esc(text('ratesLink'))} <button class="link-button" data-go="business" data-finance-rates>${esc(text('rates'))} ↗</button></p>`}`;
   }
   function monthControl() { return `<div class="daily-month"><button class="ghost" data-month-step="-1" aria-label="${esc(text('previousMonth'))}">←</button>${label('month',input('month','month',month,'id="daily-month" required min="2000-01" max="2199-12"'))}<button class="ghost" data-month-step="1" aria-label="${esc(text('nextMonth'))}">→</button></div>`; }
   function business() {
@@ -151,9 +152,9 @@
     return `<section class="card daily-documents" id="dog-documents"><h2>${esc(text('documents'))}</h2>${storage()}${unavailable()}<p class="daily-help">${esc(text('documentHelp'))}</p>${docs.map(d=>`<article class="daily-document" data-document-id="${esc(d.id)}"><strong translate="no">${esc(d.label)}</strong><p>${esc(text(M.documentStatus(d,localDate())))}${d.renewal?` · ${esc(date(d.renewal))}`:''}</p><div class="daily-actions"><button class="ghost" data-open-document="${esc(d.id)}">${esc(text('openDocument'))}</button></div><details><summary>${esc(text('editRenewal'))}</summary><form data-renewal="${esc(d.id)}" class="daily-form">${label('renewal',input('renewal','date',d.renewal,'min="2000-01-01" max="2199-12-31"'))}${errorBox()}<button class="ghost">${esc(text('saveDate'))}</button></form></details></article>`).join('') || `<p class="daily-empty">${esc(text('noDocuments'))}</p>`}<form id="document-form" class="daily-form"><div class="daily-fields">${registered?'':ownerControls(dogs[dogId]?.owner || '',true)}${label('documentLabel',input('label','text','','required pattern="[\\s\\S]{0,120}"'))}${label('renewal',input('renewal','date','','min="2000-01-01" max="2199-12-31"'))}${label('file',input('file','file','','required accept="application/pdf,image/jpeg,image/png"'))}</div><p class="daily-help">PDF, JPEG, PNG · 5 MiB ${esc(text('maximum'))}</p>${errorBox()}<button class="primary" ${loadError?'disabled':''}>${esc(text('saveDocument'))}</button></form></section>`;
   }
   function quote(form, preview=false) {
-    const data=new FormData(form), old=editing && daily.bookings.find(b=>b.id===editing), service=data.get('service');
+    const data=new FormData(form), old=editing && daily.bookings.find(b=>b.id===editing), service=form.elements.service.value;
     const same=old && old.service===service;
-    if(carer())return {id:old?.id || id(),dogId:data.get('dogId'),service,start:data.get('start'),end:data.get('end'),unitMinor:old?old.unitMinor:preview?daily.rates[service]:null,currency:old?.currency || daily.rates.currency};
+    if(carer())return {id:old?.id || id(),dogId:form.elements.dogId.value,service,start:data.get('start'),end:data.get('end'),unitMinor:old?old.unitMinor:preview?daily.rates[service]:null,currency:old?.currency || daily.rates.currency};
     return {id:old?.id || id(),dogId:data.get('dogId'),service,start:data.get('start'),end:data.get('end'),unitMinor:same&&old.unitMinor!==null?old.unitMinor:M.parseMinor(data.get('unitMinor')),currency:same?old.currency:daily.rates.currency};
   }
   function updateQuote(form) {
@@ -174,6 +175,7 @@
     function selectDog(){const choice=form.elements.dogId.value, registered=daily.dogs.find(d=>d.id===choice);form.querySelector('#new-dog-field').hidden=choice!==CREATE_DOG;form.elements.dogName.required=choice===CREATE_DOG;form.elements.dogName.disabled=choice!==CREATE_DOG;form.elements.clientId.disabled=!!registered?.clientId;bindOwnerChoice(form,registered?.clientId || ':new',registered?'':dogs[choice]?.owner || '');}
     form.elements.dogId.onchange=selectDog;selectDog();
     const old=editing && daily.bookings.find(b=>b.id===editing);
+    if(old && carer()){form.elements.dogId.disabled=true;form.elements.service.disabled=true;}
     function selectService(){const same=old && old.service===form.elements.service.value, amount=old&&(same||carer())?old.unitMinor:daily.rates[form.elements.service.value];form.elements.unitMinor.value=amount===null?'':(amount/100).toFixed(2);form.elements.unitMinor.readOnly=carer()||!!(same&&old.unitMinor!==null);}
     form.elements.service.onchange=selectService;selectService();
     form.addEventListener('input',()=>updateQuote(form));form.addEventListener('change',()=>updateQuote(form));updateQuote(form);
@@ -210,6 +212,19 @@
     bindDogRegistration();
     document.querySelector('#new-booking')?.addEventListener('click',()=>editBooking(null));
     document.querySelectorAll('[data-edit-booking]').forEach(b=>b.onclick=()=>editBooking(b.dataset.editBooking));
+    document.querySelectorAll('[data-cancel-booking]').forEach(button=>button.onclick=async()=>{
+      if(savePending || !w.PortalUI.owner() || !w.confirm(text('cancelBookingConfirm')))return;
+      const bookingId=button.dataset.cancelBooking;
+      let ok;
+      if(w.DogCareAPI){
+        ok=await persistChange(()=>w.DogCareAPI.savePortal('cancel-booking',{id:bookingId}),button);
+        if(ok)load();
+      }else{
+        const next=structuredClone(daily);next.bookings.find(b=>b.id===bookingId).status='cancelled';ok=await save(next,button);
+      }
+      if(!ok){showToast(text('saveError'));return;}
+      editing=null;navigate('schedule');showToast(text('cancelled'));
+    });
     document.querySelectorAll('[data-document-dog]').forEach(b=>b.onclick=()=>{state.dog=b.dataset.documentDog;navigate('dogs');document.querySelector('#dog-documents')?.scrollIntoView({block:'start'});});
     document.querySelectorAll('[data-month-step]').forEach(b=>b.onclick=()=>{const [y,m]=month.split('-').map(Number), d=new Date(Date.UTC(y,m-1+Number(b.dataset.monthStep),1));const value=d.toISOString().slice(0,7);if(value>='2000-01'&&value<='2199-12'){month=value;navigate(state.page);document.querySelector('#daily-month')?.focus();}});
     document.querySelector('#daily-month')?.addEventListener('change',e=>{if(/^20\d\d-\d\d$|^21\d\d-\d\d$/.test(e.target.value)){month=e.target.value;navigate(state.page);}});

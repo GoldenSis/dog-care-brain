@@ -11,6 +11,69 @@ from tests.test_tenant_isolation import _http
 
 
 class DailyBrowserAcceptanceTest(BrowserFixture):
+    async def test_saved_booking_cancellation_confirmation_history_and_reload(self):
+        await self.new_booking(service='day', start='2099-10-01', end='2099-10-02', new_dog=True)
+        await self.submit_booking()
+        original = await self.snapshot()
+        booking = original['bookings'][0]
+        await self.page.select_option('#language-picker', 'fr')
+        await self.page.wait_for_function('!savePending')
+        for width in (1440, 390):
+            await self.page.set_viewport_size({'width': width, 'height': 900})
+            self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+        async def dismiss(dialog):
+            self.assertIn('Annuler cette réservation', dialog.message)
+            await dialog.dismiss()
+        self.page.once('dialog', dismiss)
+        await self.page.click('[data-cancel-booking]')
+        self.assertEqual(await self.snapshot(), original)
+        self.page.once('dialog', lambda dialog: dialog.accept())
+        await self.page.click('[data-cancel-booking]')
+        await self.page.wait_for_selector('#cancelled-bookings')
+        await self.page.wait_for_function('!savePending')
+        expected = {**booking, 'status': 'cancelled'}
+        self.assertEqual((await self.snapshot())['bookings'], [expected])
+        self.assertEqual(await self.page.locator('#booking-list [data-booking-id]').count(), 0)
+        await self.page.click('#cancelled-bookings summary')
+        self.assertIn('Annulée', await self.page.inner_text('#cancelled-bookings'))
+        self.assertEqual(await self.page.locator('[data-edit-booking], [data-cancel-booking], [data-quote]').count(), 0)
+        self.assertEqual(await self.page.evaluate("DailyModel.monthlySummary(DailyUI.snapshot(),'2099-10')"), [])
+        await self.page.reload()
+        await self.wait_ready()
+        await self.route('dashboard')
+        self.assertIn('Aucune réservation à venir', await self.page.inner_text('#app-content'))
+        await self.route('schedule')
+        await self.page.fill('#daily-month', '2099-10')
+        await self.page.locator('#daily-month').dispatch_event('change')
+        await self.page.click('#cancelled-bookings summary')
+        self.assertEqual((await self.snapshot())['bookings'], [expected])
+        self.assertIn('Annulée', await self.page.inner_text('#cancelled-bookings'))
+        for width in (1440, 390):
+            await self.page.set_viewport_size({'width': width, 'height': 900})
+            self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+            await self.page.evaluate('document.activeElement.blur()')
+            await self.capture_evidence(f'booking-cancelled-{width}-{self.api_mode}.png')
+        await self.route('business')
+        await self.page.click('#finance-new-sale')
+        await self.page.click('#finance-booking')
+        self.assertEqual(await self.page.locator('#finance-booking + select').count(), 0)
+        if self.api_mode:
+            email = booking['id'] + '@example.test'
+            status, body, _ = _http(self.port, 'POST', '/api/portal/members', {
+                'email': email, 'role': 'client', 'clientId': original['clients'][0]['id']}, cookie=self.sid)
+            self.assertEqual(status, 200, body)
+            context = await self.browser.new_context(viewport={'width': 390, 'height': 844})
+            self.addAsyncCleanup(context.close)
+            await context.add_cookies([{'name': 'dc_s', 'value': self.login(email), 'url': self.url}])
+            page = await context.new_page()
+            await page.goto(self.url)
+            await page.wait_for_function("document.querySelector('#app-content')?.dataset.ready==='true'")
+            await self.open_route('reservations', page=page)
+            self.assertEqual(await page.locator('.portal-tag').all_text_contents(), ['Annulée'])
+            self.assertEqual(await page.locator('[data-cancel-booking]').count(), 0)
+        self.assertEqual(self.console_errors, [])
+        self.assertEqual(self.page_errors, [])
+
     async def test_document_registration_selects_owner_by_id_without_splitting_bookings(self):
         seeded = await self.page.evaluate('DailyModel.empty()')
         owner = await self.page.evaluate('dogs.billie.owner')

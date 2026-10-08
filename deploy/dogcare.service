@@ -10,6 +10,7 @@ Group=dogcare
 WorkingDirectory=/opt/dogcare/current
 EnvironmentFile=/etc/dogcare.env
 Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStartPre=/usr/bin/python3 scripts/check_media_runtime.py --directory /var/lib/dogcare
 ExecStart=/usr/bin/python3 api/server.py
 Restart=on-failure
 RestartSec=5

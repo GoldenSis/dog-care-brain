@@ -3,8 +3,8 @@
   let busy=false;
   const text=key=>(w.MediaCopy[state.language] || w.MediaCopy.fr)[key] || key;
   const esc=value=>escapeHtml(value ?? '');
-  const photos='image/jpeg,image/png,image/webp';
-  const formats=photos+',video/mp4,video/quicktime,video/webm';
+  const photos='image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif';
+  const formats=photos+',video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm';
   const defaults={day:'terrier',night:'pug',walk:'dalmatian'};
   const canEdit=()=>['owner','client'].includes(w.DogCareAPI?.getUser()?.role);
   function prepare() { if(w.DogCareAPI)media=w.DogCareAPI.getMedia(); }
@@ -12,8 +12,8 @@
     const item=media.items.find(item=>item.id===media.covers[dogId]);
     return item?`<div class="dog-avatar"><img src="${esc(item.url)}" alt="${esc(name)}" loading="lazy"></div>`:'';
   }
-  function controls(target,label,accept= formats,camera=false) {
-    return `<label class="media-picker">${esc(text(label))}<input type="file" ${target} accept="${accept}" ${camera?'capture="environment"':'multiple'}></label>`;
+  function controls(target,label,accept=formats,camera=false,multiple=true) {
+    return `<label class="media-picker">${esc(text(label))}<input type="file" ${target} accept="${accept}" ${camera?'capture="environment"':multiple?'multiple':''}></label>`;
   }
   function status() { return '<p class="media-status" role="status"></p><progress class="media-progress" max="100" value="0" hidden></progress><p class="media-error" role="alert" hidden></p>'; }
   function tile(item) {
@@ -27,14 +27,14 @@
   }
   function gallery() {
     if(!w.DogCareAPI || !canEdit())return '';
-    const registered=new Map(Object.entries(dogs).map(([id,dog])=>[id,{id,name:dog.name}]));
+    const registered=new Map(w.DogCareAPI.getDogs().map(dog=>{const id=dog.slug || dog.id;return [id,{id,name:dog.name}];}));
     for(const dog of w.DogCareAPI.getDaily()?.dogs || [])registered.set(dog.id,dog);
     return [...registered.values()].map(dog=>album(dog.id,dog.name)).join('');
   }
   function settings() {
     if(w.DogCareAPI?.getUser()?.role!=='owner')return '';
     const branding=media.branding,hero=media.items.find(item=>item.id===branding.hero?.mediaId),images=media.items.filter(item=>item.purpose==='branding');
-    return `<section class="portal-card media-settings"><h2>${esc(text('homepage'))}</h2><p>${esc(text('publicNotice'))}</p><form id="media-branding-form"><div class="media-hero-editor"><div class="media-hero-preview"><img id="media-hero-preview" src="${esc(hero?.url || 'assets/photos/good-company.jpg')}" alt="${esc(text('preview'))}" style="object-fit:${branding.hero?.fit || 'cover'};object-position:50% ${branding.hero?.position ?? 65}%"></div><div class="media-fields"><label class="media-picker">${esc(text('change'))}<input id="media-hero-file" type="file" accept="${photos}"></label><label>${esc(text('preview'))}<select id="media-hero-choice"><option value="">${esc(text('reset'))}</option>${images.map(item=>`<option value="${esc(item.id)}" ${hero?.id===item.id?'selected':''}>${esc(item.name)}</option>`).join('')}</select></label><label>${esc(text('fit'))}<select id="media-fit"><option value="contain" ${branding.hero?.fit==='contain'?'selected':''}>${esc(text('contain'))}</option><option value="cover" ${branding.hero?.fit!=='contain'?'selected':''}>${esc(text('crop'))}</option></select></label><label>${esc(text('position'))}<input id="media-position" type="range" min="0" max="100" value="${branding.hero?.position ?? 65}"></label></div></div><h2>${esc(text('artwork'))}</h2><div class="media-service-choices">${Object.keys(defaults).map(service=>{const art=branding.services?.[service] || {face:defaults[service]};return `<label><span>${esc(PortalUI.text(service))}</span><span data-service-preview="${service}">${art.mediaId?`<img class="service-dog" src="${esc(media.items.find(item=>item.id===art.mediaId)?.url || '')}" alt="">`:WelcomeUI.face(art.face)}</span><select data-service-art="${service}">${Object.values(defaults).map(face=>`<option value="face:${face}" ${art.face===face?'selected':''}>${esc(text(face))}</option>`).join('')}${images.map(item=>`<option value="media:${esc(item.id)}" ${art.mediaId===item.id?'selected':''}>${esc(item.name)}</option>`).join('')}</select></label>`;}).join('')}</div><label class="media-picker">${esc(text('uploadArt'))}<input id="media-art-file" type="file" accept="${photos}" multiple></label><p class="media-help">${esc(text('limits'))}</p>${status()}<div class="media-actions"><button class="primary" id="media-brand-save">${esc(text('publish'))}</button><button class="ghost" id="media-brand-reset" type="button">${esc(text('reset'))}</button></div></form>${images.length?`<details class="media-brand-drafts"><summary>${esc(text('drafts'))}</summary>${images.map(item=>`<div class="media-draft-row"><img src="${esc(item.url)}" alt=""><span>${esc(item.name)}</span><button class="ghost" data-media-delete="${esc(item.id)}">${esc(text('remove'))}</button></div>`).join('')}</details>`:''}</section>`;
+    return `<section class="portal-card media-settings"><h2>${esc(text('homepage'))}</h2><p>${esc(text('publicNotice'))}</p><form id="media-branding-form"><div class="media-hero-editor"><div class="media-hero-preview"><img id="media-hero-preview" src="${esc(hero?.url || 'assets/photos/good-company.jpg')}" alt="${esc(text('preview'))}" style="object-fit:${branding.hero?.fit || 'cover'};object-position:50% ${branding.hero?.position ?? 65}%"></div><div class="media-fields">${controls('id="media-hero-file"','change',photos,false,false)}<label>${esc(text('preview'))}<select id="media-hero-choice"><option value="">${esc(text('reset'))}</option>${images.map(item=>`<option value="${esc(item.id)}" ${hero?.id===item.id?'selected':''}>${esc(item.name)}</option>`).join('')}</select></label><label>${esc(text('fit'))}<select id="media-fit"><option value="contain" ${branding.hero?.fit==='contain'?'selected':''}>${esc(text('contain'))}</option><option value="cover" ${branding.hero?.fit!=='contain'?'selected':''}>${esc(text('crop'))}</option></select></label><label id="media-position-control" ${!hero || branding.hero?.fit==='contain'?'hidden':''}>${esc(text('position'))}<input id="media-position" type="range" min="0" max="100" value="${branding.hero?.position ?? 65}"></label></div></div><h2>${esc(text('artwork'))}</h2><div class="media-service-choices">${Object.keys(defaults).map(service=>{const art=branding.services?.[service] || {face:defaults[service]};return `<label><span>${esc(PortalUI.text(service))}</span><span data-service-preview="${service}">${art.mediaId?`<img class="service-dog" src="${esc(media.items.find(item=>item.id===art.mediaId)?.url || '')}" alt="">`:WelcomeUI.face(art.face)}</span><select data-service-art="${service}">${Object.values(defaults).map(face=>`<option value="face:${face}" ${art.face===face?'selected':''}>${esc(text(face))}</option>`).join('')}${images.map(item=>`<option value="media:${esc(item.id)}" ${art.mediaId===item.id?'selected':''}>${esc(item.name)}</option>`).join('')}</select></label>`;}).join('')}</div>${controls('id="media-art-file"','uploadArt',photos)}<p class="media-help">${esc(text('photoLimits'))}</p>${status()}<div class="media-actions"><button class="primary" id="media-brand-save">${esc(text('publish'))}</button><button class="ghost" id="media-brand-reset" type="button">${esc(text('reset'))}</button></div></form>${images.length?`<details class="media-brand-drafts"><summary>${esc(text('drafts'))}</summary>${images.map(item=>`<div class="media-draft-row"><img src="${esc(item.url)}" alt=""><span>${esc(item.name)}</span><button class="ghost" data-media-delete="${esc(item.id)}">${esc(text('remove'))}</button></div>`).join('')}</details>`:''}</section>`;
   }
   function showError(root,error) { const el=root.querySelector('.media-error');if(el){el.textContent=error.message || String(error);el.hidden=false;} }
   async function action(root,job,refresh=true) {
@@ -48,8 +48,8 @@
     catch(error) {showError(root,error);}
     finally {busy=false;savePending=false;controls.forEach((el,index)=>el.disabled=disabled[index]);}
   }
-  async function validatePreview(file) {
-    const image=file.type.startsWith('image/'),element=document.createElement(image?'img':'video'),source=URL.createObjectURL(file);
+  async function validatePreview(file,mime) {
+    const image=mime.startsWith('image/'),element=document.createElement(image?'img':'video'),source=URL.createObjectURL(file);
     try {
       await new Promise((resolve,reject)=>{
         const timer=setTimeout(()=>reject(Error(text(image?'imageError':'videoError'))),15000);
@@ -61,10 +61,11 @@
     } finally {element.removeAttribute('src');if(!image)element.load();URL.revokeObjectURL(source);}
   }
   async function upload(file,target,root) {
-    const image=file.type.startsWith('image/'),allowed=formats.split(',');
-    if(!allowed.includes(file.type))throw Error('Format non pris en charge. Choisissez JPEG, PNG, WebP, MP4/MOV H.264 ou WebM VP8/VP9. HEIC et HEVC ne sont pas pris en charge.');
-    if(!file.size || file.size>(image?12:80)*1024*1024)throw Error(image?'Photo vide ou supérieure à 12 Mio.':'Vidéo vide ou supérieure à 80 Mio.');
-    await validatePreview(file);
+    const mime=w.DogCareAPI.mediaType(file),image=mime.startsWith('image/');
+    const allowed=formats.split(',').includes(mime);
+    if(!allowed || (target.purpose==='branding' && !image))throw Error(text(target.purpose==='branding'?'photoFormatError':'formatError'));
+    if(!file.size || file.size>(image?12:80)*1024*1024)throw Error(text(image?'photoSizeError':'videoSizeError'));
+    if(!['image/heic','image/heif','video/mp4','video/quicktime'].includes(mime))await validatePreview(file,mime);
     const progress=root.querySelector('.media-progress'),label=root.querySelector('.media-status');
     progress.hidden=false;progress.value=0;label.textContent=text('uploading')+' · '+file.name;
     try {
@@ -99,8 +100,8 @@
   function bindBranding() {
     const form=document.querySelector('#media-branding-form');if(!form)return;
     const choice=form.querySelector('#media-hero-choice'),fit=form.querySelector('#media-fit'),position=form.querySelector('#media-position'),preview=form.querySelector('#media-hero-preview');
-    const redraw=()=>{const hero=media.items.find(item=>item.id===choice.value);preview.src=hero?.url || 'assets/photos/good-company.jpg';preview.style.objectFit=hero?fit.value:'cover';preview.style.objectPosition='50% '+(hero?position.value:65)+'%';};
-    choice.onchange=()=>{fit.value='contain';position.value='50';redraw();};fit.onchange=position.oninput=redraw;
+    const redraw=()=>{const hero=media.items.find(item=>item.id===choice.value);preview.src=hero?.url || 'assets/photos/good-company.jpg';preview.style.objectFit=hero?fit.value:'cover';preview.style.objectPosition='50% '+(hero?position.value:65)+'%';form.querySelector('#media-position-control').hidden=!hero || fit.value!=='cover';};
+    choice.onchange=()=>{fit.value='contain';position.value='50';redraw();};fit.onchange=position.oninput=redraw;redraw();
     const option=(select,item,value)=>{const el=document.createElement('option');el.value=value;el.textContent=item.name;select.append(el);};
     async function add(files,isHero) {
       await action(form,async()=>{
