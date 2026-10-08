@@ -4,6 +4,8 @@ The API app opens on a public French welcome for **Le Bus des Toutous · by Plus
 
 The service choice travels in the login link, so a link opened in a fresh tab returns to the request form. A client chooses their dog, service and dates; the API calculates the estimate. Submission records a **request awaiting confirmation**, not a confirmed reservation or a payment. The owner sees the request and can accept or decline it. Acceptance creates an ordinary saved booking, retaining the quoted service rate. A missing rate remains unknown until the owner explicitly completes it.
 
+The owner can [cancel a saved booking](daily-workflows.md#bookings-and-rates) from Planning. Its history and agreed amounts remain visible to the owner with **Annulée** status, and to the original family while the dog is still linked to that family. Cancellation neither changes invoices/payments nor sends a message. Cancelled bookings cannot be edited or reactivated.
+
 After a dog is reassigned, its original pending request can still be declined; acceptance stays blocked. The original family retains that pending or declined request and its quoted amounts in reservation history, even with no dogs currently assigned. This history does not grant access to the dog's current profile or the new family's records.
 
 ## Accounts and access
@@ -15,11 +17,13 @@ The owner registers a client and their dog in the existing daily records, then o
 | Role | Available records and actions |
 | --- | --- |
 | Visitor | Public descriptions and explicitly published service rates; no private account state. |
-| Client | Their linked dogs, bookings, family requests and quotes, explicitly shared news and client documents. Can request a booking and change their language. |
-| Trusted carer | Internal care records, planning and explicitly shared news/documents. Cannot manage access, set prices/extras, or read accounting originals. |
-| Owner | All existing care functions plus access grants, prices/extras and private accounting. |
+| Client | Their linked dogs, bookings, family requests and quotes, explicitly shared news and client documents. Can request a booking, change their language and manage their authorized dog albums. |
+| Trusted carer | Internal care records and planning; can accept/decline requests and share client news/documents. Cannot manage access, set prices/extras, cancel bookings, read accounting originals or access private dog albums. |
+| Owner | All existing care functions plus access grants, prices/extras, cancellation, private accounting, dog albums and public artwork settings. |
 
 Authorization is enforced by the API for reads, writes and attachment downloads, including direct/guessed URLs. Client news and documents are separate from internal notes, health documents and accounting originals. Saved client-facing records retain their family audience; moving a dog to another client does not transfer the former family’s requests, quotes or shared files. Existing daily bookings acquire their saved client association during the additive schema upgrade. In account mode, Inviter opens real membership controls. Previously saved invitation previews remain in a read-only disclosure and do not grant access. Static mode retains its explicitly labeled preview form. Account settings show the account and access/rate actions; the demo reset exists only in static mode. Static mode retains the existing local workspace, without a simulated client login or server membership system.
+
+Staff share news and files through **Chiens → Partager au client**, choosing a dog linked to a family. Publishing here explicitly makes that item available in the family's **Nouvelles** or **Documents** section; internal notes and health documents are not copied automatically. [Photos, videos and public artwork](media.md) have separate album permissions and publication controls.
 
 ## Login transport
 
@@ -45,7 +49,7 @@ Existing **Comptabilité → Réservations et tarifs** remains the rate editor. 
 
 Money reuses the daily/accounting integer-hundredths contract, displayed with two decimal places. Unknown is distinct from zero. Day/walk ranges count inclusive calendar dates; nights count departure minus arrival. The UI makes no promised schedule or availability. A request snapshots the configured unit rate; changing the rate list does not reprice existing requests or bookings. Completing an unknown rate requires an explicit owner action. The amount is a quoted price, not an automatic charge.
 
-Trusted carers create bookings with the owner's configured rate applied by the server. Their form shows a read-only estimate and submits a null price for new bookings; an unconfigured service stays unknown. They cannot supply prices, change base rates or alter an existing agreement.
+Trusted carers create bookings with the owner's configured rate applied by the server. Their form shows a read-only estimate and submits a null price for new bookings; an unconfigured service stays unknown. They cannot supply prices, change base rates, or change an existing booking's dog, service or saved monetary values. They can edit dates and extend a stay at its saved unit rate.
 
 Booking family attribution comes from the saved `booking_client` association. Reassigning the dog does not move historical monthly totals or invoice defaults to the new family. The frontend uses current dog ownership only for legacy bookings without a saved association; an unavailable historical family name stays unknown.
 
@@ -73,6 +77,7 @@ The deterministic races in `tests.test_client_portal` cover reassignment and rev
 - `GET /api/portal/estimate?dogId=…&service=…&start=…&end=…`: client-owned dog and server-calculated units/base total.
 - `POST /api/portal/requests`: `{dogId, service, start, end, note}` from a client.
 - `POST /api/portal/decide`: `{id, status}` where status is `accepted` or `declined`; staff only.
+- `POST /api/portal/cancel-booking`: `{id}`; owner only. Retains the booking and quote history; see the [cancellation contract](daily-workflows.md#api-contract).
 - `POST /api/portal/members`: `{email, role, clientId}`; owner only. Roles are `client` or `trusted-carer`. `revoke` takes `{userId}`.
 - `POST /api/portal/updates`: `{dogId, text}`; deliberately shared client news. `documents` uses the existing daily upload contract but stores a separate client attachment.
 - `GET /api/client-documents/<id>`: client-scoped download or staff within the business; internal health/accounting downloads remain forbidden to clients.
@@ -81,11 +86,15 @@ The deterministic races in `tests.test_client_portal` cover reassignment and rev
 
 `portal` in the state contains requests, shared news/documents, quote totals, visible bookings' `bookingClients` associations, and owner-only member/reusable-option lists. Requests and extras use additive tables. Existing care, daily and finance snapshot formats are retained.
 
+Request dates must produce 1–366 service units; the note is required as a string but may be empty, up to 2,000 characters. Shared news accepts up to 4,000 characters. Shared documents follow the [daily upload fields and 5 MiB PDF/JPEG/PNG limit](daily-workflows.md#api-contract). Quote actions target pending requests or active bookings. Option labels have at most 160 characters, `quantity` is an integer from 1 through 10,000, and `reusable` is a boolean. Unit amounts are integer hundredths from zero through 100,000,000; currencies use the daily contract. A target allows 100 option lines; the reusable list allows 500 choices. Saving an option rejects a base-plus-options total above 1,000,000,000,000 hundredths. These limits and validation are defined in [api/portal.py](../api/portal.py) and [api/quotes.py](../api/quotes.py).
+
+After `DogCareAPI.ready` succeeds, `getPortal()` returns a copy of the projected portal state. `savePortal(action, payload)` queues a guarded mutation and resolves to a success boolean after accepting the returned account state. `estimateRequest({dogId, service, start, end})` resolves to the server quote or `null` on failure; it saves nothing. `getUser()` returns the loaded email/role or `null`. When readiness is false, `isAnonymous()` distinguishes the public welcome from account-load recovery. `logout()` resolves to a success boolean and reloads the page after clearing the session. The [adapter recovery contract](../README.md#mutation-contract) applies to portal saves.
+
 ## Isolated verification
 
 Start a disposable loopback API with `DC_DATA_DIR` outside the static root, `DC_AUTH_MODE=development` and `DC_ALLOW_DEMO_SIGNUP=1`. `scripts/seed_private_preview.py --url <loopback-url> --data-dir <temporary-dir>` creates synthetic owner/family access and private local review links. It rejects external hosts, non-temporary stores and stores with non-test email addresses. Seed rates remain unknown. Do not use this helper with real accounts.
 
-The new regression suites are `tests.test_client_portal`, `tests.test_login_delivery` and `tests.test_welcome_browser`. They cover client isolation, forbidden endpoints, sign-in return in a fresh tab, all service requests, persistence, owner visibility, price snapshots, priced options and mocked delivery failures. Existing care, daily, knowledge, finance, browser and adapter suites remain required. Browser evidence uses real API sessions with synthetic data; it does not verify real-device microphone operation or deployed email delivery.
+The portal regression suites are `tests.test_client_portal`, `tests.test_login_delivery` and `tests.test_welcome_browser`. They cover client isolation, forbidden endpoints, sign-in return in a fresh tab, all service requests, persistence, owner visibility, price snapshots, priced options and mocked delivery failures. `tests.test_booking_cancellation`, `tests.test_login_rate_limit` and `tests.test_static_boundary` cover retained cancellation history, proxy-aware login limits and the frontend allowlist. `tests/test_quote_ui.js` covers quote rendering, option selection and retained request history. Existing care, daily, knowledge, finance, browser and adapter suites remain required; run the [full acceptance checks](../README.md#acceptance-checks). Browser evidence uses real API sessions with synthetic data; it does not verify real-device microphone operation or deployed email delivery.
 
 See [private-beta-release.md](private-beta-release.md) for pinned releases, environment configuration, proxy permissions, backup/restore and the unexecuted deployment checks.
 

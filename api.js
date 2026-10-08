@@ -234,9 +234,11 @@
     return Object.hasOwn(types, extension) ? types[extension] : 'application/octet-stream';
   }
 
-  // Await ready's boolean before using cached getters or saving. Valid save calls
-  // resolve to booleans in call order; whenSaved waits for writes already queued.
-  // Observation saves reconcile uploaded data URLs into the supplied objects.
+  // Await ready's boolean before using cached getters or saving. Queued care and
+  // portal saves resolve to booleans in call order; whenSaved waits for that queue.
+  // Media operations run separately, return snapshots/upload results and reject
+  // on failure; see docs/media.md. Observation saves reconcile uploaded data URLs
+  // into the supplied objects.
   w.DogCareAPI = {
     ready,
     isAnonymous() { return anonymous; },

@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""Dog-Care-Brain API — stdlib ThreadingHTTPServer + sqlite3, zero deps.
+"""Dog-Care-Brain API — stdlib ThreadingHTTPServer + sqlite3, no Python dependencies.
 
 One process, one SQLite file, closed-membership magic-link auth. Delivery is
 explicitly configured; all runtime storage must be outside DC_ROOT.
 See README.md for configuration defaults, endpoints, and the snapshot contract.
+Login/public configuration is documented in docs/client-portal.md; external media
+converters and the production startup gate are in docs/private-beta-release.md.
 
 Run:  python3 api/server.py
-Env:  DC_HOST, DC_PORT, DC_DATA_DIR, DC_DB, DC_ROOT, DC_OUTBOX, DC_BLOBS, DC_INSECURE_COOKIE
 """
 from __future__ import annotations
 

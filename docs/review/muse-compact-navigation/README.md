@@ -1,9 +1,11 @@
 # Muse compact navigation
 
 Historical review of the navigation-only stage on 5 October 2026, before the
-[daily workflows](../../daily-workflows.md) were added. The screenshots,
-measurements and test counts below describe that earlier stage. Current behavior
-and acceptance commands are in the [README](../../../README.md).
+[daily workflows](../../daily-workflows.md) and public welcome/client portal were added.
+The sidebar and scrolling phone strip below have since been replaced by wrapping
+primary buttons and a tools dialog. The screenshots, measurements and test counts
+describe that earlier stage. Current behavior and acceptance commands are in the
+[README](../../../README.md#navigate-the-workspace).
 
 One compact business brand and persistent, labelled navigation give direct access
 to all 11 destinations. Desktop and tablet use a grouped sidebar; phones use two
@@ -20,8 +22,8 @@ Five non-field captions in Capture, Daily story, and Invite use styled `div`
 elements instead of unassociated form labels; actual input labels remain
 associated with their fields. That navigation-only stage added no AI,
 authentication, billing or scheduling features and changed no storage format.
-The later daily-workflow changes add bookings and operational storage. Existing
-[prototype boundaries](../../../README.md#product-boundaries) still apply.
+Later changes add bookings, operational storage and private client access; see the
+current [product boundaries](../../../README.md#product-boundaries).
 
 The comparison baseline is main at
 `52d40482b5c595f6d65d75cc98f2cd0bb4b4b356`. The after images show the compact

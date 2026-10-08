@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Create synthetic local review accounts through the real API. Never sends mail.
 
-Requires a disposable server started with DC_DATA_DIR=<temporary directory>.
+Requires a disposable loopback server with DC_DATA_DIR=<temporary directory>,
+DC_AUTH_MODE=development and DC_ALLOW_DEMO_SIGNUP=1.
 Refuses public hosts, retained preview ports, non-temp stores or non-test users.
 Outputs single-use local links; keep them in the private review workspace.
 """

@@ -4,6 +4,8 @@ This is a reviewable release procedure, not an executed deployment. The API, not
 
 ## Candidate and configuration
 
+The welcome/client increment starts at `76451c9ac84efae5046db8ce4cd8d255ba39011d`, on top of inherited daily-workflow, knowledge and accounting work through `81fb7b00fa7d0302aadc6b730e1a484f2c8c03ac`. Compare `81fb7b00..<candidate>` for that increment and `52d40482b5c595f6d65d75cc98f2cd0bb4b4b356..<candidate>` for the full branch. The release archive and acceptance checks must include the inherited code as well.
+
 Use one reviewed, clean commit containing the welcome, client portal and SMTP adapter. Record its full SHA, validation result, archive SHA-256 and previous release in the operator's release record. Export with `git archive --format=tar --output=<private-release.tar> <sha>`. Never copy a working tree, local database, outbox, test evidence or credentials into the release. The deployment templates are in [deploy](../deploy/); they have not been validated against the live host by this code change.
 
 The API publishes only its explicit frontend file allowlist (`api/server.py:STATIC_FILES`). Repository docs, dotfiles, deployment files, tests, scripts and asset provenance metadata are not served, even to signed-in users. Add new intended frontend assets to that list deliberately and run `tests.test_static_boundary`. Protected record downloads remain separate authorized API routes. The development-only plain static server does not provide this boundary and is not the beta server.
@@ -64,7 +66,7 @@ The owner registers each family and dog, then links access in **Tous mes outils 
 
 ## Backup and recovery
 
-Install `dogcare-backup.service` and `dogcare-backup.timer`; enable the timer after verifying its first run. It keeps 14 verified complete local snapshots. Local copies protect against a bad edit; they do not protect against host loss. A separately secured off-host backup location is an operational follow-up, not configured by this branch.
+Install `dogcare-backup.service` and `dogcare-backup.timer`; enable the timer after verifying its first run. The timer runs daily at 03:15 UTC with up to ten minutes of randomized delay and catches up a missed run when activated. It keeps 14 verified complete local snapshots. Local copies protect against a bad edit; they do not protect against host loss. A separately secured off-host backup location is an operational follow-up, not configured by this branch.
 
 ```sh
 sudo -u dogcare /usr/bin/python3 /opt/dogcare/current/scripts/private_backup.py backup \
@@ -102,7 +104,7 @@ Before inviting real users, verify on the final public HTTPS URL:
 2. A consented synthetic owner/family can receive real mail in a controlled mailbox. Check the canonical link, TLS delivery, single-use/15-minute expiry and Secure/HttpOnly session cookie. SMTP unit tests prove adapter behavior, not inbox receipt.
 3. Unknown email gets conditional text and a first-contact route, no account or link. Invited family sees only its dogs, shared files and quotes. Cross-family IDs and direct finance/health originals are forbidden.
 4. Each service returns through login to dates/dog, saves a pending request and appears for the owner. Extras persist, total correctly and remain owner-editable only. No payment is taken.
-5. On desktop and phone, test navigation and actual microphone/camera permission plus recording/upload. Local automated captures do not prove device permissions under the deployed proxy.
+5. On desktop and phone, test navigation, actual microphone permission for dictation → stop/edit/save, camera selection and photo/video album upload, and playback of retained audio. Dictation does not create a new recording attachment. Local automated captures do not prove device permissions under the deployed proxy.
 6. The backup timer succeeds and the restored snapshot contains the expected synthetic records and audio.
 
 Production login limits remain 50 attempts/hour per client IP and 5 per email address, shared across both login routes. Before release, use synthetic unknown addresses to verify that two clients through Caddy have separate IP counters, that an exhausted client remains limited, and that forged IP headers do not change its counter. Known and unknown members retain the same public acknowledgment. Local API regressions do not establish the deployed proxy configuration; monitor login failures after that verification.
