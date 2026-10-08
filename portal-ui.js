@@ -44,7 +44,10 @@
   }
   function access() {
     if(!w.DogCareAPI || !owner() || !DailyUI.snapshot())return '';
-    return `<section class="portal-card"><h2>${esc(text('members'))}</h2><p>${esc(text('accessNotice'))}</p><form id="member-form" class="portal-form"><div class="portal-fields">${field('email','<input name="email" type="email" maxlength="255" autocomplete="off" required>')}${field('role',`<select name="role"><option value="client">${esc(text('client'))}</option><option value="trusted-carer">${esc(text('carer'))}</option></select>`)}${field('family',`<select name="clientId" required>${daily().clients.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}</select>`)}</div>${error()}<button class="primary">${esc(text('grant'))}</button></form>${data().members.map(m=>`<article class="portal-row"><div><strong>${esc(m.email)}</strong><p>${esc(text(m.role==='client'?'client':'carer'))}</p></div><button class="ghost" data-revoke="${m.id}">${esc(text('revoke'))}</button></article>`).join('')}</section>`;
+    return `<section class="portal-card"><h2>${esc(text('members'))}</h2><p>${esc(text('accessNotice'))} ${esc(text('accessNext'))}</p>${daily().clients.length?'':`<p>${esc(text('noFamily'))}</p><button class="ghost" data-go="dogs">${esc(text('dogs'))}</button>`}<form id="member-form" class="portal-form"><div class="portal-fields">${field('email','<input name="email" type="email" maxlength="255" autocomplete="off" required>')}${field('role',`<select name="role"><option value="client">${esc(text('client'))}</option><option value="trusted-carer">${esc(text('carer'))}</option></select>`)}${field('family',`<select name="clientId" required>${daily().clients.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}</select>`)}</div>${error()}<button class="primary">${esc(text('grant'))}</button></form><div id="member-list">${data().members.map(m=>`<article class="portal-row"><div><strong>${esc(m.email)}</strong><p>${esc(text(m.role==='client'?'client':'carer'))}</p></div><button class="ghost" data-revoke="${m.id}">${esc(text('revoke'))}</button></article>`).join('')}</div></section>`;
+  }
+  function settings() {
+    return `<section class="portal-card"><h2>${esc(text('account'))}</h2><p>${esc(w.DogCareAPI.getUser()?.email || '')}</p><p>${esc(text('owner'))}</p><div class="daily-actions"><button class="ghost" data-go="invite">${esc(text('members'))}</button><button class="ghost" data-go="business">${esc(DailyUI.text('rates'))}</button></div></section>`;
   }
   function bind() {
     async function save(action,payload,form) {
@@ -66,5 +69,5 @@
     document.querySelectorAll('[data-revoke]').forEach(b=>b.onclick=()=>save('revoke',{userId:Number(b.dataset.revoke)}));
     document.querySelectorAll('[data-request-id]').forEach(b=>b.onclick=()=>save('decide',{id:b.dataset.requestId,status:b.dataset.decision}));
   }
-  w.PortalUI={text,client,staff,owner,render,ownerHome,sharedTools,access,bind};
+  w.PortalUI={text,client,staff,owner,render,ownerHome,sharedTools,access,settings,bind};
 })(window);

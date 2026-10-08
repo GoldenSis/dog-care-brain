@@ -1072,8 +1072,12 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
         records = await self.snapshot()
         before = await self.page.evaluate('structuredClone(state.observations)')
         await self.route('settings')
-        await self.page.click('#reset-demo')
-        await self.page.wait_for_function('state.page === "dashboard" && !savePending')
+        if self.api_mode:
+            self.assertEqual(await self.page.locator('#reset-demo').count(),0)
+            await self.route('dashboard')
+        else:
+            await self.page.click('#reset-demo')
+            await self.page.wait_for_function('state.page === "dashboard" && !savePending')
         self.assertEqual(await self.snapshot(), records)
         after = await self.page.evaluate('state.observations')
         self.assertEqual(after.get(noted), before[noted])

@@ -431,12 +431,17 @@ class BrowserAcceptanceTest(BrowserFixture):
         )
 
         await self.open_route('invite')
-        self.assertEqual(await self.page.locator(".page-title-row h2").text_content(), "Préparer une invitation")
-        await self.page.fill("#invite-name", "Camille Martin")
-        await self.page.fill("#invite-email", "camille@example.com")
-        await self.page.click("#create-invite")
-        await self.page.wait_for_function('document.querySelector("#pending-invites").textContent.includes("Camille Martin")')
-        self.assertIn("Camille Martin", await self.page.locator("#pending-invites").text_content())
+        if self.api_mode:
+            await self.page.fill('#member-form [name=email]', 'camille@example.com')
+            await self.page.select_option('#member-form [name=role]', 'trusted-carer')
+            await self.page.click('#member-form button')
+            await self.page.wait_for_function('document.querySelector("#member-list").textContent.includes("camille@example.com")')
+        else:
+            self.assertEqual(await self.page.locator(".page-title-row h2").text_content(), "Préparer une invitation")
+            await self.page.fill("#invite-name", "Camille Martin")
+            await self.page.fill("#invite-email", "camille@example.com")
+            await self.page.click("#create-invite")
+            await self.page.wait_for_function('document.querySelector("#pending-invites").textContent.includes("Camille Martin")')
 
         await self.open_route('assistant')
         self.assertEqual(await self.page.locator("h1").text_content(), "Muse · Votre assistant du quotidien")
@@ -621,16 +626,17 @@ class StaticBrowserAcceptanceTest(BrowserAcceptanceTest):
         await self.page.click('#save-observation')
         await self.page.wait_for_selector('.timeline-card')
         await self.open_route('invite')
-        await self.page.fill('#invite-name', 'Account Carer')
-        await self.page.fill('#invite-email', 'account-carer@example.com')
-        await self.page.click('#create-invite')
+        await self.page.fill('#member-form [name=email]', 'account-carer@example.com')
+        await self.page.select_option('#member-form [name=role]', 'trusted-carer')
+        await self.page.click('#member-form button')
         await self.page.wait_for_function(
-            'document.querySelector("#pending-invites").textContent.includes("Account Carer")')
+            'document.querySelector("#member-list").textContent.includes("account-carer@example.com")')
         await self.page.select_option('#language-picker', 'en')
         await self.page.wait_for_function('document.documentElement.lang === "en"')
         saved = await (await self.context.request.get(self.url + '/api/state')).json()
         self.assertEqual(saved['observations']['billie'][0]['text'], account_note)
-        self.assertEqual(saved['invites'][0]['name'], 'Account Carer')
+        self.assertEqual(saved['invites'][0]['name'], 'Demo Carer')
+        self.assertIn('account-carer@example.com',[member['email'] for member in saved['portal']['members']])
         self.assertEqual(saved['language'], 'en')
         for key, value in local.items():
             self.assertEqual(await self.page.evaluate(
@@ -663,7 +669,7 @@ class StaticBrowserAcceptanceTest(BrowserAcceptanceTest):
         self.assertIn(note, await self.page.locator('#app-content').text_content())
         await self.capture_evidence('account-timeline-fresh-browser.png')
         await self.open_route('invite')
-        self.assertIn('Account Carer', await self.page.locator('#pending-invites').text_content())
+        self.assertIn('account-carer@example.com', await self.page.locator('#member-list').text_content())
         self.assertIn('Demo Carer', await self.page.locator('#pending-invites').text_content())
         await self.capture_evidence('account-invites-fresh-browser.png')
         await self.page.set_viewport_size({'width': 390, 'height': 844})
@@ -866,8 +872,8 @@ class AccountRecoveryTest(BrowserFixture):
 
     async def test_invitation_waits_for_save_and_failed_preferences_preserve_state(self):
         await self.open_route('invite')
-        await self.page.fill('#invite-name', 'Waiting Carer')
-        await self.page.fill('#invite-email', 'waiting@example.com')
+        await self.page.fill('#member-form [name=email]', 'waiting@example.com')
+        await self.page.select_option('#member-form [name=role]', 'trusted-carer')
         release = asyncio.Event()
         started = asyncio.Event()
 
@@ -876,15 +882,15 @@ class AccountRecoveryTest(BrowserFixture):
             await release.wait()
             await route.continue_()
 
-        await self.page.route('**/api/invites', delay)
-        await self.page.click('#create-invite')
+        await self.page.route('**/api/portal/members', delay)
+        await self.page.click('#member-form button')
         await asyncio.wait_for(started.wait(), timeout=5)
         try:
-            self.assertNotIn('Waiting Carer', await self.page.locator('#pending-invites').text_content())
-            self.assertTrue(await self.page.is_disabled('#create-invite'))
+            self.assertNotIn('waiting@example.com', await self.page.locator('#member-list').text_content())
+            self.assertTrue(await self.page.is_disabled('#member-form button'))
         finally:
             release.set()
-        await self.page.wait_for_function('document.querySelector("#pending-invites").textContent.includes("Waiting Carer")')
+        await self.page.wait_for_function('document.querySelector("#member-list").textContent.includes("waiting@example.com")')
         await self.page.route('**/api/prefs', lambda route: route.fulfill(status=503, content_type='application/json', body='{}'))
         await self.page.select_option('#language-picker', 'fr')
         await self.page.evaluate('DogCareAPI.whenSaved()')

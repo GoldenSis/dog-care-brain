@@ -27,7 +27,8 @@ class LoginDeliveryTest(ApiServerTestCase):
         with patch.dict(os.environ,{'DC_ALLOW_DEMO_SIGNUP':'0'}):
             # Explicit bootstrap creates no fake care history in any mode.
             with self.server_mod.connection() as c:
-                _,bid=self.server_mod.ensure_account(c,'empty-operator-owner@example.com')
+                uid,bid=self.server_mod.ensure_account(c,'empty-operator-owner@example.com')
+                self.assertEqual(c.execute('SELECT language FROM pref WHERE user_id=?',(uid,)).fetchone()[0],'fr')
                 self.assertEqual(c.execute('SELECT count(*) FROM dog WHERE business_id=?',(bid,)).fetchone()[0],0)
         self.assertEqual(_http(self.port,'GET','/api/state',cookie=cookie)[0],200)
 
@@ -89,3 +90,11 @@ class LoginDeliveryTest(ApiServerTestCase):
             for _ in range(5):
                 self.assertEqual(_http(self.port,'POST','/api/auth/access',{'email':'limited@example.com'})[0],200)
             self.assertEqual(_http(self.port,'POST','/api/auth/access',{'email':'limited@example.com'})[0],429)
+
+    def test_anonymous_home_and_script_aliases_do_not_ship_workspace_demo_payload(self):
+        status,body,_=_http(self.port,'GET','/')
+        self.assertEqual(status,200)
+        self.assertNotIn('src="app.js"',body)
+        self.assertNotIn('data-page="business"',body)
+        for path in ('/app.js','/%2e/app.js','//app.js'):
+            self.assertEqual(_http(self.port,'GET',path)[0],401)

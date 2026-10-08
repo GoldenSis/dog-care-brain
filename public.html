@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F2851E">
+  <title>Le Bus des Toutous · by Plus de Fun</title>
+  <link rel="icon" href="data:,">
+  <link rel="preload" href="assets/fonts/dm-sans-468d56b6.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="welcome.css">
+</head>
+<body>
+  <noscript>Le Bus des Toutous · Adine-Sophie, votre dog-sitter. Journée de garde, nuit ou balade. Contact : <a href="https://www.instagram.com/bus_destoutous/">@bus_destoutous</a> · by Plus de Fun.</noscript>
+  <script src="portal-copy.js"></script>
+  <script src="welcome.js"></script>
+  <script src="api.js"></script>
+  <script>DogCareAPI.ready.then(ready => { if (ready) location.replace('/'); else WelcomeUI.show('fr', () => location.assign('/')); });</script>
+</body>
+</html>

@@ -59,9 +59,9 @@ SEED_OBS = {
         {"id": 2, "time": "10:10", "date": "Today", "title": "Woodland walk",
          "text": "A calm 42-minute sniff walk. Good recall around two dogs and no stiffness noticed.",
          "tags": ["Exercise · 42 min", "Behaviour · calm"]},
-        {"id": 3, "time": "18:40", "date": "Yesterday", "title": "Evening medication",
-         "text": "Joint supplement given with dinner. Coat and paws checked after rain.",
-         "tags": ["Medication", "Health check"]},
+        {"id": 3, "time": "18:40", "date": "Yesterday", "title": "Evening rest",
+         "text": "Settled comfortably after the afternoon walk.",
+         "tags": ["Rest", "Mood · settled"]},
     ],
     "charlie": [
         {"id": 4, "time": "09:15", "date": "Today", "title": "Settled into day care",
@@ -226,7 +226,7 @@ def ensure_account(c, email):
         (email, "owner", bid, now, now),
     )
     uid = c.execute("SELECT last_insert_rowid()").fetchone()[0]
-    c.execute("INSERT INTO pref(user_id, language) VALUES(?, 'en')", (uid,))
+    c.execute("INSERT INTO pref(user_id, language) VALUES(?, ?)", (uid, "en" if login_delivery.demo_signup_enabled() else "fr"))
     if login_delivery.demo_signup_enabled():
         seed_business(c, bid, uid)
     return uid, bid
@@ -979,6 +979,13 @@ class Handler(BaseHTTPRequestHandler):
         if not full.startswith(root + os.sep) and full != root:
             self.send_error(404)
             return
+        if full in (os.path.join(root, "index.html"), os.path.join(root, "app.js")):
+            user = user_of(self)
+            authenticated = user and user['role'] in ('owner', 'trusted-carer', 'client')
+            if not authenticated:
+                if full == os.path.join(root, "app.js"):
+                    return self._send({"ok": False, "error": "sign in required"}, 401)
+                full = os.path.join(root, "public.html")
         banned = ("/.git/", "/.dev-outbox/", "/api/blobs/", "/api/dogcare.db")
         if any(b in full.replace("\\", "/") for b in banned) or full.endswith(".db"):
             self.send_error(404)
