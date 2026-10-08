@@ -8,5 +8,7 @@ dogcare.plusdefun.ch {
         X-Frame-Options "SAMEORIGIN"
         Permissions-Policy "camera=(self), microphone=(self), geolocation=(), payment=()"
     }
-    reverse_proxy 127.0.0.1:18847
+    reverse_proxy 127.0.0.1:18847 {
+        header_up X-DogCare-Client-IP {http.request.remote.host}
+    }
 }

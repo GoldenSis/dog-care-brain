@@ -10,7 +10,7 @@ Env:  DC_HOST, DC_PORT, DC_DATA_DIR, DC_DB, DC_ROOT, DC_OUTBOX, DC_BLOBS, DC_INS
 """
 from __future__ import annotations
 
-import base64, hashlib, json, logging, math, os, re, secrets, sqlite3, tempfile, threading, time
+import base64, hashlib, ipaddress, json, logging, math, os, re, secrets, sqlite3, tempfile, threading, time
 from contextlib import closing, contextmanager
 from email.utils import formatdate
 from http import cookies as httpcookies
@@ -611,6 +611,22 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
 
+    def _login_ip(self):
+        peer = self.client_address[0]
+        if (cfg("DC_TRUSTED_PROXY", "") != "127.0.0.1" or peer != "127.0.0.1" or
+                self.server.server_address[0] != "127.0.0.1"):
+            return peer
+        values = self.headers.get_all("X-DogCare-Client-IP", [])
+        if len(values) != 1 or "%" in values[0]:
+            return peer
+        try:
+            address = ipaddress.ip_address(values[0].strip())
+        except ValueError:
+            return peer
+        if isinstance(address, ipaddress.IPv6Address) and address.ipv4_mapped:
+            address = address.ipv4_mapped
+        return str(address)
+
     def _send(self, obj, code=200, extra=None):
         body = json.dumps(obj).encode()
         self.send_response(code)
@@ -1101,7 +1117,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path in ("/api/auth/access", "/api/auth/request"):
             host = (self.headers.get("Host") or "127.0.0.1").split(",")[0].strip()
-            obj, code = do_auth_request(payload, host, self.client_address[0], allow_demo=path=="/api/auth/request")
+            obj, code = do_auth_request(payload, host, self._login_ip(), allow_demo=path=="/api/auth/request")
             return self._send(obj, code)
         u = self._need_mutation_user()
         if not u:

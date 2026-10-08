@@ -90,6 +90,10 @@ For actual data recovery: stop the API and backup timer; preserve the current st
 
 Use the dedicated `deploy/dogcare.caddy` site, not a global security snippet that disables camera/microphone. The site allows both for the same origin, retains frame/type/referrer protections and sends host-only HSTS without `includeSubDomains`. Browsers still request the person's own permission. Validate the combined Caddyfile on the host before reloading it; preserve other sites.
 
+Keep `DC_HOST=127.0.0.1`, `DC_PORT=18847` and `DC_TRUSTED_PROXY=127.0.0.1` together with this site configuration. The dedicated Caddy on this host must be the public entry point: its `header_up X-DogCare-Client-IP {http.request.remote.host}` overwrites all caller-supplied values with the connecting IP, never an incoming forwarding chain. This uses Caddy's documented [header overwrite](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy#headers) and [remote-host placeholder](https://caddyserver.com/docs/caddyfile/concepts#placeholders). Do not enable this trust option for direct API access or place another proxy/CDN ahead of Caddy without reviewing the trust contract. Processes on the same host are inside this loopback trust boundary; do not expose or forward port 18847 externally.
+
+The API accepts exactly one valid IP literal in that header only when trust is explicitly enabled, the actual listener is bound to `127.0.0.1`, and the socket peer is also `127.0.0.1`. It normalizes IPv6 spellings and IPv4-mapped addresses. Missing, malformed, scoped or duplicate header values fall back to the socket peer. Unset/unsupported trust configuration, non-loopback listeners and untrusted peers always use the socket peer; `Forwarded`, `X-Forwarded-For` and `X-Real-IP` are never consulted. Reconcile the private environment with these settings before installation, and verify that remote hosts cannot reach the API port.
+
 Only after the service, backups and configuration are verified should the separately authorized DNS action route the public name to this host. Keep the previous Pages DNS target recorded. Allow for the existing DNS TTL and certificate issuance; do not claim a public beta from a loopback screenshot.
 
 Before inviting real users, verify on the final public HTTPS URL:
@@ -101,7 +105,7 @@ Before inviting real users, verify on the final public HTTPS URL:
 5. On desktop and phone, test navigation and actual microphone/camera permission plus recording/upload. Local automated captures do not prove device permissions under the deployed proxy.
 6. The backup timer succeeds and the restored snapshot contains the expected synthetic records and audio.
 
-The API's IP rate limit currently sees the loopback proxy address, so its 50 attempts/hour limit is shared behind Caddy; address-specific limits still apply. Do not trust an arbitrary forwarded IP header to bypass it. Monitor login failures during the small private beta.
+Production login limits remain 50 attempts/hour per client IP and 5 per email address, shared across both login routes. Before release, use synthetic unknown addresses to verify that two clients through Caddy have separate IP counters, that an exhausted client remains limited, and that forged IP headers do not change its counter. Known and unknown members retain the same public acknowledgment. Local API regressions do not establish the deployed proxy configuration; monitor login failures after that verification.
 
 Existing device-local records stay in that browser. Do not import or overwrite them as part of deployment. Muse suggestions, social/invitation previews and external integrations retain their documented existing limits; release communication must not describe them as automatic external actions.
 

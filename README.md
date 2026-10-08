@@ -55,6 +55,7 @@ All configuration is through environment variables read by `api/server.py`:
 | --- | --- | --- |
 | `DC_HOST` | `127.0.0.1` | HTTP bind address. |
 | `DC_PORT` | `8787` | HTTP listen port. |
+| `DC_TRUSTED_PROXY` | Unset | Only `127.0.0.1` enables the dedicated local proxy's client-IP header for login limits, with a matching loopback bind and peer. See the [deployment trust contract](docs/private-beta-release.md#https-browser-permissions-and-public-verification). Leave unset for direct access. |
 | `DC_ROOT` | Repository root | Static document root; the API server injects `window.DOGCARE_API="/api"` into HTML. |
 | `DC_DATA_DIR` | `~/.local/share/dogcare-brain` | Base directory for private runtime files. |
 | `DC_DB` | `<DC_DATA_DIR>/dogcare.db` | SQLite database, including daily records, document bytes, private experiences and accounting records/originals, using WAL mode. |

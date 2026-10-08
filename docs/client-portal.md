@@ -31,6 +31,7 @@ Delivery is disabled unless configured. No production request falls back to a de
 | `DC_AUTH_MODE=smtp` | Acknowledges requests before checking membership or sending through certificate-verified SMTP. Delivery errors invalidate the new token and are logged privately. |
 | `DC_PUBLIC_ORIGIN` | Required HTTPS origin for SMTP links; never inferred from the request's Host header. |
 | `DC_INSECURE_COOKIE=0` | Required with SMTP so sessions use secure cookies. |
+| `DC_TRUSTED_PROXY=127.0.0.1` | Opts into the dedicated Caddy client-IP header only on a matching loopback bind and peer. Unset by default; other values do not enable trust. Follow the [deployment trust contract](private-beta-release.md#https-browser-permissions-and-public-verification). |
 | `DC_SMTP_HOST`, `DC_SMTP_USER`, `DC_SMTP_PASSWORD`, `DC_SMTP_FROM` | Required SMTP connection and sender configuration. Supply secrets through the deployment's private environment. |
 | `DC_SMTP_TLS` / `DC_SMTP_PORT` | `ssl` / 465 by default; `starttls` / 587 also supported; the deployment template explicitly selects the authorized Infomaniak transport on port 2525. Unencrypted delivery is not supported. |
 
