@@ -1,8 +1,11 @@
 """Real account boundaries with synthetic, isolated businesses and memberships."""
 import base64
+import concurrent.futures
 import copy
 import hashlib
+import threading
 import uuid
+from unittest.mock import patch
 
 from tests.test_tenant_isolation import ApiServerTestCase, _http
 
@@ -117,6 +120,69 @@ class ClientPortalTest(ApiServerTestCase):
         self.client = self.login(self.client_email)
         status, _, _ = _http(self.port, 'GET', '/api/client-documents/'+a['id'], cookie=self.client)
         self.assertEqual(status, 404)
+
+    def read_during_membership_reassignment(self, path):
+        self.member(self.client_email, 'client', 'one')
+        cookie = self.login(self.client_email)
+        authenticated = threading.Event()
+        resume = threading.Event()
+        original = self.server_mod.Handler._need_user
+
+        def pause_after_authentication(handler, *args, **kwargs):
+            user = original(handler, *args, **kwargs)
+            if user and handler.path == path and handler.headers.get('Cookie') == f'dc_s={cookie}':
+                authenticated.set()
+                if not resume.wait(timeout=5):
+                    raise TimeoutError('membership reassignment did not finish')
+            return user
+
+        with patch.object(self.server_mod.Handler, '_need_user', pause_after_authentication):
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                response = pool.submit(_http, self.port, 'GET', path, cookie=cookie)
+                try:
+                    self.assertTrue(authenticated.wait(timeout=5), 'protected read did not authenticate')
+                    self.member(self.client_email, 'client', 'two')
+                finally:
+                    resume.set()
+                result = response.result(timeout=5)
+        self.assertEqual(_http(self.port, 'GET', path, cookie=cookie)[0], 401)
+        return result
+
+    def test_client_document_read_keeps_family_snapshot_during_membership_reassignment(self):
+        own = self.upload('/api/portal/documents')['portal']['documents'][0]
+        state = self.upload('/api/portal/documents', 'pablo')
+        other = next(doc for doc in state['portal']['documents'] if doc['dogId'] == 'pablo')
+        for doc, expected in ((own, 200), (other, 404)):
+            with self.subTest(dog=doc['dogId']):
+                path = '/api/client-documents/' + doc['id']
+                status, body, _ = self.read_during_membership_reassignment(path)
+                self.assertEqual(status, expected, body)
+                if expected == 200:
+                    self.assertIn('synthetic agreement', body)
+        cookie = self.login(self.client_email)
+        self.assertEqual(_http(self.port, 'GET', '/api/client-documents/' + own['id'], cookie=cookie)[0], 404)
+        self.assertEqual(_http(self.port, 'GET', '/api/client-documents/' + other['id'], cookie=cookie)[0], 200)
+
+    def test_dog_reads_keep_family_snapshot_during_membership_reassignment(self):
+        paths = [('/api/dogs', 200)]
+        for dog, expected in zip(self.daily['dogs'], (200, 404)):
+            status, body, _ = _http(self.port, 'POST', '/api/dogs',
+                                    {'slug': dog['id'], 'name': dog['name']}, cookie=self.owner)
+            self.assertEqual(status, 200, body)
+            paths.append(('/api/dogs/' + str(body['dog']['id']), expected))
+        for path, expected in paths:
+            with self.subTest(path=path):
+                status, body, _ = self.read_during_membership_reassignment(path)
+                self.assertEqual(status, expected, body)
+                if status == 200:
+                    dogs = body['dogs'] if path == '/api/dogs' else [body['dog']]
+                    self.assertEqual([dog['slug'] for dog in dogs], ['nino'])
+        cookie = self.login(self.client_email)
+        status, body, _ = _http(self.port, 'GET', '/api/dogs', cookie=cookie)
+        self.assertEqual(status, 200, body)
+        self.assertEqual([dog['slug'] for dog in body['dogs']], ['pablo'])
+        self.assertEqual(_http(self.port, 'GET', paths[1][0], cookie=cookie)[0], 404)
+        self.assertEqual(_http(self.port, 'GET', paths[2][0], cookie=cookie)[0], 200)
 
     def test_public_access_request_does_not_create_an_owner(self):
         email = self.prefix+'-unknown@example.com'

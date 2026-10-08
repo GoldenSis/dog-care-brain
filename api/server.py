@@ -985,28 +985,28 @@ class Handler(BaseHTTPRequestHandler):
                     return self._send(state_of(u, c))
             return
         if path == "/api/dogs":
-            u = self._need_user()
-            if not u:
-                return
-            return self._send({"ok": True, "dogs": state_of(u)["dogs"]})
+            with connection() as c:
+                c.execute('BEGIN')
+                u = self._need_user(c)
+                if u:
+                    return self._send({"ok": True, "dogs": state_of(u, c)["dogs"]})
+            return
         if path.startswith("/api/dogs/"):
-            u = self._need_user()
-            if not u:
-                return
-            try:
-                did = int(path.rsplit("/", 1)[-1])
-            except ValueError:
-                return self._send({"ok": False, "error": "not found"}, 404)
-            c = db()
-            row = c.execute(
-                "SELECT id, slug, name FROM dog WHERE id=? AND business_id=?",
-                (did, u["business_id"]),
-            ).fetchone()
-            c.close()
-            if row and u["role"] == "client":
-                with connection() as c:
-                    if row["slug"] not in portal.allowed_dogs(c, u):
-                        row = None
+            with connection() as c:
+                c.execute('BEGIN')
+                u = self._need_user(c)
+                if not u:
+                    return
+                try:
+                    did = int(path.rsplit("/", 1)[-1])
+                except ValueError:
+                    return self._send({"ok": False, "error": "not found"}, 404)
+                row = c.execute(
+                    "SELECT id, slug, name FROM dog WHERE id=? AND business_id=?",
+                    (did, u["business_id"]),
+                ).fetchone()
+                if row and u["role"] == "client" and row["slug"] not in portal.allowed_dogs(c, u):
+                    row = None
             if not row:
                 return self._send({"ok": False, "error": "not found"}, 404)
             return self._send({"ok": True, "dog": {"id": row["id"], "slug": row["slug"],
@@ -1022,16 +1022,17 @@ class Handler(BaseHTTPRequestHandler):
                 return
             return self._send({"ok": True, "invites": state_of(u)["invites"]})
         if path.startswith(("/api/documents/", "/api/finance-documents/", "/api/client-documents/")):
-            u = self._need_user()
-            if not u:
-                return
-            ident = path.rsplit("/", 1)[1]
-            table = "client_document" if path.startswith("/api/client-documents/") else "finance_document" if path.startswith("/api/finance-documents/") else "daily_document"
-            if (table == "finance_document" and u["role"] != "owner") or (table == "daily_document" and u["role"] == "client"):
-                return self._send({"ok": False, "error": "access denied"}, 403)
-            if not daily.ID.fullmatch(ident):
-                return self._send({"ok": False, "error": "not found"}, 404)
             with connection() as c:
+                c.execute('BEGIN')
+                u = self._need_user(c)
+                if not u:
+                    return
+                ident = path.rsplit("/", 1)[1]
+                table = "client_document" if path.startswith("/api/client-documents/") else "finance_document" if path.startswith("/api/finance-documents/") else "daily_document"
+                if (table == "finance_document" and u["role"] != "owner") or (table == "daily_document" and u["role"] == "client"):
+                    return self._send({"ok": False, "error": "access denied"}, 403)
+                if not daily.ID.fullmatch(ident):
+                    return self._send({"ok": False, "error": "not found"}, 404)
                 row = c.execute(f"SELECT * FROM {table} WHERE business_id=? AND id=?",
                                 (u["business_id"], ident)).fetchone()
                 if row and table == "client_document" and u["role"] == "client" and (row["dog_id"] not in portal.allowed_dogs(c, u) or row["client_id"] != portal.client_id(c,u)):
