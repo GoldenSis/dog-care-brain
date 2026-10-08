@@ -176,6 +176,7 @@ CREATE TABLE IF NOT EXISTS booking_extra (
   quantity INTEGER NOT NULL,
   PRIMARY KEY (business_id, id)
 );
+CREATE INDEX IF NOT EXISTS booking_extra_target ON booking_extra(business_id, target_id);
 CREATE TABLE IF NOT EXISTS extra_template (
   business_id INTEGER NOT NULL REFERENCES business(id),
   id TEXT NOT NULL,

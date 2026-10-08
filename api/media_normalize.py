@@ -108,23 +108,23 @@ def heif_header(stream, size):
 def normalize(stream, mime, size, name, directory):
     import media
     media.validate_name(name)
-    if mime not in PHOTO_TYPES | VIDEO_TYPES:
-        media.validate_file(stream, mime, size)
-        yield stream, mime, size, name
-        return
-    if size > (media.IMAGE_LIMIT if mime in PHOTO_TYPES else media.VIDEO_LIMIT):
-        raise ValueError('Fichier trop volumineux : photo 12 Mio, vidéo 80 Mio maximum.')
-    if mime in PHOTO_TYPES:
-        heif_header(stream, size)
-    elif mime == 'video/webm':
-        media.validate_file(stream, mime, size)
-    else:
-        stream.seek(0)
-        if stream.read(8)[4:8] != b'ftyp':
-            raise ValueError(INVALID)
     if not _SLOTS.acquire(blocking=False):
         raise ValueError('Une conversion est déjà en cours. Réessayez dans un instant.')
     try:
+        if mime not in PHOTO_TYPES | VIDEO_TYPES:
+            media.validate_file(stream, mime, size)
+            yield stream, mime, size, name
+            return
+        if size > (media.IMAGE_LIMIT if mime in PHOTO_TYPES else media.VIDEO_LIMIT):
+            raise ValueError('Fichier trop volumineux : photo 12 Mio, vidéo 80 Mio maximum.')
+        if mime in PHOTO_TYPES:
+            heif_header(stream, size)
+        elif mime == 'video/webm':
+            media.validate_file(stream, mime, size)
+        else:
+            stream.seek(0)
+            if stream.read(8)[4:8] != b'ftyp':
+                raise ValueError(INVALID)
         with tempfile.TemporaryDirectory(prefix='media-convert-', dir=directory) as temporary:
             work = Path(temporary)
             deadline = time.monotonic() + TIMEOUT

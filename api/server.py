@@ -765,8 +765,12 @@ class Handler(BaseHTTPRequestHandler):
                 else:
                     previous = current
                     current = daily.validate(payload.get("daily"), previous)
+                    old = {b['id']: b for b in previous['bookings']}
+                    reserved = {row[0] for row in c.execute(
+                        'SELECT id FROM booking_request WHERE business_id=?', (user['business_id'],))}
+                    if any(b['id'] not in old and b['id'] in reserved for b in current['bookings']):
+                        raise ValueError('use the request decision to create its booking')
                     if user['role'] != 'owner':
-                        old = {b['id']: b for b in previous['bookings']}
                         if current['rates'] != previous['rates'] or any(
                             b['unitMinor'] != (old[b['id']]['unitMinor'] if b['id'] in old else None) or
                             b['currency'] != (old[b['id']]['currency'] if b['id'] in old else current['rates']['currency']) or

@@ -1,5 +1,6 @@
 """Real account boundaries with synthetic, isolated businesses and memberships."""
 import base64
+import copy
 import hashlib
 import uuid
 
@@ -260,3 +261,86 @@ class ClientPortalTest(ApiServerTestCase):
             forged = copy.deepcopy(state['daily'])
             forged['bookings'][0]['unitMinor'] = amount
             self.assertEqual(_http(self.port, 'PUT', '/api/daily', {'daily': forged}, cookie=self.carer)[0], 400)
+
+    def test_request_ids_cannot_be_created_as_manual_bookings(self):
+        self.member(self.prefix + '-family-two@example.com', 'client', 'two')
+        family_two = self.login(self.prefix + '-family-two@example.com')
+        request = {'dogId': 'nino', 'service': 'day', 'start': '2026-11-02', 'end': '2026-11-02', 'note': ''}
+        status, state, _ = _http(self.port, 'POST', '/api/portal/requests', request, cookie=self.client)
+        self.assertEqual(status, 200, state)
+        ident = state['portal']['requests'][0]['id']
+        extra = {'targetId': ident, 'id': '', 'label': 'Private first-family pickup', 'unitMinor': 1250,
+                 'currency': 'CHF', 'quantity': 2, 'reusable': False}
+        status, state, _ = _http(self.port, 'POST', '/api/portal/extras', extra, cookie=self.owner)
+        self.assertEqual(status, 200, state)
+        quote = state['portal']['quotes'][ident]
+        current = state['daily']
+        current['rates']['day'] = 12345
+        status, before, _ = _http(self.port, 'PUT', '/api/daily', {'daily': current}, cookie=self.owner)
+        self.assertEqual(status, 200, before)
+        forged = copy.deepcopy(current)
+        forged['bookings'].append({'id': ident, 'dogId': 'pablo', 'service': 'day', 'start': request['start'],
+                                   'end': request['end'], 'unitMinor': None, 'currency': 'CHF'})
+        for cookie in (self.carer, self.owner):
+            with self.subTest(role='carer' if cookie == self.carer else 'owner'):
+                status, body, _ = _http(self.port, 'PUT', '/api/daily', {'daily': forged}, cookie=cookie)
+                self.assertEqual(status, 400, body)
+        _, after, _ = _http(self.port, 'GET', '/api/state', cookie=self.owner)
+        self.assertEqual(after['revision'], before['revision'])
+        self.assertEqual(after['daily'], before['daily'])
+        self.assertEqual(after['portal'], before['portal'])
+        _, other, _ = _http(self.port, 'GET', '/api/state', cookie=family_two)
+        self.assertEqual(other['daily']['bookings'], [])
+        self.assertEqual(other['portal']['quotes'], {})
+        self.assertNotIn(extra['label'], str(other))
+        status, accepted, _ = _http(self.port, 'POST', '/api/portal/decide', {'id': ident, 'status': 'accepted'}, cookie=self.owner)
+        self.assertEqual(status, 200, accepted)
+        self.assertEqual(accepted['portal']['quotes'][ident], quote)
+        self.assertEqual(accepted['portal']['bookingClients'], {ident: 'one'})
+        self.assertEqual(accepted['daily']['bookings'][0]['dogId'], 'nino')
+        current = accepted['daily']
+        current['bookings'][0]['end'] = '2026-11-03'
+        status, updated, _ = _http(self.port, 'PUT', '/api/daily', {'daily': current}, cookie=self.carer)
+        self.assertEqual(status, 200, updated)
+        self.assertEqual(updated['daily']['bookings'][0]['unitMinor'], quote['unitMinor'])
+        self.assertEqual(updated['portal']['quotes'][ident]['extras'], quote['extras'])
+        status, foreign, _ = _http(self.port, 'PUT', '/api/daily', {'daily': forged}, cookie=self.other_owner)
+        self.assertEqual(status, 200, foreign)
+        self.assertEqual(foreign['portal']['quotes'][ident]['extras'], [])
+
+    def test_request_id_reservation_survives_decision_without_a_booking(self):
+        request = {'dogId': 'nino', 'service': 'day', 'start': '2026-11-02', 'end': '2026-11-02', 'note': ''}
+        status, state, _ = _http(self.port, 'POST', '/api/portal/requests', request, cookie=self.client)
+        self.assertEqual(status, 200, state)
+        ident = state['portal']['requests'][0]['id']
+        status, state, _ = _http(self.port, 'POST', '/api/portal/decide', {'id': ident, 'status': 'declined'}, cookie=self.owner)
+        self.assertEqual(status, 200, state)
+        forged = copy.deepcopy(state['daily'])
+        forged['bookings'].append({'id': ident, 'dogId': 'nino', 'service': 'day', 'start': request['start'],
+                                   'end': request['end'], 'unitMinor': None, 'currency': 'CHF'})
+        for decision in ('declined', 'accepted'):
+            with self.subTest(decision=decision):
+                with self.server_mod.connection() as c:
+                    c.execute('UPDATE booking_request SET status=? WHERE business_id=? AND id=?',
+                              (decision, state['business_id'], ident))
+                for cookie in (self.carer, self.owner):
+                    status, body, _ = _http(self.port, 'PUT', '/api/daily', {'daily': forged}, cookie=cookie)
+                    self.assertEqual(status, 400, body)
+                _, reloaded, _ = _http(self.port, 'GET', '/api/state', cookie=self.owner)
+                self.assertEqual(reloaded['daily'], state['daily'])
+                self.assertEqual(reloaded['revision'], state['revision'])
+
+    def test_quote_extras_lookup_indexes_business_and_target(self):
+        import quotes
+        _, state, _ = _http(self.port, 'GET', '/api/state', cookie=self.owner)
+        item = {'id': 'target', 'service': 'day', 'start': '2026-11-02', 'end': '2026-11-02',
+                'unitMinor': 100, 'currency': 'CHF'}
+        with self.server_mod.connection() as c:
+            statements = []
+            c.set_trace_callback(statements.append)
+            quotes.quote(c, state['business_id'], item, booking=True)
+            c.set_trace_callback(None)
+            query = next(sql for sql in statements if 'FROM booking_extra' in sql)
+            plan = ' '.join(row['detail'] for row in c.execute('EXPLAIN QUERY PLAN ' + query))
+        self.assertIn('business_id=? AND target_id=?', plan)
+        self.assertNotIn('TEMP B-TREE', plan)

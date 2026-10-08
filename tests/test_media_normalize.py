@@ -1,8 +1,10 @@
 import json
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 import shutil
 import subprocess
 import tempfile
+import threading
 import unittest
 from unittest.mock import patch
 
@@ -14,6 +16,39 @@ from tests.test_tenant_isolation import ApiServerTestCase, _http
 
 class PhoneMediaApiTest(ApiServerTestCase):
     setUp = media_tests.MediaApiTest.setUp
+
+    def test_concurrent_png_validation_is_bounded_and_releases_slot(self):
+        import media
+        entered, release = threading.Event(), threading.Event()
+        validate_png = media.png
+        calls = []
+
+        def blocked_validation(data):
+            calls.append(len(data))
+            if len(calls) == 1:
+                entered.set()
+                if not release.wait(4):
+                    raise ValueError('test validation timed out')
+            return validate_png(data)
+
+        payload = media_tests.png_fixture()
+        with patch.object(media, 'png', side_effect=blocked_validation), ThreadPoolExecutor(max_workers=1) as pool:
+            first = pool.submit(upload_raw, self.port, self.client, payload)
+            try:
+                self.assertTrue(entered.wait(2))
+                status, body = upload_raw(self.port, self.client, payload)
+                self.assertEqual(status, 400, body)
+                self.assertIn('déjà en cours', body['error'])
+                self.assertEqual(len(calls), 1)
+                self.assertEqual(_http(self.port, 'GET', '/api/media', cookie=self.client)[1]['media']['items'], [])
+            finally:
+                release.set()
+            self.assertEqual(first.result()[0], 200)
+        status, body = upload_raw(self.port, self.client, b'invalid png')
+        self.assertEqual(status, 400, body)
+        self.assertEqual(body['error'], media.INVALID)
+        self.assertEqual(upload_raw(self.port, self.client, payload)[0], 200)
+        self.assertEqual(len(_http(self.port, 'GET', '/api/media', cookie=self.client)[1]['media']['items']), 2)
 
     @unittest.skipUnless(shutil.which('ffmpeg') and shutil.which('ffprobe'), 'local ffmpeg/ffprobe required')
     def test_hevc_mov_normalizes_private_playable_download_without_source_metadata(self):
