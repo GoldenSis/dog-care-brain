@@ -1,4 +1,5 @@
 """Owner chooses individual records; a professional sees only that selection."""
+import asyncio
 import uuid
 
 from tests.test_browser_acceptance import BrowserFixture
@@ -33,6 +34,126 @@ class ProfessionalJourneyTest(BrowserFixture):
             await self.page.set_viewport_size({'width': width, 'height': 900})
             self.assertLessEqual(await self.page.evaluate('document.documentElement.scrollWidth'), width)
             await self.capture_evidence(f'{stem}-{width}.png')
+
+    async def test_capture_and_photo_appear_in_selection_without_reload(self):
+        await self.page.click('.topbar [data-go="capture"]')
+        await self.page.click('[data-capture-dog="nino"]')
+        note = 'Nouvelle note enregistrée avant le partage.'
+        await self.page.fill('#observation', note)
+        await self.page.click('#save-observation')
+        await self.page.wait_for_selector('.timeline-card')
+        await self.page.click('.topbar [data-go="capture"]')
+        draft = 'Brouillon privé à garder pendant la sélection.'
+        await self.page.fill('#observation', draft)
+        await self.open_route('dogs')
+        await self.page.locator('[data-media-upload="nino"]').first.set_input_files({
+            'name': 'nouvelle-photo.png', 'mimeType': 'image/png', 'buffer': png_fixture(),
+        })
+        await self.page.wait_for_function("DogCareAPI.getMedia().items.some(m => m.name === 'nouvelle-photo.png')")
+        await self.open_route('invite')
+        form = self.page.locator('#professional-form')
+        await form.wait_for()
+        with self.subTest(record='capture'):
+            self.assertIn(note, await form.inner_text())
+        with self.subTest(record='photo'):
+            self.assertIn('nouvelle-photo.png', await form.inner_text())
+        await form.locator('[name=dogIds][value=nino]').check()
+        await form.locator('[name=email]').fill(self.professional_email)
+        for label in (note, 'nouvelle-photo.png'):
+            await form.locator('.professional-record').filter(has_text=label).locator('input').check()
+        await form.locator('button.primary').click()
+        await self.page.wait_for_function('!savePending && DogCareAPI.getPortal().professionals.length === 1')
+        await form.wait_for()
+        self.assertEqual(await self.page.evaluate('DogCareAPI.getPortal().professionals[0].recordKeys.length'), 2)
+        await self.capture_widths('professional-new-records')
+        await self.page.click('.topbar [data-go="capture"]')
+        self.assertEqual(await self.page.input_value('#observation'), draft)
+        self.assertEqual(self.console_errors, [])
+
+    async def test_selection_refresh_failure_and_late_completion_preserve_drafts(self):
+        await self.page.click('.topbar [data-go="capture"]')
+        draft = 'Brouillon gardé pendant le chargement.'
+        await self.page.fill('#observation', draft)
+        entered, release = asyncio.Event(), asyncio.Event()
+        self.addCleanup(release.set)
+        attempts = 0
+
+        async def refresh(route):
+            nonlocal attempts
+            attempts += 1
+            response = await route.fetch()
+            payload = await response.json()
+            if attempts != 2:
+                entered.set()
+                await release.wait()
+            if attempts == 1:
+                payload['revision'] += 1
+            await route.fulfill(response=response, json=payload)
+
+        await self.page.route('**/api/state', refresh)
+        await self.open_route('invite')
+        await asyncio.wait_for(entered.wait(), 5)
+        self.assertEqual(await self.page.locator('#professional-form').count(), 0)
+        member_email = self.page.locator('#member-form [name=email]')
+        await member_email.fill('pending-family@example.com')
+        release.set()
+        await self.page.locator('#professional-access [role=alert]').wait_for()
+        self.assertEqual(await member_email.input_value(), 'pending-family@example.com')
+        await self.page.locator('#professional-access button').click()
+        await self.page.locator('#professional-form').wait_for()
+        self.assertEqual(await member_email.input_value(), 'pending-family@example.com')
+        await self.page.click('.topbar [data-go="capture"]')
+        self.assertEqual(await self.page.input_value('#observation'), draft)
+        entered.clear(); release.clear()
+        await self.open_route('invite')
+        await asyncio.wait_for(entered.wait(), 5)
+        await self.page.click('.topbar [data-go="capture"]')
+        release.set()
+        await self.page.evaluate('DogCareAPI.whenSaved()')
+        self.assertEqual(await self.page.locator('#professional-form').count(), 0)
+        self.assertEqual(await self.page.input_value('#observation'), draft)
+        self.assertEqual(self.console_errors, [])
+
+    async def test_shared_content_stays_literal_in_french(self):
+        _, state, _ = _http(self.port, 'GET', '/api/state', cookie=self.sid)
+        state['daily']['dogs'][0]['name'] = 'Food'
+        self.assertEqual(_http(self.port, 'PUT', '/api/daily', {'daily': state['daily']}, cookie=self.sid)[0], 200)
+        notes = {'nino': [{'id': 1, 'title': 'Food', 'text': 'Food', 'date': '2026-10-08'}]}
+        self.assertEqual(_http(self.port, 'PUT', '/api/observations', {'observations': notes}, cookie=self.sid)[0], 200)
+        status, media = upload_raw(self.port, self.sid, png_fixture(), headers={'X-DogCare-Filename': 'Food'})
+        self.assertEqual(status, 200)
+        media_key = 'media:' + media['uploadedId']
+        _, state, _ = _http(self.port, 'GET', '/api/state', cookie=self.sid)
+        key = next(r['key'] for r in state['portal']['shareCatalog'] if r['kind'] == 'note')
+        self.assertEqual(_http(self.port, 'POST', '/api/portal/professionals', {
+            'email': self.professional_email, 'dogIds': ['nino'], 'recordKeys': [key, media_key],
+        }, cookie=self.sid)[0], 200)
+        await self.page.reload(); await self.wait_ready(); await self.open_route('invite')
+        form = self.page.locator('#professional-form')
+        await form.wait_for()
+        with self.subTest(view='owner dog'):
+            self.assertEqual((await form.locator('legend label').first.inner_text()).strip(), 'Food')
+        with self.subTest(view='owner label'):
+            self.assertEqual(await form.locator('.professional-record > span').first.evaluate('(e) => e.firstChild.textContent'), 'Food')
+        with self.subTest(view='owner media label'):
+            record = form.locator('.professional-record').filter(has=self.page.locator(f'[value="{media_key}"]'))
+            self.assertEqual((await record.inner_text()).splitlines(), ['Food', 'Photos et vidéos'])
+        await self.page.locator('.professional-members summary').click()
+        with self.subTest(view='saved version'):
+            self.assertEqual((await self.page.locator('.professional-members .portal-message').first.inner_text()).split(), ['Food', 'Food'])
+            self.assertEqual((await self.page.locator('.professional-members .portal-message').last.inner_text()).split(), ['Food', 'Consulter'])
+        self.assertEqual(await self.page.locator('.professional-members summary').inner_text(), 'Version partagée')
+        await self.context.clear_cookies()
+        self.assertEqual(_http(self.port, 'POST', '/api/auth/access', {'email': self.professional_email})[0], 200)
+        await self.page.goto(_latest_link(self.outbox, self.professional_email))
+        await self.page.wait_for_selector('.professional-dog')
+        for selector in ('h2', 'h3', '.portal-message'):
+            with self.subTest(view='professional', field=selector):
+                self.assertEqual(await self.page.locator('.professional-dog ' + selector).all_text_contents(), ['Food'] * (2 if selector == 'h3' else 1))
+        self.assertEqual(await self.page.locator('#page-title').inner_text(), 'Dossiers partagés')
+        self.assertEqual(await self.page.locator('.professional-dog a[download]').inner_text(), 'Télécharger')
+        await self.capture_widths('professional-literal-records')
+        self.assertEqual(self.console_errors, [])
 
     async def test_owner_selection_professional_login_and_revocation(self):
         await self.open_route('invite')

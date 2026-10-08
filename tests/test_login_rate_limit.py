@@ -47,6 +47,25 @@ class LoginRateLimitTest(ApiServerTestCase):
         for index in range(5):
             self.assertEqual(self.request('same@example.com', f'192.0.2.{index + 1}')[0], 200)
         self.assertEqual(self.request('same@example.com', '192.0.2.6')[0], 429)
+        self.assertEqual(self.attempts('192.0.2.6'), 0)
+
+    def test_blocked_ip_cannot_consume_other_email_quotas(self):
+        for index in range(50):
+            self.assertEqual(self.request(f'initial-{index}@example.com', '192.0.2.1')[0], 200)
+        for email in ('target-a@example.com', 'target-b@example.com'):
+            for path in ('/api/auth/access', '/api/auth/request'):
+                for _ in range(5):
+                    self.assertEqual(self.request(email, '192.0.2.1', path),
+                                     (429, {'ok': False, 'error': 'try again later'}))
+            with self.server_mod.connection() as c:
+                self.assertIsNone(c.execute('SELECT count FROM login_attempt WHERE key=?',
+                                            (self.server_mod._h('email:' + email),)).fetchone())
+            for _ in range(5):
+                self.assertEqual(self.request(email, '192.0.2.2'),
+                                 (200, {'ok': True, 'mailed': True}))
+            self.assertEqual(self.request(email, '192.0.2.2')[0], 429)
+        self.assertEqual(self.attempts('192.0.2.1'), 50)
+        self.assertEqual(self.attempts('192.0.2.2'), 10)
 
     def test_forwarded_headers_cannot_bypass_default_or_untrusted_limits(self):
         get_request = self.httpd.get_request

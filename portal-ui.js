@@ -2,6 +2,7 @@
 (function (w) {
   const text = key => (w.PortalCopy[state.language] || w.PortalCopy.en)[key] || key;
   const esc = value => escapeHtml(value ?? '');
+  const literal = value => `<span translate="no">${esc(value)}</span>`;
   const data = () => w.DogCareAPI.getPortal();
   const daily = () => w.DogCareAPI.getDaily();
   const client = () => w.DogCareAPI?.getUser()?.role === 'client';
@@ -34,11 +35,12 @@
   function professionalView() {
     const d=daily(), records=data().sharedRecords || [];
     setHeader('',text('sharedCare'),true);
-    return `<section class="portal-card"><p>${esc(text('professionalReadOnly'))}</p>${d.dogs.length?d.dogs.map(dog=>`<section class="professional-dog"><h2>${esc(dog.name)}</h2>${records.filter(r=>r.dogId===dog.id).map(r=>`<article class="portal-row"><div><h3>${esc(r.label || text('notes'))}</h3>${r.kind==='note'?`<small>${esc(r.date)} · ${esc(text('sharedVersion'))}</small><p class="portal-message">${esc(r.text)}</p>`:r.kind==='media'?`${r.mime.startsWith('image/')?`<img class="professional-media" src="${esc(r.href)}" alt="${esc(r.label)}">`:`<video class="professional-media" src="${esc(r.href)}" controls preload="metadata"></video>`}<a href="${esc(r.href)}" download>${esc(text('download'))}</a>`:`<a href="${esc(r.href)}">${esc(text('open'))} ↗</a>`}</div></article>`).join('') || `<p>${esc(text('noSharedCare'))}</p>`}</section>`).join(''):`<p>${esc(text('noDogs'))}</p>`}</section>`;
+    return `<section class="portal-card"><p>${esc(text('professionalReadOnly'))}</p>${d.dogs.length?d.dogs.map(dog=>`<section class="professional-dog"><h2>${literal(dog.name)}</h2>${records.filter(r=>r.dogId===dog.id).map(r=>`<article class="portal-row"><div><h3>${r.label?literal(r.label):esc(text('notes'))}</h3>${r.kind==='note'?`<small>${literal(r.date)} · ${esc(text('sharedVersion'))}</small><p class="portal-message">${literal(r.text)}</p>`:r.kind==='media'?`${r.mime.startsWith('image/')?`<img class="professional-media" src="${esc(r.href)}" alt="${esc(r.label)}">`:`<video class="professional-media" src="${esc(r.href)}" controls preload="metadata"></video>`}<a href="${esc(r.href)}" download>${esc(text('download'))}</a>`:`<a href="${esc(r.href)}">${esc(text('open'))} ↗</a>`}</div></article>`).join('') || `<p>${esc(text('noSharedCare'))}</p>`}</section>`).join(''):`<p>${esc(text('noDogs'))}</p>`}</section>`;
   }
-  function professionalAccess() {
+  function professionalAccess(loaded=false) {
+    if(!loaded)return `<div id="professional-access"><p role="status">${esc(text('loadingRecords'))}</p></div>`;
     const p=data(), catalog=p.shareCatalog || [], names=dogNames(daily());
-    return `<section class="portal-card"><h2>${esc(text('professionalAccess'))}</h2><p>${esc(text('professionalScope'))}</p><form id="professional-form" class="portal-form">${field('email','<input name="email" type="email" maxlength="255" autocomplete="off" required>')}<div class="professional-selection">${daily().dogs.map(dog=>`<fieldset><legend><label><input type="checkbox" name="dogIds" value="${esc(dog.id)}"> ${esc(dog.name)}</label></legend>${catalog.filter(r=>r.dogId===dog.id).map(r=>`<label class="professional-record"><input type="checkbox" name="recordKeys" value="${esc(r.key)}" data-share-dog="${esc(dog.id)}" disabled><span>${esc(r.label || text('notes'))}${r.kind==='note'?`<small>${esc(r.date)} · ${esc(r.text)}</small>`:`<small>${esc(r.kind==='media'?text('sharedImages'):text('documents'))}</small>`}</span></label>`).join('') || `<p>${esc(text('noSharedCare'))}</p>`}</fieldset>`).join('')}</div>${error()}<button class="primary" ${daily().dogs.length?'':'disabled'}>${esc(text('saveProfessional'))}</button></form><div class="professional-members">${(p.professionals || []).map(m=>`<article class="portal-row"><div><strong>${esc(m.email)}</strong><p>${m.dogIds.map(id=>esc(names.get(id)||id)).join(' · ')} · ${m.recordKeys.length} ${esc(text('sharedItems'))}</p><details><summary>${esc(text('sharedVersion'))}</summary>${(m.sharedRecords||[]).map(r=>`<p class="portal-message"><strong>${esc(r.label)}</strong>${r.kind==='note'?`<br>${esc(r.text)}`:`<br><a href="${esc(r.href)}">${esc(text('open'))}</a>`}</p>`).join('')}</details></div><div class="portal-row-actions"><button class="ghost" data-edit-professional="${m.id}">${esc(text('reviewAccess'))}</button><button class="ghost" data-revoke="${m.id}">${esc(text('revoke'))}</button></div></article>`).join('')}</div></section>`;
+    return `<section class="portal-card"><h2>${esc(text('professionalAccess'))}</h2><p>${esc(text('professionalScope'))}</p><form id="professional-form" class="portal-form">${field('email','<input name="email" type="email" maxlength="255" autocomplete="off" required>')}<div class="professional-selection">${daily().dogs.map(dog=>`<fieldset><legend><label><input type="checkbox" name="dogIds" value="${esc(dog.id)}"> ${literal(dog.name)}</label></legend>${catalog.filter(r=>r.dogId===dog.id).map(r=>`<label class="professional-record"><input type="checkbox" name="recordKeys" value="${esc(r.key)}" data-share-dog="${esc(dog.id)}" disabled><span>${r.label?literal(r.label):esc(text('notes'))}${r.kind==='note'?`<small>${literal(r.date)} · ${literal(r.text)}</small>`:`<small>${esc(r.kind==='media'?text('sharedImages'):text('documents'))}</small>`}</span></label>`).join('') || `<p>${esc(text('noSharedCare'))}</p>`}</fieldset>`).join('')}</div>${error()}<button class="primary" ${daily().dogs.length?'':'disabled'}>${esc(text('saveProfessional'))}</button></form><div class="professional-members">${(p.professionals || []).map(m=>`<article class="portal-row"><div><strong>${literal(m.email)}</strong><p>${m.dogIds.map(id=>literal(names.get(id)||id)).join(' · ')} · ${m.recordKeys.length} ${esc(text('sharedItems'))}</p><details><summary>${esc(text('sharedVersion'))}</summary>${(m.sharedRecords||[]).map(r=>`<p class="portal-message"><strong>${literal(r.label)}</strong>${r.kind==='note'?`<br>${literal(r.text)}`:`<br><a href="${esc(r.href)}">${esc(text('open'))}</a>`}</p>`).join('')}</details></div><div class="portal-row-actions"><button class="ghost" data-edit-professional="${m.id}">${esc(text('reviewAccess'))}</button><button class="ghost" data-revoke="${m.id}">${esc(text('revoke'))}</button></div></article>`).join('')}</div></section>`;
   }
   function ownerHome() {
     const d=DailyUI.snapshot() || DailyModel.empty(),next=d.bookings.filter(b=>DailyModel.activeBooking(b)&&b.end>=localDay()).sort((a,b)=>a.start.localeCompare(b.start))[0];
@@ -78,13 +80,33 @@
     if(fileForm)fileForm.onsubmit=async e=>{e.preventDefault();const form=new FormData(fileForm),file=form.get('file');try{if(file.size>5*1024*1024)throw Error('size');const bytes=new Uint8Array(await file.arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));await save('documents',{dogId:form.get('dogId'),label:form.get('label'),renewal:'',name:file.name,type:file.type,data:btoa(binary)},fileForm);}catch{const error=fileForm.querySelector('.portal-error');error.textContent=text('saveError');error.hidden=false;}};
     const member=document.querySelector('#member-form');
     if(member){const role=member.elements.role,group=member.elements.clientId;role.onchange=()=>{group.disabled=role.value!=='client';group.required=!group.disabled;};member.onsubmit=e=>{e.preventDefault();save('members',{email:member.elements.email.value,role:role.value,clientId:group.disabled?null:group.value},member);};}
-    const professionalForm=document.querySelector('#professional-form');
-    if(professionalForm){
-      const dogs=[...professionalForm.querySelectorAll('[name=dogIds]')], records=[...professionalForm.querySelectorAll('[name=recordKeys]')];
-      function sync(){const selected=new Set(dogs.filter(x=>x.checked).map(x=>x.value));records.forEach(x=>{x.disabled=!selected.has(x.dataset.shareDog);if(x.disabled)x.checked=false;});}
-      dogs.forEach(x=>x.onchange=sync);
-      professionalForm.onsubmit=e=>{e.preventDefault();const d=new FormData(professionalForm);save('professionals',{email:d.get('email'),dogIds:d.getAll('dogIds'),recordKeys:d.getAll('recordKeys')},professionalForm);};
-      document.querySelectorAll('[data-edit-professional]').forEach(b=>b.onclick=()=>{const m=data().professionals.find(m=>m.id===Number(b.dataset.editProfessional));professionalForm.elements.email.value=m.email;dogs.forEach(x=>x.checked=m.dogIds.includes(x.value));sync();records.forEach(x=>x.checked=!x.disabled&&m.recordKeys.includes(x.value));professionalForm.scrollIntoView({block:'start'});professionalForm.elements.email.focus({preventScroll:true});});
+    const professionalAccessRoot=document.querySelector('#professional-access');
+    if(professionalAccessRoot){
+      async function loadSelection(){
+        professionalAccessRoot.innerHTML=`<p role="status">${esc(text('loadingRecords'))}</p>`;
+        const ok=await w.DogCareAPI.reloadPortal();
+        if(!professionalAccessRoot.isConnected)return;
+        if(!ok){
+          professionalAccessRoot.innerHTML=`<p role="alert">${esc(text('loadRecordsError'))}</p><button class="ghost">${esc(text('retry'))}</button>`;
+          professionalAccessRoot.querySelector('button').onclick=loadSelection;
+          return;
+        }
+        professionalAccessRoot.innerHTML=professionalAccess(true);
+        localizeContent();
+        bindSelection(professionalAccessRoot);
+      }
+      loadSelection();
+    }
+    function bindSelection(root){
+      const professionalForm=root.querySelector('#professional-form');
+      if(professionalForm){
+        const dogs=[...professionalForm.querySelectorAll('[name=dogIds]')], records=[...professionalForm.querySelectorAll('[name=recordKeys]')];
+        function sync(){const selected=new Set(dogs.filter(x=>x.checked).map(x=>x.value));records.forEach(x=>{x.disabled=!selected.has(x.dataset.shareDog);if(x.disabled)x.checked=false;});}
+        dogs.forEach(x=>x.onchange=sync);
+        professionalForm.onsubmit=e=>{e.preventDefault();const d=new FormData(professionalForm);save('professionals',{email:d.get('email'),dogIds:d.getAll('dogIds'),recordKeys:d.getAll('recordKeys')},professionalForm);};
+        root.querySelectorAll('[data-edit-professional]').forEach(b=>b.onclick=()=>{const m=data().professionals.find(m=>m.id===Number(b.dataset.editProfessional));professionalForm.elements.email.value=m.email;dogs.forEach(x=>x.checked=m.dogIds.includes(x.value));sync();records.forEach(x=>x.checked=!x.disabled&&m.recordKeys.includes(x.value));professionalForm.scrollIntoView({block:'start'});professionalForm.elements.email.focus({preventScroll:true});});
+      }
+      root.querySelectorAll('[data-revoke]').forEach(b=>b.onclick=()=>save('revoke',{userId:Number(b.dataset.revoke)}));
     }
     document.querySelectorAll('[data-revoke]').forEach(b=>b.onclick=()=>save('revoke',{userId:Number(b.dataset.revoke)}));
     document.querySelectorAll('[data-request-id]').forEach(b=>b.onclick=()=>save('decide',{id:b.dataset.requestId,status:b.dataset.decision}));

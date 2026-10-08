@@ -26,6 +26,59 @@ test('missing accounting stays unavailable and retry preserves business and revi
   assert.equal(JSON.stringify(h.api.getFinance()),JSON.stringify(finance));
 });
 
+test('portal refresh rejects failed, switched or stale snapshots without replacing local records', async () => {
+  const portal = {shareCatalog: [{key:'original'}], professionals: []};
+  let state = {...serverState, portal}, status = 200;
+  const h = adapter({fetcher:async call => call.method === 'PUT'
+    ? response({...serverState, revision:1}) : response(state, status)});
+  assert.equal(await h.api.ready, true);
+  const observations = h.api.getObservations();
+  observations.billie[0].text = 'Unsaved local edit';
+  for (const patch of [{business_id:2}, {revision:1}, {ok:false}, {portal:null}]) {
+    state = {...serverState, portal:{shareCatalog:[{key:'unexpected'}]}, ...patch};
+    assert.equal(await h.api.reloadPortal(), false);
+    assert.equal(JSON.stringify(h.api.getPortal()), JSON.stringify(portal));
+    assert.equal(h.api.getObservations(), observations);
+  }
+  status = 503;
+  state = {...serverState, portal};
+  assert.equal(await h.api.reloadPortal(), false);
+  status = 200;
+  state = {...serverState, portal:{shareCatalog:[{key:'current'}]}};
+  assert.equal(await h.api.reloadPortal(), true);
+  assert.equal(h.api.getPortal().shareCatalog[0].key, 'current');
+  assert.equal(h.api.getObservations().billie[0].text, 'Unsaved local edit');
+  assert.equal(await h.api.saveObservations(observations), true);
+  assert.equal(h.calls.at(-1).headers['If-Match'], '"0"');
+});
+
+test('portal refresh waits for preceding writes and retains edits queued during its read', async () => {
+  let revision = 0, release;
+  const h = adapter({fetcher:async call => {
+    if (call.method === 'PUT') {
+      assert.equal(call.headers['If-Match'], `"${revision}"`);
+      return response({...serverState, revision:++revision});
+    }
+    if (revision === 1) return new Promise(resolve => {release = resolve;});
+    return response({...serverState, portal:{shareCatalog:[]}});
+  }});
+  await h.api.ready;
+  const first = h.api.saveObservations({billie:[{id:2, text:'Newly saved note'}]});
+  const refresh = h.api.reloadPortal();
+  await first;
+  await tick();
+  assert.equal(typeof release, 'function');
+  const second = h.api.saveObservations({billie:[{id:2, text:'Next queued edit'}]});
+  await tick();
+  assert.equal(h.calls.filter(call => call.method === 'PUT').length, 1);
+  release(response({...serverState, revision:1, portal:{shareCatalog:[{key:'new-note'}]}}));
+  assert.equal(await refresh, true);
+  assert.equal(await second, true);
+  assert.equal(h.api.getPortal().shareCatalog[0].key, 'new-note');
+  assert.equal(h.api.getObservations().billie[0].text, 'Next queued edit');
+  assert.deepEqual(h.calls.map(call => call.url), ['/api/state','/api/observations','/api/state','/api/observations']);
+});
+
 function adapter({ local = {}, fetcher, confirm = () => true, enabled = true, timers = {}, xhr, identity = {ok:true,email:'fixture@example.test',role:'owner'} } = {}) {
   const storage = new Map(Object.entries(local));
   const calls = [], identityCalls = [], toasts = [], notices = [], reloads = [];

@@ -273,6 +273,14 @@
       });
     },
     getPortal() { return JSON.parse(JSON.stringify(cache.portal)); },
+    reloadPortal() {
+      return enqueue(async () => {
+        const result = await req('/state');
+        if (!result.ok || !result.data.ok || result.data.business_id !== businessId || result.data.revision !== revision || !Array.isArray(result.data.portal?.shareCatalog)) return false;
+        cache.portal = result.data.portal;
+        return true;
+      });
+    },
     savePortal(action, payload) {
       const snapshot = JSON.parse(JSON.stringify(payload));
       return enqueue(async () => {

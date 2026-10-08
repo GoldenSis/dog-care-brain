@@ -532,10 +532,12 @@ def do_auth_request(payload, host, ip="", allow_demo=False):
         if delivery['mode'] == 'smtp':
             # Bound mail abuse even for unknown addresses; never reveal membership.
             c.execute('DELETE FROM login_attempt WHERE started < ?', (now-3600,))
-            for key,limit in ((_h('email:'+email),5),(_h('ip:'+ip),50)):
+            limits = ((_h('email:'+email),5),(_h('ip:'+ip),50))
+            for key,limit in limits:
                 row = c.execute('SELECT count FROM login_attempt WHERE key=?', (key,)).fetchone()
                 if row and row[0] >= limit:
                     return {"ok":False,"error":"try again later"},429
+            for key,_ in limits:
                 c.execute('INSERT INTO login_attempt(key,started,count) VALUES(?,?,1) ON CONFLICT(key) DO UPDATE SET count=count+1', (key,now))
     if delivery['mode'] == 'smtp':
         login_delivery.enqueue(deliver_login, delivery, email, payload.get('service'), db_path())
