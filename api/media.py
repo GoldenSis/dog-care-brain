@@ -10,6 +10,7 @@ import zlib
 
 import daily
 import portal
+import professional
 from media_normalize import normalize as normalize_upload
 
 IMAGE_LIMIT = 12 * 1024 * 1024
@@ -262,6 +263,8 @@ def permitted(c, user, row):
         return False
     if user['role'] == 'owner':
         return True
+    if user['role'] == 'professional':
+        return row['purpose'] == 'dog' and professional.permits(c, user, 'media', row['id'])
     return (user['role'] == 'client' and row['purpose'] == 'dog' and row['client_id'] is not None and
             row['client_id'] == portal.client_id(c, user) and row['dog_id'] in portal.allowed_dogs(c, user))
 
@@ -281,8 +284,10 @@ def branding(c, bid):
 def snapshot(c, user):
     cid = portal.client_id(c, user) if user['role'] == 'client' else None
     dogs = portal.allowed_dogs(c, user) if cid is not None else set()
+    shared = {r['key'] for r in professional.records(c, user)} if user['role'] == 'professional' else set()
     rows = [r for r in c.execute('SELECT ' + META + ' FROM media_asset WHERE business_id=? ORDER BY created,rowid', (user['business_id'],))
-            if user['role'] == 'owner' or (cid is not None and r['purpose'] == 'dog' and r['client_id'] == cid and r['dog_id'] in dogs)]
+            if user['role'] == 'owner' or (cid is not None and r['purpose'] == 'dog' and r['client_id'] == cid and r['dog_id'] in dogs) or
+            (user['role'] == 'professional' and r['purpose'] == 'dog' and 'media:' + r['id'] in shared)]
     visible = {r['id'] for r in rows}
     items = [{'id': r['id'], 'dogId': r['dog_id'], 'purpose': r['purpose'], 'mime': r['mime'], 'name': r['name'],
               'size': r['size'], 'url': '/api/media/content/' + r['id']} for r in rows]

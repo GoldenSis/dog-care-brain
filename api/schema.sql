@@ -84,6 +84,23 @@ CREATE TABLE IF NOT EXISTS pref (
   language TEXT NOT NULL DEFAULT 'en'
 );
 
+-- Explicit professional grants never confer family or business-wide staff access.
+CREATE TABLE IF NOT EXISTS professional_dog (
+  user_id INTEGER NOT NULL REFERENCES user(id),
+  business_id INTEGER NOT NULL REFERENCES business(id),
+  dog_id TEXT NOT NULL,
+  client_id TEXT,
+  PRIMARY KEY (user_id, dog_id)
+);
+CREATE TABLE IF NOT EXISTS professional_record (
+  user_id INTEGER NOT NULL REFERENCES user(id),
+  business_id INTEGER NOT NULL REFERENCES business(id),
+  dog_id TEXT NOT NULL,
+  record_key TEXT NOT NULL,
+  snapshot TEXT NOT NULL,
+  PRIMARY KEY (user_id, record_key)
+);
+
 -- Additive operational records; existing accounts start without invented activity.
 CREATE TABLE IF NOT EXISTS business_daily (
   business_id INTEGER PRIMARY KEY REFERENCES business(id),

@@ -19,11 +19,24 @@ The owner registers a client and their dog in the existing daily records, then o
 | Visitor | Public descriptions and explicitly published service rates; no private account state. |
 | Client | Their linked dogs, bookings, family requests and quotes, explicitly shared news and client documents. Can request a booking, change their language and manage their authorized dog albums. |
 | Trusted carer | Internal care records and planning; can accept/decline requests and share client news/documents. Cannot manage access, set prices/extras, cancel bookings, read accounting originals or access private dog albums. |
+| Professional | Only explicitly selected dogs and individual shared note versions, documents, photos/videos. Read-only, with their own language preference. No family details, bookings, quotes, accounting, raw audio or general internal records. |
 | Owner | All existing care functions plus access grants, prices/extras, cancellation, private accounting, dog albums and public artwork settings. |
 
 Authorization is enforced by the API for reads, writes and attachment downloads, including direct/guessed URLs. Client news and documents are separate from internal notes, health documents and accounting originals. Saved client-facing records retain their family audience; moving a dog to another client does not transfer the former family’s requests, quotes or shared files. Existing daily bookings acquire their saved client association during the additive schema upgrade. In account mode, Inviter opens real membership controls. Previously saved invitation previews remain in a read-only disclosure and do not grant access. Static mode retains its explicitly labeled preview form. Account settings show the account and access/rate actions; the demo reset exists only in static mode. Static mode retains the existing local workspace, without a simulated client login or server membership system.
 
 Staff share news and files through **Chiens → Partager au client**, choosing a dog linked to a family. Publishing here explicitly makes that item available in the family's **Nouvelles** or **Documents** section; internal notes and health documents are not copied automatically. [Photos, videos and public artwork](media.md) have separate album permissions and publication controls.
+
+## Selected professional access
+
+For a veterinarian or osteopath, use **Inviter → Accès professionnel**, not the business-wide trusted-carer role. The owner enters the email, selects dogs and ticks each note, document or image to share. **Enregistrer l’accès** grants sign-in access without sending mail; the invited person requests their own personal link from **Mon espace**. An existing owner, client, trusted carer or another business's account cannot be converted through this control.
+
+The professional's **Dossiers partagés** contains only the selected dog names and records. Notes are explicit copies of the version selected by the owner; later edits stay private. A version key rejects a stale selection if the note changed before saving. Owners can inspect **Version partagée**, reload a selection, choose current records and save it again. A removed or changed note is not silently replaced in that selection. Downloads recheck the individual grant on the server; raw recording URLs and all accounting routes remain forbidden.
+
+**Retirer l’accès** removes all professional grants and invalidates sessions and pending login links. Changing a selection also ends existing sessions/links, requiring a new sign-in. Removing a dog or assigning it to another family removes its grants permanently, including if its identifier is reused. Previously downloaded files cannot be recalled. A read already authorized inside a transaction may finish its original snapshot; later reads use the current grant.
+
+`POST /api/portal/professionals` accepts `{email, dogIds, recordKeys}` from an owner under the existing business/revision contract. At least one and at most 100 unique dogs, and at most 500 unique current record keys, are accepted. Only the owner projection includes `portal.shareCatalog` and `portal.professionals`; the professional projection exposes `portal.sharedRecords`. Additive `professional_dog` and `professional_record` tables are included in the existing whole-database backup/restore. No clinical credentials or write privileges are implied by this role.
+
+The isolated `tests.test_professional_access` suite covers projection, direct API/file denial, stale versions, dog reassignment, revocation and deterministic concurrent access changes. `tests.test_professional_browser` covers owner selection/review, the professional's own login, desktop/phone rendering, reload and revocation, with synthetic records and a local development outbox only.
 
 ## Login transport
 

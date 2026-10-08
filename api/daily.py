@@ -31,6 +31,8 @@ def bind_clients(c, bid, value):
 
 
 def save(c, bid, value):
+    import professional
+    professional.prune(c, bid, load(c, bid), value)
     bind_clients(c,bid,value)
     c.execute("INSERT INTO business_daily(business_id,snapshot) VALUES(?,?) "
               "ON CONFLICT(business_id) DO UPDATE SET snapshot=excluded.snapshot",

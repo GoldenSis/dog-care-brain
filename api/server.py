@@ -25,6 +25,7 @@ import portal
 import quotes
 import login_delivery
 import media
+import professional
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT_DEFAULT = os.path.dirname(HERE)
@@ -687,8 +688,9 @@ class Handler(BaseHTTPRequestHandler):
             return None
         path = urlparse(self.path).path
         client_paths = ("/api/prefs", "/api/auth/logout", "/api/portal/requests", "/api/media/upload", "/api/media/cover", "/api/media/delete", "/api/media/branding")
-        owner_paths = ("/api/finance", "/api/invites", "/api/import", "/api/portal/members", "/api/portal/revoke", "/api/portal/extras", "/api/portal/extra-remove", "/api/portal/quote")
+        owner_paths = ("/api/finance", "/api/invites", "/api/import", "/api/portal/members", "/api/portal/professionals", "/api/portal/revoke", "/api/portal/extras", "/api/portal/extra-remove", "/api/portal/quote")
         if ((user["role"] == "client" and path not in client_paths) or
+                (user['role'] == 'professional' and path not in ('/api/prefs', '/api/auth/logout')) or
                 (path in owner_paths and user["role"] != "owner") or
                 (path == "/api/portal/requests" and user["role"] != "client")):
             self._send({"ok": False, "error": "access denied"}, 403)
@@ -989,7 +991,7 @@ class Handler(BaseHTTPRequestHandler):
                 u = self._need_user(c)
                 if not u:
                     return
-                if u["role"] == "client" or path == "/api/finance" and u["role"] != "owner":
+                if u["role"] in ("client", "professional") or path == "/api/finance" and u["role"] != "owner":
                     return self._send({"ok": False, "error": "access denied"}, 403)
             return self._send({"ok": False, "error": "not found"}, 404)
         if path == "/api/portal/estimate":
@@ -1034,6 +1036,8 @@ class Handler(BaseHTTPRequestHandler):
                 ).fetchone()
                 if row and u["role"] == "client" and row["slug"] not in portal.allowed_dogs(c, u):
                     row = None
+                if row and u['role'] == 'professional' and row['slug'] not in professional.dogs(c, u):
+                    row = None
             if not row:
                 return self._send({"ok": False, "error": "not found"}, 404)
             return self._send({"ok": True, "dog": {"id": row["id"], "slug": row["slug"],
@@ -1048,6 +1052,9 @@ class Handler(BaseHTTPRequestHandler):
                 table = "client_document" if path.startswith("/api/client-documents/") else "finance_document" if path.startswith("/api/finance-documents/") else "daily_document"
                 if (table == "finance_document" and u["role"] != "owner") or (table == "daily_document" and u["role"] == "client"):
                     return self._send({"ok": False, "error": "access denied"}, 403)
+                if u['role'] == 'professional' and not professional.permits(
+                        c, u, 'client-document' if table == 'client_document' else 'document', ident):
+                    return self._send({'ok': False, 'error': 'access denied'}, 403)
                 if not daily.ID.fullmatch(ident):
                     return self._send({"ok": False, "error": "not found"}, 404)
                 row = c.execute(f"SELECT * FROM {table} WHERE business_id=? AND id=?",
@@ -1073,7 +1080,7 @@ class Handler(BaseHTTPRequestHandler):
                 u = self._need_user(c)
                 if not u:
                     return
-                if u["role"] == "client":
+                if u["role"] in ("client", "professional"):
                     return self._send({"ok": False, "error": "access denied"}, 403)
                 name = path[len("/api/blobs/"):]
                 if not BLOB_RE.match(name):
@@ -1125,7 +1132,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path.startswith("/api/portal/"):
             route = path[len("/api/portal/"):]
-            if route == "members" and not EMAIL_RE.fullmatch(str(payload.get("email", "")).strip()):
+            if route in ("members", "professionals") and not EMAIL_RE.fullmatch(str(payload.get("email", "")).strip()):
                 return self._send({"ok": False, "error": "invalid email"}, 400)
             try:
                 with self._mutation_transaction() as (c, u):
@@ -1238,7 +1245,7 @@ class Handler(BaseHTTPRequestHandler):
         full = os.path.realpath(os.path.join(root, rel.lstrip("/")))
         if full in (os.path.join(root, "index.html"), os.path.join(root, "app.js")):
             user = user_of(self)
-            authenticated = user and user['role'] in ('owner', 'trusted-carer', 'client')
+            authenticated = user and user['role'] in portal.ROLES
             if not authenticated:
                 if full == os.path.join(root, "app.js"):
                     return self._send({"ok": False, "error": "sign in required"}, 401)

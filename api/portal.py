@@ -5,9 +5,10 @@ import time
 
 import daily
 import quotes
+import professional
 
 STAFF = ("owner", "trusted-carer")
-ROLES = (*STAFF, "client")
+ROLES = (*STAFF, "client", "professional")
 
 
 def message(value, limit, optional=False):
@@ -62,8 +63,13 @@ def snapshot(c, user, current):
 
 
 def project(c, user, state):
+    if user['role'] == 'professional':
+        return professional.project(c, user, state)
     current = state["daily"]
     state["portal"] = snapshot(c, user, current)
+    if user['role'] == 'owner':
+        state['portal']['professionals'] = professional.members(c, user['business_id'])
+        state['portal']['shareCatalog'] = professional.catalog(c, user['business_id'])
     if user["role"] == "client":
         allowed = allowed_dogs(c, user, current)
         cid = client_id(c, user)
@@ -101,6 +107,7 @@ def add_member(c, user, payload):
                         (email, role, user["business_id"], int(time.time()))).lastrowid
         c.execute("INSERT INTO pref(user_id,language) VALUES(?,'fr')", (uid,))
     c.execute("DELETE FROM client_access WHERE user_id=?", (uid,))
+    professional.clear(c, uid)
     if role == "client":
         c.execute("INSERT INTO client_access(user_id,business_id,client_id) VALUES(?,?,?)",
                   (uid, user["business_id"], payload["clientId"]))
@@ -111,17 +118,21 @@ def mutate(c, user, route, payload):
     current = daily.load(c, bid)
     if route == "members":
         add_member(c, user, payload)
+    elif route == 'professionals':
+        professional.grant(c, user, payload)
     elif route == "revoke":
         daily.fields(payload, "userId")
         if type(payload["userId"]) is not int:
             raise ValueError("invalid member")
-        row = c.execute("SELECT id FROM user WHERE id=? AND business_id=? AND role IN ('client','trusted-carer')",
+        row = c.execute("SELECT id,email FROM user WHERE id=? AND business_id=? AND role IN ('client','trusted-carer','professional')",
                         (payload["userId"], bid)).fetchone()
         if not row:
             raise ValueError("unknown member")
         c.execute("UPDATE user SET role='revoked' WHERE id=?", (row[0],))
         c.execute("DELETE FROM client_access WHERE user_id=?", (row[0],))
         c.execute("DELETE FROM session WHERE user_id=?", (row[0],))
+        professional.clear(c, row[0])
+        c.execute('DELETE FROM magic WHERE email=?', (row['email'],))
     elif route == "requests":
         daily.fields(payload, "dogId service start end note")
         if payload["dogId"] not in allowed_dogs(c, user, current):
