@@ -54,6 +54,17 @@ The quoted total is separate from issued invoices. Copying a booking into a new 
 
 All `/api/portal/*` writes use the business/revision contract from the README and return the projected account snapshot. Failed validation rolls back the mutation and revision.
 
+Protected requests read the session, active role, family membership and protected data in one transaction. Writes recheck session, role and business binding inside `BEGIN IMMEDIATE`, before advancing the revision, changing data or projecting the response. An early upload check does not authorize its later save: media authorization is repeated after normalization. An already authenticated read may finish with its original snapshot during revocation; it cannot combine that old session with a newly assigned family's records.
+
+| Protected transaction scope | Endpoints under `/api` |
+| --- | --- |
+| Account and family reads | `GET /state`, `/dogs`, `/dogs/<id>`, `/observations`, `/invites`, `/portal/estimate` |
+| Private downloads and albums | `GET /documents/<id>`, `/finance-documents/<id>`, `/client-documents/<id>`, `/blobs/<ref>`, `/media`, `/media/content/<id>` |
+| Writes returning account state | `PUT /prefs`, `/observations`, `/invites`, `/daily`, `/knowledge`, `/finance`; `POST /import`, `/documents`, all `/portal/*` actions |
+| Other protected writes | `POST /dogs`, `/blobs`, `/auth/logout`, `/media/upload`, `/media/cover`, `/media/delete`, `/media/branding` |
+
+The deterministic races in `tests.test_client_portal` cover reassignment and revocation between early authentication and mutation, predicted revisions, consistent read snapshots, and revocation after media normalization. Public endpoints have no private family projection; `/auth/me` reads only the session and user in a single query.
+
 - `GET /api/public/services`: public price projection, or `rates: null` when unbound.
 - `POST /api/auth/access`: `{email, service?}`; service is `day`, `night` or `walk`. `/api/auth/request` has the same closed membership rule outside explicit development signup.
 - `GET /api/portal/estimate?dogId=…&service=…&start=…&end=…`: client-owned dog and server-calculated units/base total.

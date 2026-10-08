@@ -124,13 +124,17 @@ class ClientPortalTest(ApiServerTestCase):
     def read_during_membership_reassignment(self, path):
         self.member(self.client_email, 'client', 'one')
         cookie = self.login(self.client_email)
+        return self.read_during_access_change(path, cookie, lambda: self.member(self.client_email, 'client', 'two'))
+
+    def read_during_access_change(self, path, cookie, change):
         authenticated = threading.Event()
         resume = threading.Event()
         original = self.server_mod.Handler._need_user
 
         def pause_after_authentication(handler, *args, **kwargs):
             user = original(handler, *args, **kwargs)
-            if user and handler.path == path and handler.headers.get('Cookie') == f'dc_s={cookie}':
+            if (user and handler.path == path and handler.headers.get('Cookie') == f'dc_s={cookie}'
+                    and not authenticated.is_set()):
                 authenticated.set()
                 if not resume.wait(timeout=5):
                     raise TimeoutError('membership reassignment did not finish')
@@ -141,7 +145,7 @@ class ClientPortalTest(ApiServerTestCase):
                 response = pool.submit(_http, self.port, 'GET', path, cookie=cookie)
                 try:
                     self.assertTrue(authenticated.wait(timeout=5), 'protected read did not authenticate')
-                    self.member(self.client_email, 'client', 'two')
+                    change()
                 finally:
                     resume.set()
                 result = response.result(timeout=5)
@@ -190,6 +194,224 @@ class ClientPortalTest(ApiServerTestCase):
         self.assertEqual((status, body), (200, {'ok': True, 'mailed': False}))
         with self.server_mod.connection() as c:
             self.assertIsNone(c.execute('SELECT id FROM user WHERE email=?', (email,)).fetchone())
+
+    def write_during_access_change(self, method, path, payload, cookie, change, revision_delta=1):
+        authenticated = threading.Event()
+        resume = threading.Event()
+        original = self.server_mod.Handler._need_mutation_user
+        _, before, _ = _http(self.port, 'GET', '/api/state', cookie=cookie)
+        headers = {'X-DogCare-Business': str(before['business_id']),
+                   'If-Match': f'"{before["revision"] + revision_delta}"'}
+
+        def pause_after_authentication(handler, *args, **kwargs):
+            user = original(handler, *args, **kwargs)
+            if (user and not args and not kwargs and handler.path == path and
+                    handler.headers.get('Cookie') == f'dc_s={cookie}' and not authenticated.is_set()):
+                authenticated.set()
+                if not resume.wait(timeout=5):
+                    raise TimeoutError('access change did not finish')
+            return user
+
+        with patch.object(self.server_mod.Handler, '_need_mutation_user', pause_after_authentication):
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                response = pool.submit(_http, self.port, method, path, payload, cookie=cookie, headers=headers)
+                try:
+                    self.assertTrue(authenticated.wait(timeout=5))
+                    change()
+                    _, unchanged, _ = _http(self.port, 'GET', '/api/state', cookie=self.owner)
+                    self.assertEqual(unchanged['revision'], before['revision'] + revision_delta)
+                finally:
+                    resume.set()
+                status, body, _ = response.result(timeout=5)
+        self.assertEqual(_http(self.port, 'GET', '/api/state', cookie=self.owner)[1], unchanged)
+        return status, body, before
+
+    def test_prefs_write_rechecks_membership_before_mutation_and_projection(self):
+        status, body, before = self.write_during_access_change(
+            'PUT', '/api/prefs', {'language': 'de'}, self.client,
+            lambda: self.member(self.client_email, 'client', 'two'))
+        self.assertEqual(status, 401, body)
+        with self.server_mod.connection() as c:
+            self.assertEqual(c.execute('SELECT language FROM pref JOIN user ON user.id=pref.user_id WHERE email=?',
+                                       (self.client_email,)).fetchone()[0], before['language'])
+
+    def revoke(self, email):
+        _, state, _ = _http(self.port, 'GET', '/api/state', cookie=self.owner)
+        member = next(m for m in state['portal']['members'] if m['email'] == email)
+        status, body, _ = _http(self.port, 'POST', '/api/portal/revoke', {'userId': member['id']}, cookie=self.owner)
+        self.assertEqual(status, 200, body)
+
+    def test_client_writes_reject_reassigned_and_revoked_sessions(self):
+        from tests.test_media_api import png_fixture, upload_raw
+
+        status, uploaded = upload_raw(self.port, self.owner, png_fixture())
+        self.assertEqual(status, 200, uploaded)
+        media_id = uploaded['uploadedId']
+        cases = [
+            ('PUT', '/api/prefs', {'language': 'de'}),
+            ('POST', '/api/portal/requests', {'dogId': 'pablo', 'service': 'day', 'start': '2026-11-02', 'end': '2026-11-02', 'note': 'stale request'}),
+            ('POST', '/api/media/cover', {'dogId': 'nino', 'mediaId': media_id}),
+            ('POST', '/api/media/delete', {'id': media_id}),
+            ('POST', '/api/auth/logout', {}),
+        ]
+        for access_change in ('reassign', 'revoke'):
+            for method, path, payload in cases:
+                with self.subTest(change=access_change, path=path):
+                    self.member(self.client_email, 'client', 'one')
+                    cookie = self.login(self.client_email)
+                    change = (lambda: self.member(self.client_email, 'client', 'two')) if access_change == 'reassign' else (lambda: self.revoke(self.client_email))
+                    status, body, _ = self.write_during_access_change(method, path, payload, cookie, change)
+                    self.assertEqual(status, 401, body)
+
+    def test_staff_and_owner_writes_reject_revocation_before_the_transaction(self):
+        request = {'dogId': 'nino', 'service': 'day', 'start': '2026-11-02', 'end': '2026-11-02', 'note': ''}
+        status, requested, _ = _http(self.port, 'POST', '/api/portal/requests', request, cookie=self.client)
+        self.assertEqual(status, 200, requested)
+        booking_id = requested['portal']['requests'][0]['id']
+        extra = {'targetId': booking_id, 'id': '', 'label': 'Synthetic option', 'unitMinor': 100,
+                 'currency': 'CHF', 'quantity': 1, 'reusable': False}
+        status, priced, _ = _http(self.port, 'POST', '/api/portal/extras', extra, cookie=self.owner)
+        self.assertEqual(status, 200, priced)
+        extra_id = priced['portal']['quotes'][booking_id]['extras'][0]['id']
+        self.assertEqual(_http(self.port, 'POST', '/api/portal/decide', {'id': booking_id, 'status': 'accepted'}, cookie=self.owner)[0], 200)
+        status, requested, _ = _http(self.port, 'POST', '/api/portal/requests', {**request, 'service': 'night', 'end': '2026-11-03'}, cookie=self.client)
+        self.assertEqual(status, 200, requested)
+        pending_id = next(r['id'] for r in requested['portal']['requests'] if r['status'] == 'requested')
+        _, state, _ = _http(self.port, 'GET', '/api/state', cookie=self.owner)
+        document = {'dogId': 'nino', 'label': 'Synthetic', 'renewal': '', 'name': 'synthetic.pdf',
+                    'type': 'application/pdf', 'data': base64.b64encode(b'%PDF-1.4 synthetic').decode()}
+        staff_cases = [
+            ('PUT', '/api/observations', {'observations': {}}),
+            ('PUT', '/api/daily', {'daily': state['daily']}),
+            ('PUT', '/api/knowledge', {'knowledge': state['knowledge']}),
+            ('POST', '/api/documents', document),
+            ('POST', '/api/dogs', {'slug': 'stale-dog', 'name': 'Stale Dog'}),
+            ('POST', '/api/blobs', {'data': base64.b64encode(b'stale recording').decode()}),
+            ('POST', '/api/portal/updates', {'dogId': 'nino', 'text': 'stale shared note'}),
+            ('POST', '/api/portal/documents', document),
+        ]
+        owner_cases = [
+            ('PUT', '/api/invites', {'invites': []}),
+            ('PUT', '/api/finance', {'finance': state['finance'], 'uploads': []}),
+            ('POST', '/api/import', {'language': 'de'}),
+            ('POST', '/api/portal/members', {'email': self.prefix + '-new@example.com', 'role': 'client', 'clientId': 'one'}),
+            ('POST', '/api/portal/revoke', {'userId': state['portal']['members'][0]['id']}),
+            ('POST', '/api/portal/decide', {'id': pending_id, 'status': 'accepted'}),
+            ('POST', '/api/portal/cancel-booking', {'id': booking_id}),
+            ('POST', '/api/portal/quote', {'targetId': pending_id, 'unitMinor': 100, 'currency': 'CHF'}),
+            ('POST', '/api/portal/extras', extra),
+            ('POST', '/api/portal/extra-remove', {'targetId': booking_id, 'id': extra_id}),
+            ('POST', '/api/media/branding', {'hero': None, 'services': {'day': {'face': 'pug'}}}),
+        ]
+        email = self.prefix + '-carer@example.com'
+        for method, path, payload in staff_cases + owner_cases:
+            with self.subTest(path=path):
+                if (method, path, payload) in staff_cases:
+                    self.member(email, 'trusted-carer', None)
+                    cookie = self.login(email)
+                    change = lambda: self.revoke(email)
+                    revision_delta = 1
+                else:
+                    cookie = self.login(self.prefix + '-owner@example.com')
+                    revision_delta = 0
+                    def change():
+                        self.assertEqual(_http(self.port, 'POST', '/api/auth/logout', {}, cookie=cookie)[0], 200)
+                status, body, _ = self.write_during_access_change(method, path, payload, cookie, change, revision_delta)
+                self.assertEqual(status, 401, body)
+        from pathlib import Path
+        self.assertFalse(list(Path(self.server_mod.blobs_dir()).rglob(hashlib.sha256(b'stale recording').hexdigest()[:32] + '.*')))
+
+    def test_mutations_recheck_role_and_business_even_if_session_remains(self):
+        email = self.prefix + '-carer@example.com'
+        _, before, _ = _http(self.port, 'GET', '/api/state', cookie=self.owner)
+        _, other, _ = _http(self.port, 'GET', '/api/state', cookie=self.other_owner)
+        for field, value, expected in [('role', 'client', 403), ('business_id', other['business_id'], 409)]:
+            with self.subTest(field=field):
+                def change():
+                    with self.server_mod._lock, self.server_mod.connection() as c:
+                        c.execute(f'UPDATE user SET {field}=? WHERE email=?', (value, email))
+                status, body, _ = self.write_during_access_change(
+                    'POST', '/api/dogs', {'slug': 'stale-dog', 'name': 'Stale Dog'}, self.carer, change, revision_delta=0)
+                self.assertEqual(status, expected, body)
+                with self.server_mod.connection() as c:
+                    c.execute('UPDATE user SET role=?,business_id=? WHERE email=?', ('trusted-carer', before['business_id'], email))
+                self.assertEqual(_http(self.port, 'GET', '/api/state', cookie=self.other_owner)[1], other)
+
+    def test_family_reads_keep_one_snapshot_during_reassignment_and_revocation(self):
+        from tests.test_media_api import png_fixture, upload_raw
+
+        document = self.upload('/api/portal/documents', 'pablo')['portal']['documents'][0]
+        status, uploaded = upload_raw(self.port, self.owner, png_fixture(), dog='pablo')
+        self.assertEqual(status, 200, uploaded)
+        media_url = '/api/media/content/' + uploaded['uploadedId']
+        paths = ['/api/state', '/api/dogs', '/api/observations', '/api/media', media_url,
+                 '/api/client-documents/' + document['id'],
+                 '/api/portal/estimate?dogId=pablo&service=day&start=2026-11-02&end=2026-11-02']
+        for access_change in ('reassign', 'revoke'):
+            for path in paths:
+                with self.subTest(change=access_change, path=path):
+                    self.member(self.client_email, 'client', 'one')
+                    cookie = self.login(self.client_email)
+                    before = _http(self.port, 'GET', path, cookie=cookie)[:2]
+                    change = (lambda: self.member(self.client_email, 'client', 'two')) if access_change == 'reassign' else (lambda: self.revoke(self.client_email))
+                    status, body, _ = self.read_during_access_change(path, cookie, change)
+                    self.assertEqual((status, body), before)
+
+    def test_staff_reads_do_not_mix_authenticated_role_with_new_private_records(self):
+        from tests.test_media_api import png_fixture, upload_raw
+
+        document = self.upload('/api/documents')['daily']['documents'][0]
+        status, blob, _ = _http(self.port, 'POST', '/api/blobs', {'data': base64.b64encode(b'synthetic audio').decode()}, cookie=self.owner)
+        self.assertEqual(status, 200, blob)
+        status, uploaded = upload_raw(self.port, self.owner, png_fixture())
+        self.assertEqual(status, 200, uploaded)
+        paths = ['/api/state', '/api/observations', '/api/invites', '/api/dogs', '/api/media',
+                 '/api/documents/' + document['id'], '/api/blobs/' + blob['ref']]
+        for path in paths:
+            with self.subTest(path=path):
+                cookie = self.login(self.prefix + '-owner@example.com')
+                before = _http(self.port, 'GET', path, cookie=cookie)[:2]
+                def change():
+                    self.assertEqual(_http(self.port, 'POST', '/api/auth/logout', {}, cookie=cookie)[0], 200)
+                    self.assertEqual(_http(self.port, 'PUT', '/api/observations', {'observations': {'nino': [
+                        {'id': 901, 'text': 'new private record ' + path}]}}, cookie=self.owner)[0], 200)
+                self.assertEqual(self.read_during_access_change(path, cookie, change)[:2], before)
+
+    def test_media_upload_rechecks_access_after_normalization(self):
+        from contextlib import contextmanager
+        from tests.test_media_api import png_fixture, upload_raw
+
+        original = self.server_mod.media.normalize_upload
+        for access_change in ('reassign', 'revoke'):
+            with self.subTest(change=access_change):
+                self.member(self.client_email, 'client', 'one')
+                cookie = self.login(self.client_email)
+                normalized = threading.Event()
+                resume = threading.Event()
+
+                @contextmanager
+                def pause_after_normalization(*args, **kwargs):
+                    with original(*args, **kwargs) as value:
+                        normalized.set()
+                        if not resume.wait(timeout=5):
+                            raise TimeoutError('access change did not finish')
+                        yield value
+
+                with patch.object(self.server_mod.media, 'normalize_upload', pause_after_normalization):
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                        response = pool.submit(upload_raw, self.port, cookie, png_fixture())
+                        try:
+                            self.assertTrue(normalized.wait(timeout=5))
+                            if access_change == 'reassign':
+                                self.member(self.client_email, 'client', 'two')
+                            else:
+                                self.revoke(self.client_email)
+                            _, before, _ = _http(self.port, 'GET', '/api/state', cookie=self.owner)
+                        finally:
+                            resume.set()
+                        status, body = response.result(timeout=5)
+                self.assertEqual(status, 401, body)
+                self.assertEqual(_http(self.port, 'GET', '/api/state', cookie=self.owner)[1], before)
 
 
     def test_quote_rates_freeze_and_owner_extras_persist_without_finance_access(self):

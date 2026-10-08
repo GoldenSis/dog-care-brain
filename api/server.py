@@ -664,8 +664,8 @@ class Handler(BaseHTTPRequestHandler):
             return False
         return True
 
-    def _need_mutation_user(self):
-        user = self._need_user()
+    def _need_mutation_user(self, c=None):
+        user = self._need_user(c)
         if not user:
             return None
         path = urlparse(self.path).path
@@ -683,6 +683,12 @@ class Handler(BaseHTTPRequestHandler):
             return None
         return user
 
+    @contextmanager
+    def _mutation_transaction(self):
+        with _lock, connection() as c:
+            c.execute("BEGIN IMMEDIATE")
+            yield c, self._need_mutation_user(c)
+
     def _advance_revision(self, c, user):
         revision = c.execute("SELECT revision FROM business WHERE id=?",
                              (user["business_id"],)).fetchone()[0]
@@ -695,12 +701,13 @@ class Handler(BaseHTTPRequestHandler):
                   (user["business_id"],))
         return revision + 1
 
-    def _write_care(self, user, payload, importing=False):
+    def _write_care(self, payload, importing=False):
         """Apply supplied collections atomically; repeat imports return current state."""
         try:
             validate_care(payload)
-            with _lock, connection() as c:
-                c.execute("BEGIN IMMEDIATE")
+            with self._mutation_transaction() as (c, user):
+                if not user:
+                    return
                 done = c.execute("SELECT imported FROM business WHERE id=?",
                                  (user["business_id"],)).fetchone()[0]
                 skipped = importing and bool(done)
@@ -719,10 +726,11 @@ class Handler(BaseHTTPRequestHandler):
             out["skipped"] = skipped
         return self._send(out)
 
-    def _write_knowledge(self, user, payload):
+    def _write_knowledge(self, payload):
         try:
-            with _lock, connection() as c:
-                c.execute("BEGIN IMMEDIATE")
+            with self._mutation_transaction() as (c, user):
+                if not user:
+                    return
                 if self._advance_revision(c, user) is None:
                     return
                 value = knowledge.validate(payload.get("knowledge"))
@@ -734,11 +742,12 @@ class Handler(BaseHTTPRequestHandler):
             return self._send({"ok": False, "error": "experience could not be saved"}, 500)
         return self._send(out)
 
-    def _write_finance(self, user, payload):
+    def _write_finance(self, payload):
         try:
             daily.fields(payload, 'finance uploads')
-            with _lock, connection() as c:
-                c.execute("BEGIN IMMEDIATE")
+            with self._mutation_transaction() as (c, user):
+                if not user:
+                    return
                 if self._advance_revision(c, user) is None:
                     return
                 finance.save(c, user["business_id"], payload['finance'], payload['uploads'])
@@ -749,10 +758,11 @@ class Handler(BaseHTTPRequestHandler):
             return self._send({"ok": False, "error": "accounting records could not be saved"}, 500)
         return self._send(out)
 
-    def _write_daily(self, user, payload, uploading=False):
+    def _write_daily(self, payload, uploading=False):
         try:
-            with _lock, connection() as c:
-                c.execute("BEGIN IMMEDIATE")
+            with self._mutation_transaction() as (c, user):
+                if not user:
+                    return
                 if self._advance_revision(c, user) is None:
                     return
                 current = daily.load(c, user["business_id"])
@@ -813,6 +823,10 @@ class Handler(BaseHTTPRequestHandler):
                 if mime not in media.TYPES:
                     raise ValueError(media.INVALID)
                 with connection() as c:
+                    c.execute('BEGIN')
+                    user = self._need_mutation_user(c)
+                    if not user:
+                        return
                     media.upload_scope(c, user, dog_id, purpose)
                 with tempfile.TemporaryFile(dir=os.path.dirname(db_path())) as stream:
                     remaining = length
@@ -829,24 +843,20 @@ class Handler(BaseHTTPRequestHandler):
                     name = unquote(self.headers.get('X-DogCare-Filename', 'media'))
                     with media.normalize_upload(stream, mime, length, name, os.path.dirname(db_path())) as normalized:
                         content, content_type, content_size, content_name = normalized
-                        with _lock, connection() as c:
-                            c.execute('BEGIN IMMEDIATE')
-                            current = user_of(self, c)
-                            if not current or current['business_id'] != user['business_id']:
-                                raise PermissionError('Accès expiré. Rechargez votre espace.')
-                            uploaded_id = media.store(c, current, content, content_type, content_size, content_name, dog_id, purpose)
-                            out = media.snapshot(c, current)
+                        with self._mutation_transaction() as (c, user):
+                            if not user:
+                                return
+                            uploaded_id = media.store(c, user, content, content_type, content_size, content_name, dog_id, purpose)
+                            out = media.snapshot(c, user)
             else:
                 payload = self._read_json()
                 if payload is None:
                     return
-                with _lock, connection() as c:
-                    c.execute('BEGIN IMMEDIATE')
-                    current = user_of(self, c)
-                    if not current or current['business_id'] != user['business_id']:
-                        raise PermissionError('Accès expiré. Rechargez votre espace.')
-                    media.mutate(c, current, path.rsplit('/', 1)[-1], payload)
-                    out = media.snapshot(c, current)
+                with self._mutation_transaction() as (c, user):
+                    if not user:
+                        return
+                    media.mutate(c, user, path.rsplit('/', 1)[-1], payload)
+                    out = media.snapshot(c, user)
             return self._send({'ok': True, 'business_id': user['business_id'], 'media': out,
                                **({'uploadedId': uploaded_id} if uploading else {})})
         except PermissionError as error:
@@ -956,19 +966,22 @@ class Handler(BaseHTTPRequestHandler):
             if not u:
                 return self._send({"ok": False}, 200)
             return self._send({"ok": True, "email": u["email"], "role": u["role"]})
-        if path in ("/api/finance", "/api/knowledge", "/api/daily") or path.startswith("/api/finance-documents/") or path == "/api/invites":
-            u = self._need_user()
-            if not u:
-                return
-            if u["role"] == "client" or (path == "/api/invites" or path.startswith("/api/finance")) and u["role"] != "owner":
-                return self._send({"ok": False, "error": "access denied"}, 403)
+        if path in ("/api/finance", "/api/knowledge", "/api/daily"):
+            with connection() as c:
+                c.execute('BEGIN')
+                u = self._need_user(c)
+                if not u:
+                    return
+                if u["role"] == "client" or path == "/api/finance" and u["role"] != "owner":
+                    return self._send({"ok": False, "error": "access denied"}, 403)
+            return self._send({"ok": False, "error": "not found"}, 404)
         if path == "/api/portal/estimate":
-            u = self._need_user()
-            if not u:
-                return
             try:
                 with connection() as c:
                     c.execute("BEGIN")
+                    u = self._need_user(c)
+                    if not u:
+                        return
                     current = daily.load(c, u['business_id'])
                     if u['role'] != 'client' or (query.get('dogId') or [''])[0] not in portal.allowed_dogs(c, u, current):
                         return self._send({'ok': False, 'error': 'access denied'}, 403)
@@ -977,20 +990,17 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send({'ok': True, 'quote': result})
             except (ValueError, KeyError):
                 return self._send({'ok': False, 'error': 'invalid service dates'}, 400)
-        if path == "/api/state":
+        if path in ("/api/state", "/api/dogs", "/api/observations", "/api/invites"):
             with connection() as c:
                 c.execute('BEGIN')
                 u = self._need_user(c)
-                if u:
-                    return self._send(state_of(u, c))
-            return
-        if path == "/api/dogs":
-            with connection() as c:
-                c.execute('BEGIN')
-                u = self._need_user(c)
-                if u:
-                    return self._send({"ok": True, "dogs": state_of(u, c)["dogs"]})
-            return
+                if not u:
+                    return
+                if path == "/api/invites" and u["role"] != "owner":
+                    return self._send({"ok": False, "error": "access denied"}, 403)
+                state = state_of(u, c)
+                key = path.rsplit('/', 1)[-1]
+                return self._send(state if key == 'state' else {"ok": True, key: state[key]})
         if path.startswith("/api/dogs/"):
             with connection() as c:
                 c.execute('BEGIN')
@@ -1011,16 +1021,6 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send({"ok": False, "error": "not found"}, 404)
             return self._send({"ok": True, "dog": {"id": row["id"], "slug": row["slug"],
                                                    "name": row["name"]}})
-        if path == "/api/observations":
-            u = self._need_user()
-            if not u:
-                return
-            return self._send({"ok": True, "observations": state_of(u)["observations"]})
-        if path == "/api/invites":
-            u = self._need_user()
-            if not u:
-                return
-            return self._send({"ok": True, "invites": state_of(u)["invites"]})
         if path.startswith(("/api/documents/", "/api/finance-documents/", "/api/client-documents/")):
             with connection() as c:
                 c.execute('BEGIN')
@@ -1051,20 +1051,22 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(row["contents"])
             return
         if path.startswith("/api/blobs/"):
-            u = self._need_user()
-            if not u:
-                return
-            if u["role"] == "client":
-                return self._send({"ok": False, "error": "access denied"}, 403)
-            name = path[len("/api/blobs/"):]
-            if not BLOB_RE.match(name):
-                return self._send({"ok": False, "error": "not found"}, 404)
-            full = os.path.realpath(os.path.join(blobs_dir(), str(u["business_id"]), name))
-            root = os.path.realpath(os.path.join(blobs_dir(), str(u["business_id"])))
-            if not full.startswith(root + os.sep) or not os.path.isfile(full):
-                return self._send({"ok": False, "error": "not found"}, 404)
-            with open(full, "rb") as f:
-                blob = f.read()
+            with connection() as c:
+                c.execute('BEGIN')
+                u = self._need_user(c)
+                if not u:
+                    return
+                if u["role"] == "client":
+                    return self._send({"ok": False, "error": "access denied"}, 403)
+                name = path[len("/api/blobs/"):]
+                if not BLOB_RE.match(name):
+                    return self._send({"ok": False, "error": "not found"}, 404)
+                full = os.path.realpath(os.path.join(blobs_dir(), str(u["business_id"]), name))
+                root = os.path.realpath(os.path.join(blobs_dir(), str(u["business_id"])))
+                if not full.startswith(root + os.sep) or not os.path.isfile(full):
+                    return self._send({"ok": False, "error": "not found"}, 404)
+                with open(full, "rb") as f:
+                    blob = f.read()
             ext = name.rsplit(".", 1)[-1]
             mime = {"webm": "audio/webm", "ogg": "audio/ogg", "m4a": "audio/mp4",
                     "wav": "audio/wav", "mp3": "audio/mpeg"}.get(ext, "application/octet-stream")
@@ -1088,18 +1090,11 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/auth/logout":
             if not self._need_mutation_user():
                 return
-            raw = self.headers.get("Cookie")
-            if raw:
-                try:
-                    sid = httpcookies.SimpleCookie(raw).get(COOKIE)
-                    if sid and sid.value:
-                        with _lock:
-                            c = db()
-                            c.execute("DELETE FROM session WHERE sh=?", (_h(sid.value),))
-                            c.commit()
-                            c.close()
-                except httpcookies.CookieError:
-                    pass
+            with self._mutation_transaction() as (c, u):
+                if not u:
+                    return
+                sid = httpcookies.SimpleCookie(self.headers.get("Cookie")).get(COOKIE)
+                c.execute("DELETE FROM session WHERE sh=?", (_h(sid.value),))
             return self._send({"ok": True}, 200, [("Set-Cookie", cookie_header("", clear=True))])
         payload = self._read_json()
         if payload is None:
@@ -1116,8 +1111,9 @@ class Handler(BaseHTTPRequestHandler):
             if route == "members" and not EMAIL_RE.fullmatch(str(payload.get("email", "")).strip()):
                 return self._send({"ok": False, "error": "invalid email"}, 400)
             try:
-                with _lock, connection() as c:
-                    c.execute("BEGIN IMMEDIATE")
+                with self._mutation_transaction() as (c, u):
+                    if not u:
+                        return
                     if self._advance_revision(c, u) is None:
                         return
                     portal.mutate(c, u, route, payload)
@@ -1128,17 +1124,18 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send({"ok": False, "error": str(error)}, 400)
             return self._send(result)
         if path == "/api/documents":
-            return self._write_daily(u, payload, uploading=True)
+            return self._write_daily(payload, uploading=True)
         if path == "/api/import":
-            return self._write_care(u, payload, importing=True)
+            return self._write_care(payload, importing=True)
         if path == "/api/dogs":
             slug = str(payload.get("slug") or "").strip()
             name = str(payload.get("name") or slug).strip()[:80]
             if not SLUG_RE.fullmatch(slug):
                 return self._send({"ok": False, "error": "bad slug"}, 400)
             try:
-                with _lock, connection() as c:
-                    c.execute("BEGIN IMMEDIATE")
+                with self._mutation_transaction() as (c, u):
+                    if not u:
+                        return
                     revision = self._advance_revision(c, u)
                     if revision is None:
                         return
@@ -1170,19 +1167,22 @@ class Handler(BaseHTTPRequestHandler):
             elif "mpeg" in typ or "mp3" in typ:
                 ext = "mp3"
             name = hashlib.sha256(blob).hexdigest()[:32] + "." + ext
-            dest_dir = os.path.join(blobs_dir(), str(u["business_id"]))
-            os.makedirs(dest_dir, exist_ok=True)
-            dest = os.path.join(dest_dir, name)
-            if not os.path.isfile(dest):
-                staged = None
-                try:
-                    with tempfile.NamedTemporaryFile(dir=dest_dir, delete=False) as f:
-                        staged = f.name
-                        f.write(blob)
-                    os.replace(staged, dest)
-                finally:
-                    if staged and os.path.exists(staged):
-                        os.unlink(staged)
+            with self._mutation_transaction() as (c, u):
+                if not u:
+                    return
+                dest_dir = os.path.join(blobs_dir(), str(u["business_id"]))
+                os.makedirs(dest_dir, exist_ok=True)
+                dest = os.path.join(dest_dir, name)
+                if not os.path.isfile(dest):
+                    staged = None
+                    try:
+                        with tempfile.NamedTemporaryFile(dir=dest_dir, delete=False) as f:
+                            staged = f.name
+                            f.write(blob)
+                        os.replace(staged, dest)
+                    finally:
+                        if staged and os.path.exists(staged):
+                            os.unlink(staged)
             return self._send({"ok": True, "ref": name})
         return self._send({"ok": False, "error": "not found"}, 404)
 
@@ -1197,18 +1197,18 @@ class Handler(BaseHTTPRequestHandler):
         if not u:
             return
         if path == "/api/finance":
-            return self._write_finance(u, payload)
+            return self._write_finance(payload)
         if path == "/api/knowledge":
-            return self._write_knowledge(u, payload)
+            return self._write_knowledge(payload)
         if path == "/api/daily":
-            return self._write_daily(u, payload)
+            return self._write_daily(payload)
         key = {"/api/observations": "observations", "/api/invites": "invites",
                "/api/prefs": "language"}.get(path)
         if not key:
             return self._send({"ok": False, "error": "not found"}, 404)
         if key not in payload:
             return self._send({"ok": False, "error": "missing " + key}, 400)
-        return self._write_care(u, {key: payload[key]})
+        return self._write_care({key: payload[key]})
 
     def _serve_static(self, path):
         root = static_root()
