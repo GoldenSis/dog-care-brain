@@ -32,7 +32,7 @@ class FinanceBrowserTest(BrowserFixture):
         }''')
         await self.page.reload()
         await self.wait_ready()
-        await self.page.click('[data-page="business"]')
+        await self.open_route('business')
         await self.page.click('#finance-new-expense')
         await self.page.fill('[name="party"]', 'Unsaved before export')
         await self.page.evaluate('''async () => {
@@ -240,9 +240,9 @@ class FinanceBrowserTest(BrowserFixture):
         await self.page.locator('[data-finance-canvas="199"]').scroll_into_view_if_needed()
         await self.page.wait_for_function("document.querySelector('[data-finance-canvas=\"199\"]').width > 0")
         self.assertLessEqual((await self.page.evaluate('canvasMemory()'))['peak'], 4 * 720 * 720)
-        await self.page.click('[data-page="dogs"]')
+        await self.open_route('dogs')
         await self.page.wait_for_function('canvasMemory().pixels === 0')
-        await self.page.click('[data-page="business"]')
+        await self.open_route('business')
         self.assertEqual(await self.page.locator('[data-region="0,0,width"]').input_value(), '50')
         await self.page.route('**/tesseract.js/tesseract.min.js', lambda route: route.fulfill(
             content_type='text/javascript', body='''window.Tesseract={createWorker:async()=>({
@@ -296,8 +296,8 @@ class FinanceBrowserTest(BrowserFixture):
         for locale in ('fr', 'it', 'de', 'es', 'en'):
             await self.page.select_option('#language-picker', locale)
             await self.page.wait_for_function('!savePending')
-        await self.page.click('[data-page="dogs"]')
-        await self.page.click('[data-page="business"]')
+        await self.open_route('dogs')
+        await self.open_route('business')
         await self.page.check('[name="keepProfile"]')
         await self.save_entry()
         entry['lines'][0]['quantity'] = 2
@@ -441,7 +441,7 @@ class FinanceBrowserTest(BrowserFixture):
         await self.page.fill('#rates-form [name="day"]', '10.50')
         await self.page.click('#rates-form button')
         await self.page.wait_for_function("document.querySelector('#rates-saved').textContent.length > 0 && !savePending")
-        await self.page.click('[data-page="schedule"]')
+        await self.open_route('schedule')
         await self.page.click('#new-booking')
         await self.page.fill('#booking-form [name="client"]', 'Booking client')
         await self.page.select_option('#booking-form [name="service"]', 'day')
@@ -449,7 +449,7 @@ class FinanceBrowserTest(BrowserFixture):
         await self.page.fill('#booking-form [name="end"]', '2026-10-07')
         await self.page.click('#booking-form [type="submit"]')
         await self.page.wait_for_selector('#booking-form', state='detached')
-        await self.page.click('[data-page="business"]')
+        await self.open_route('business')
         await self.page.click('#finance-new-sale')
         self.assertEqual(await self.page.input_value('[name="currency"]'), 'EUR')
         await self.page.click('#finance-booking')
@@ -480,7 +480,7 @@ class FinanceBrowserTest(BrowserFixture):
                     await self.page.evaluate("value=>localStorage.setItem('dogcare-daily-v1',JSON.stringify(value))", value)
                 await self.page.reload()
                 await self.wait_ready()
-                await self.page.click('[data-page="business"]')
+                await self.open_route('business')
                 for kind in ('sale', 'expense'):
                     await self.page.click('#finance-new-sale' if kind == 'sale' else '#finance-new-expense')
                     self.assertEqual(await self.page.locator('#finance-form').count(), 1)
@@ -503,7 +503,7 @@ class FinanceBrowserTest(BrowserFixture):
                     await self.save_entry('draft' if kind == 'sale' else 'confirmed')
                     await self.page.click('#finance-back')
                 await self.page.click('[data-finance-tab="rates"]')
-                await self.page.click('[data-page="capture"]')
+                await self.open_route('capture')
                 self.assertTrue(await self.page.locator('#observation').is_visible())
                 if self.api_mode:
                     await self.page.unroute('**/api/state')
@@ -517,8 +517,8 @@ class FinanceBrowserTest(BrowserFixture):
         self.assertTrue(await self.page.evaluate('''entries => {
           const next=FinanceStore.snapshot();next.entries.push(...entries);return FinanceStore.save(next);
         }''', entries))
-        await self.page.click('[data-page="dashboard"]')
-        await self.page.click('[data-page="business"]')
+        await self.open_route('dashboard')
+        await self.open_route('business')
 
     async def test_paid_editor_preserves_payment_currency_and_direction(self):
         entry = await self.page.evaluate('''() => {
@@ -660,7 +660,7 @@ class FinanceBrowserTest(BrowserFixture):
         await self.page.click('#finance-new-expense')
         await self.page.click('#finance-resume')
         self.assertEqual(await self.page.input_value('[name="party"]'), 'Unsaved client')
-        await self.page.click('[data-page="dashboard"]')
+        await self.open_route('dashboard')
         await self.page.click('[data-finance-rates]')
         self.assertTrue(await self.page.locator('#rates-form').is_visible())
         await self.page.click('#finance-resume')
@@ -692,13 +692,13 @@ class FinanceBrowserTest(BrowserFixture):
             ''')
         await self.page.reload()
         await self.wait_ready()
-        await self.page.click('[data-page="business"]')
+        await self.open_route('business')
         self.assertEqual(await self.page.locator('.finance-table').count(), 0)
         self.assertTrue(await self.page.locator('#finance-export').is_disabled())
         self.assertFalse(await self.page.evaluate('FinanceStore.save(FinanceModel.empty())'))
-        await self.page.click('[data-page="capture"]')
+        await self.open_route('capture')
         self.assertTrue(await self.page.locator('#observation').is_visible())
-        await self.page.click('[data-page="business"]')
+        await self.open_route('business')
         if self.api_mode:
             await self.page.unroute('**/api/state')
         else:
@@ -782,7 +782,7 @@ class FinanceBrowserTest(BrowserFixture):
                 await self.page.route('**/pdfjs-dist/pdf.mjs', lambda route: route.fulfill(content_type='text/javascript', body=module))
                 await self.page.reload()
                 await self.wait_ready()
-                await self.page.click('[data-page="business"]')
+                await self.open_route('business')
                 await self.page.click('#finance-import')
                 await self.page.set_input_files('#finance-files', {'name': 'reader.pdf', 'mimeType': 'application/pdf', 'buffer': original})
                 await self.page.wait_for_function('!savePending')
@@ -810,7 +810,7 @@ class FinanceBrowserTest(BrowserFixture):
     async def asyncSetUp(self):
         self.sid = self.login(f'finance-{self._testMethodName}@example.test')
         await super().asyncSetUp()
-        await self.page.click('#main-nav [data-page="business"]')
+        await self.open_route('business')
 
     async def snapshot(self):
         return await self.page.evaluate('FinanceStore.snapshot()')
@@ -838,7 +838,7 @@ class FinanceBrowserTest(BrowserFixture):
         await self.page.wait_for_function('!savePending')
         await self.page.reload()
         await self.wait_ready()
-        await self.page.click('[data-page="business"]')
+        await self.open_route('business')
         data = await self.snapshot()
         self.assertEqual(len(data['entries']), 1)
         self.assertEqual(data['entries'][0]['payments'][0]['amountMinor'], 3500)
@@ -893,7 +893,7 @@ class FinanceBrowserTest(BrowserFixture):
         }''', base64.b64encode(photo).decode()))
         await self.page.reload()
         await self.wait_ready()
-        await self.page.click('[data-page="business"]')
+        await self.open_route('business')
         saved = await self.snapshot()
         self.assertEqual(await self.page.locator('[data-finance-entry]').count(), 4)
         totals = await self.page.locator('.finance-totals strong').all_inner_texts()
@@ -1014,7 +1014,7 @@ class FinanceBrowserTest(BrowserFixture):
         await self.save_entry('confirmed')
         await self.page.reload()
         await self.wait_ready()
-        await self.page.click('[data-page="business"]')
+        await self.open_route('business')
         data = await self.snapshot()
         self.assertEqual(sum(e['status']=='confirmed' for e in data['entries']), 1)
         async with self.page.expect_download() as info:
@@ -1083,7 +1083,7 @@ class FinanceBrowserTest(BrowserFixture):
         await self.save_entry('confirmed')
         await self.page.reload()
         await self.wait_ready()
-        await self.page.click('[data-page="business"]')
+        await self.open_route('business')
         saved = await self.snapshot()
         self.assertEqual(saved['entries'][0], previous)
         self.assertEqual([e['number'] for e in saved['entries'][1:]], ['  TOTAL  ', '', 'F-701'])
@@ -1155,7 +1155,7 @@ class FinanceBrowserTest(BrowserFixture):
         await self.save_entry('confirmed')
         await self.page.reload()
         await self.wait_ready()
-        await self.page.click('[data-page="business"]')
+        await self.open_route('business')
         saved = await self.snapshot()
         self.assertEqual(saved['entries'][0]['party'], 'Fournisseur vérifié — démo')
         self.assertEqual(saved['entries'][0]['status'], 'confirmed')
@@ -1200,7 +1200,7 @@ class FinanceBrowserTest(BrowserFixture):
         other = await self.context.new_page()
         await other.goto(self.url)
         await other.wait_for_function("document.querySelector('#app-content')?.dataset.ready === 'true'")
-        await other.click('[data-page="business"]')
+        await self.open_route('business', page=other)
         await other.click('#finance-new-expense')
         await other.fill('[name="party"]', 'Unsaved other tab')
         await self.page.click('#finance-new-expense')
@@ -1270,8 +1270,8 @@ class FinanceBrowserTest(BrowserFixture):
         for locale in ('fr', 'en', 'it', 'de', 'es'):
             await self.page.select_option('#language-picker', locale)
             await self.page.wait_for_function('!savePending')
-            await self.page.click('[data-page="dashboard"]')
-            await self.page.click('[data-page="business"]')
+            await self.open_route('dashboard')
+            await self.open_route('business')
             self.assertEqual(await self.page.input_value('[name="party"]'), 'Day care')
             self.assertEqual(await self.page.input_value('[name="description-0"]'), 'All good')
         await self.save_entry()
@@ -1285,12 +1285,12 @@ class FinanceBrowserTest(BrowserFixture):
                 self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth>innerWidth'))
             await self.page.click('[data-finance-tab="journal"]')
             await self.capture_evidence(f'finance-fr-{width}-{self.api_mode}.png')
-            pages = await self.page.locator('#main-nav [data-page]').evaluate_all('(nodes)=>nodes.map(n=>n.dataset.page)')
+            pages = await self.page.locator('[data-page]').evaluate_all('(nodes)=>nodes.map(n=>n.dataset.page)')
             self.assertEqual(len(pages), 12)
             for page in pages:
-                await self.page.click(f'#main-nav [data-page="{page}"]')
+                await self.open_route(f'{page}')
                 self.assertEqual(await self.page.get_attribute(f'[data-page="{page}"]','aria-current'),'page')
-            await self.page.click('[data-page="business"]')
+            await self.open_route('business')
         self.assertEqual(self.console_errors, [])
         self.assertEqual(self.page_errors, [])
 
@@ -1309,7 +1309,7 @@ class StaticFinanceBrowserTest(FinanceBrowserTest):
                 ''')
             await self.page.reload()
             await self.wait_ready()
-            await self.page.click('[data-page="business"]')
+            await self.open_route('business')
             await self.page.click('#finance-new-expense')
             self.assertTrue(await self.page.locator('#finance-bookings-unavailable').is_visible())
             self.assertEqual(await self.page.input_value('[name="currency"]'), '')

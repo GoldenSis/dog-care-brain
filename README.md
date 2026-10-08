@@ -1,6 +1,6 @@
 # DogCare Brain
 
-A polished, build-free MVP for a small dog-care business. This premium **Muse** edition is branded for Adine-Sophie and Le Bus des Toutous. It follows Billie Blue and Charlie Rose from daily care capture through owner updates, scheduling, media, and accounting preparation.
+A polished, build-free MVP for a small dog-care business. This premium **Muse** edition is branded for Adine-Sophie and Le Bus des Toutous. It provides a public service welcome, a private client space and a complete dog-sitter workspace. The static demo retains Billie Blue and Charlie Rose. See [client access, requests, pricing and login delivery](docs/client-portal.md).
 
 ## Run locally
 
@@ -18,24 +18,21 @@ To [register a dog](docs/daily-workflows.md#registering-a-dog) without a booking
 
 Static mode stores observations, pending invite previews, and language in the browser's `localStorage` (`dogcare-observations`, `dogcare-invites`, and `dogcare-language`), with operational records and documents in `dogcare-daily-v1` and [private experience drafts](docs/maison-sante.md) in `dogcare-knowledge-v1`. [Accounting records and originals](docs/comptabilite.md) use a separate IndexedDB database, `dogcare-finance-v1`. Browser quota limits apply; no cloud synchronization is implied. **Reset demo observations** in Settings restores sample observations while retaining saved notes, registered dogs, daily records, experiences, accounting records and originals, invites and language.
 
-Slice 1 (accounts, SQLite, still zero pip deps) — local only, no email keys:
+Account mode (SQLite, zero pip dependencies) opens on the public welcome. For an isolated local demo:
 
 ```bash
-python3 api/server.py          # http://127.0.0.1:8787  (sets window.DOGCARE_API)
-# In another terminal while the server is running:
-curl -X POST http://127.0.0.1:8787/api/auth/request \
-  -H 'Content-Type: application/json' -d '{"email":"you@example.com"}'
-# Open the link in ~/.local/share/dogcare-brain/.dev-outbox/*.json
+DC_AUTH_MODE=development DC_ALLOW_DEMO_SIGNUP=1 python3 api/server.py
+# http://127.0.0.1:8787 — explicit local development only
 ```
 
-Open the `link` value from the newest outbox JSON for your email in the same browser profile where you want to use the app. Links are single-use and expire after 15 minutes; repeat the request above for a replacement if the link has expired or was already used. First verification creates a separate business for each new email, an owner account, and the Billie/Charlie demo dogs and observations. The business name comes from the email's local part; the interface retains the pilot branding and profiles. Later sign-ins with the same email return to that business. Sessions last 90 days. There is no sign-in form or sign-out control yet; use the auth endpoints below. Opening account mode without a valid session shows the [account recovery screen](#saving-and-recovery) and keeps care capture disabled.
+Create synthetic access with the [preview seeder](docs/client-portal.md#isolated-verification), or request a demo link through `/api/auth/request` in this explicit development mode and open the newest private outbox JSON. Without these flags, unknown emails never create owners. Real accounts require explicit owner bootstrap and configured encrypted login delivery; see [transport configuration](docs/client-portal.md#login-transport). No deployment or real email receipt is implied by local tests.
 
 ### Import browser records
 
 To import existing static-mode records, stop the static server and start account mode on the **same hostname and port** before saving anything to the business account. For the static URL above:
 
 ```bash
-DC_HOST=localhost DC_PORT=4173 python3 api/server.py
+DC_AUTH_MODE=development DC_ALLOW_DEMO_SIGNUP=1 DC_HOST=localhost DC_PORT=4173 python3 api/server.py
 # In another terminal:
 curl -X POST http://localhost:4173/api/auth/request \
   -H 'Content-Type: application/json' -d '{"email":"you@example.com"}'
@@ -44,7 +41,7 @@ curl -X POST http://localhost:4173/api/auth/request \
 
 Use your original scheme, hostname, and port if different. `localhost:4173` and `127.0.0.1:8787` have separate browser storage; the default account URL cannot see records from the static URL. Sign in to an unused business account at the original origin, accept the recording notice if shown, and let the import finish before making account writes. Browser copies stay intact, but an account already used for care writes cannot import them.
 
-Account mode imports whichever of the three browser keys exist, once per unused business. Missing keys leave the corresponding account data unchanged; explicitly empty observations or invites clear those collections. A language-only import also consumes this opportunity. The server's `imported` flag means import eligibility is closed, whether by import or by a successful observation, invite, language, dog, daily-record, document, experience or accounting write. Uploading audio alone does not close it. A browser marker (`dogcare-imported:<business_id>`) also prevents repeat automatic imports; the server flag protects the account across browser profiles. With no browser keys, the new account keeps its demo data and remains eligible until a care write.
+Account mode imports whichever of the three browser keys exist, once per unused business. Missing keys leave the corresponding account data unchanged; explicitly empty observations or invites clear those collections. A language-only import also consumes this opportunity. The server's `imported` flag means import eligibility is closed, whether by import or by a successful observation, invite, language, dog, daily-record, document, experience or accounting write. Uploading audio alone does not close it. A browser marker (`dogcare-imported:<business_id>`) also prevents repeat automatic imports; the server flag protects the account across browser profiles. With no browser keys, the account remains eligible until a care write. Explicit development demo accounts retain demo data; operator-created real accounts start empty. Clients never import browser owner history.
 
 **Daily dog names and owner associations, bookings, rates, clients, documents, private experiences and accounting records/originals are not imported by this legacy three-key process.** Imported observations retain their dog identifiers, but do not transfer daily profile details. The excluded records and files remain in their original browser storage; see [daily storage and migration](docs/daily-workflows.md#storage-and-migration), [experience storage](docs/maison-sante.md#storage-and-compatibility) and [accounting storage](docs/comptabilite.md#storage-and-contracts).
 
@@ -69,13 +66,13 @@ Use absolute paths for overrides. `DC_DATA_DIR` expands `~`; the individual path
 
 The root `.private/` Git ignore rule does not change this storage boundary or prevent static serving of files inside that directory.
 
-The default launcher binds to loopback HTTP. The `dc_s` session cookie is HttpOnly, SameSite=Lax, and scoped to `/`. `DC_INSECURE_COOKIE=0` is available for an HTTPS reverse proxy; the stdlib listener itself still serves HTTP. Magic-link hosts come from the request's `Host` header. Static mode never injects the API flag; leave it unset when serving with `python3 -m http.server`.
+The default launcher binds to loopback HTTP. The `dc_s` session cookie is HttpOnly, SameSite=Lax, and scoped to `/`. `DC_INSECURE_COOKIE=0` is available for an HTTPS reverse proxy; the stdlib listener itself still serves HTTP. Production magic links use the fixed HTTPS `DC_PUBLIC_ORIGIN`; only loopback development links use the request Host. Login delivery is disabled by default; see the [auth transport configuration](docs/client-portal.md#login-transport). Static mode never injects the API flag; leave it unset when serving with `python3 -m http.server`.
 
 ### Saving and recovery
 
 Account mode loads server state before enabling navigation and capture; a failed load shows **Reload account** (**Recharger le compte** in French) and does not fall back to browser/demo history. Loading and recovery initially appear in French. On the recovery screen, the language picker translates the heading, explanation and reload button into French, English, Italian, German or Spanish. This selection lasts only until reload and writes neither account preferences nor browser settings. Once account loading succeeds, the saved account language applies.
 
-If you are not signed in, open your existing sign-in link in this browser profile. If it has expired or was already used, request a replacement from the person who gave you access; for local development, repeat `POST /api/auth/request` as above. Connection failures, failed browser imports and paused recording imports instead show their own translated reload guidance.
+If you are not signed in, the public welcome provides **Mon espace** and a sign-in form. Expired or already-used links offer a replacement request. The owner must first link a client email to an existing client and their dogs. Connection failures, failed browser imports and paused recording imports instead show their own translated reload guidance.
 
 Account saves complete before the app clears a draft or reports success. While saving, navigation and other controls are disabled. Each adapter API request has a 15-second deadline, including reading the response; a timeout restores interaction and keeps the draft available to edit, copy, or retry. Failed writes show an error in the form or a toast. If another tab changes accounts or saves newer care data, the stale tab cannot overwrite it: copy any unsaved draft, reload, then reapply it to the current records. Tabs do not automatically refresh each other's changes. A lost response may follow a committed write, so check the reloaded state before reapplying a draft.
 
@@ -90,11 +87,11 @@ The local API uses JSON objects and a `dc_s` session cookie. JSON responses, pro
 | Method and path | Request / result |
 | --- | --- |
 | `GET /api/health` | Public health check: `{ "ok": true, "ts": <Unix seconds> }`. |
-| `POST /api/auth/request` | `{ "email": "you@example.com" }`; trims/lowercases the email and writes an outbox letter. Returns `{ "ok": true, "mailed": false }`. |
+| `POST /api/auth/request` | `{ "email": "you@example.com", "service": "day" }`; signs in known members through the configured transport. Public form uses `/api/auth/access`; see [delivery rules](docs/client-portal.md#login-transport). |
 | `GET /api/auth/verify?t=<token>` | Consumes a magic link, sets the session cookie, and redirects to `/?signin=ok`; invalid/expired links redirect with `signin=bad` or `signin=expired`. |
 | `GET /api/auth/me` | Returns `{ "ok": true, "email": "…", "role": "owner" }` when signed in, otherwise `{ "ok": false }` with HTTP 200. |
 | `POST /api/auth/logout` | Send `{}` and the business header below; deletes the current session and clears its cookie. No revision required. |
-| `GET /api/state` | Full snapshot: `ok`, `business_id`, `imported`, `revision`, `email`, `role`, `language`, `dogs`, `observations`, `invites`, `daily`, `knowledge`, `finance`. |
+| `GET /api/state` | Full snapshot: `ok`, `business_id`, `imported`, `revision`, `email`, `role`, `language`, `dogs`, `observations`, `invites`, `daily`, `knowledge`, `finance`, `portal`; contents are projected by role. |
 | `PUT /api/daily` | `{ "daily": <snapshot> }`; replaces the full operational snapshot, preserving uploaded document identities. Returns full account state; see the [daily contract](docs/daily-workflows.md#api-contract). |
 | `PUT /api/knowledge` | `{ "knowledge": <snapshot> }`; replaces all private experience drafts. Returns full account state; see the [experience contract](docs/maison-sante.md#api-contract). |
 | `PUT /api/finance` | `{ "finance": <snapshot>, "uploads": [] }`; saves the full accounting snapshot and any new originals atomically. Returns full account state; see the [accounting contract](docs/comptabilite.md#api-contract). |
@@ -113,7 +110,7 @@ The local API uses JSON objects and a `dc_s` session cookie. JSON responses, pro
 | `POST /api/blobs` | `{ "type": "audio/webm", "data": "<base64 bytes, without data-URL prefix>" }`; returns `{ "ok": true, "ref": "<filename>" }`. No revision required. |
 | `GET /api/blobs/<ref>` | Returns the current business's recording bytes; another business's file is not accessible. |
 
-Except for health and the request/verify/me auth routes, these endpoints require a valid session. Invite roles and permissions are preview data only: there is no invite acceptance or membership-granting endpoint. Dogs registered directly in **Dogs / Chiens** or through Planning join the daily registry via `PUT /api/daily` and become available to the care-note UI. They appear in `daily.dogs` within `/api/state`; registration alone does not create a `/api/dogs` row. Billie and Charlie remain the initial profiles.
+Except for health, public service prices and request/access/verify/me auth routes, endpoints require a valid session and the appropriate role. Legacy invite previews still grant no access; the new owner-only [membership controls](docs/client-portal.md#accounts-and-access) provide explicit client/carer access. Dogs registered directly in **Dogs / Chiens** or through Planning join the daily registry via `PUT /api/daily` and become available to the care-note UI. They appear in `daily.dogs` within `/api/state`; registration alone does not create a `/api/dogs` row. Only explicit development signup seeds Billie and Charlie; real owner bootstrap is empty.
 
 ### Mutation contract
 
@@ -157,7 +154,7 @@ Invoices, expense claims, billed extras, local receipt recognition and accountan
 
 ## Maison de la Santé
 
-Sourced everyday-care guides, labelled provider videos and saved private experience drafts are directly accessible from the workspace navigation. See [Maison de la Santé](docs/maison-sante.md) for the content, storage, compatibility and verification boundaries. Existing records and sessions are preserved; no experience is published or clinically approved by saving it.
+Sourced everyday-care guides, labelled provider videos and saved private experience drafts are accessible from **Tous mes outils** in the workspace. See [Maison de la Santé](docs/maison-sante.md) for the content, storage, compatibility and verification boundaries. Existing records and sessions are preserved; no experience is published or clinically approved by saving it.
 
 ## Try the core flow
 
@@ -176,7 +173,7 @@ New observations store their local calendar date as `YYYY-MM-DD`. Today's handof
 
 ## Try the invite preview flow
 
-1. Open **Invite** (**Inviter** in French) from the sidebar or, on phones, scroll the two-row navigation strip sideways to it.
+1. Open **Invite** (**Inviter** in French) from **Tous mes outils** (All my tools). Real membership controls appear separately from the retained preview.
 2. Choose **Owner** or **Trusted carer**, add a demo name and email, and select share areas.
 3. Review the invite-ready summary and create a **pending invite preview**.
 4. The pending invite is saved in this browser in static mode or in the business account in account mode. No email, WhatsApp, SMS, or notification is sent, and no account access is granted.
@@ -240,7 +237,7 @@ Knowledge checks cover guide search and provider links, topic choices, five loca
 
 Accounting checks cover invoice/extra/payment save/reload, local receipt OCR and PDF/manual intake, immutable originals, duplicate rejection, ZIP/XLSX contents, literal cells, failed-save recovery and stale-tab protection in both storage modes. Synthetic raster OCR checks also cover sparse card slips with no supplier, conservative invoice references, reviewed values after reload, numeric workbook cells and links to byte-identical originals. Camera file inputs are exercised with synthetic files; physical-camera operation remains unverified. See [accounting checks](docs/comptabilite.md#local-readers-and-checks) for focused commands; the full Python discovery command above includes the finance browser suite.
 
-Navigation checks cover all 12 destinations and five locales at 1440 × 900, 1024 × 768, and 390 × 844, keyboard activation, active state, 44px targets, a single business brand, and heading visibility after switching from scrolled content. Separate checks verify active-button reveal within the phone strip and a short desktop sidebar.
+Navigation checks cover all 12 destinations and five locales at 1440 × 900, 1024 × 768, and 390 × 844, keyboard activation, active state, 44px targets, a single business brand, and heading visibility after switching from scrolled content. Separate checks verify the compact primary navigation, discoverable tools dialog, keyboard access and return to the selected destination.
 
 Account recovery checks cover French initial copy, all five recovery languages, no account or browser-setting writes when switching languages, and no fallback to demo history. They also check overflow and the reload button's 44px target at the three viewports above.
 

@@ -12,7 +12,7 @@ class KnowledgeBrowserTest(BrowserFixture):
         await super().asyncSetUp()
 
     async def open_health(self):
-        await self.page.click('#main-nav [data-page="health"]')
+        await self.open_route('health')
         self.assertEqual(await self.page.get_attribute('[data-page="health"]', 'aria-current'), 'page')
 
     async def fill_experience(self, title='Quiet greeting'):
@@ -72,7 +72,7 @@ class KnowledgeBrowserTest(BrowserFixture):
                 await self.page.select_option('#language-picker', locale)
                 await self.page.wait_for_function('!savePending')
                 await self.assert_experience_fields(values)
-                await self.page.click('#main-nav [data-page="dashboard"]')
+                await self.open_route('dashboard')
                 await self.open_health()
                 await self.assert_experience_fields(values)
         await self.submit()
@@ -155,7 +155,7 @@ class KnowledgeBrowserTest(BrowserFixture):
             await self.page.select_option('#language-picker', locale)
             await self.page.wait_for_function('!savePending')
             await self.assert_experience_fields(values)
-            await self.page.click('#main-nav [data-page="dashboard"]')
+            await self.open_route('dashboard')
             await self.open_health()
             await self.assert_experience_fields(values)
             self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
@@ -340,7 +340,7 @@ class KnowledgeBrowserTest(BrowserFixture):
         self.assertTrue(await self.page.locator('#experience-form [role="alert"]').is_visible())
         self.assertEqual(await self.page.input_value('[name="title"]'), 'Quiet greeting')
         self.assertEqual(await self.page.locator('.knowledge-saved').count(), 0)
-        await self.page.click('[data-page="dashboard"]')
+        await self.open_route('dashboard')
         await self.open_health()
         self.assertEqual(await self.page.input_value('[name="title"]'), 'Quiet greeting')
         await self.page.reload()
@@ -353,7 +353,7 @@ class KnowledgeBrowserTest(BrowserFixture):
         self.addAsyncCleanup(other.close)
         await other.goto(self.url)
         await other.wait_for_selector('#app-content[data-ready="true"]')
-        await other.click('[data-page="health"]')
+        await self.open_route('health', page=other)
         await other.click('#add-experience')
         await other.fill('[name="title"]', 'Stale second draft')
         await other.fill('[name="body"]', 'This draft must remain available after conflict.')

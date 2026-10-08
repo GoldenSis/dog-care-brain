@@ -20,6 +20,9 @@ from urllib.parse import parse_qs, unquote, urlparse
 import daily
 import knowledge
 import finance
+import portal
+import quotes
+import login_delivery
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT_DEFAULT = os.path.dirname(HERE)
@@ -136,6 +139,11 @@ def init():
         schema = f.read()
     with connection() as c:
         c.executescript(schema)
+        for table in ('client_update','client_document','booking_request'):
+            if 'client_id' not in {r[1] for r in c.execute('PRAGMA table_info('+table+')')}:
+                c.execute('ALTER TABLE '+table+' ADD COLUMN client_id TEXT')
+        for row in c.execute('SELECT business_id,snapshot FROM business_daily').fetchall():
+            daily.bind_clients(c,row['business_id'],json.loads(row['snapshot']))
         cols = [r[1] for r in c.execute("PRAGMA table_info(business)")]
         if "imported" not in cols:
             c.execute("ALTER TABLE business ADD COLUMN imported INTEGER NOT NULL DEFAULT 0")
@@ -163,7 +171,8 @@ def write_outbox(email, link):
         "link": link,
         "date": formatdate(localtime=True),
     }
-    with open(path, "w", encoding="utf-8") as f:
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2)
         f.write("\n")
     return path
@@ -201,7 +210,7 @@ def user_of(handler):
 
 
 def ensure_account(c, email):
-    """Reuse an email's account or create its own business, owner, and demo care data."""
+    """Explicit owner bootstrap; public login can only reuse known memberships."""
     now = int(time.time())
     row = c.execute("SELECT id, business_id FROM user WHERE email=?", (email,)).fetchone()
     if row:
@@ -218,7 +227,8 @@ def ensure_account(c, email):
     )
     uid = c.execute("SELECT last_insert_rowid()").fetchone()[0]
     c.execute("INSERT INTO pref(user_id, language) VALUES(?, 'en')", (uid,))
-    seed_business(c, bid, uid)
+    if login_delivery.demo_signup_enabled():
+        seed_business(c, bid, uid)
     return uid, bid
 
 
@@ -410,19 +420,45 @@ def replace_invites(c, bid, invites):
         )
 
 
-def do_auth_request(payload, host):
-    email = str(payload.get("email") or "").strip().lower()[:255]
-    if not EMAIL_RE.match(email):
+def do_auth_request(payload, host, ip="", allow_demo=False):
+    email = str(payload.get("email") or "").strip().lower()
+    if len(email) > 255 or not EMAIL_RE.fullmatch(email):
         return {"ok": False, "error": "invalid email"}, 400
-    tok = secrets.token_urlsafe(32)
+    try:
+        delivery = login_delivery.configuration()
+    except login_delivery.DeliveryUnavailable:
+        return {"ok": False, "error": "login delivery unavailable"}, 503
     now = int(time.time())
     with _lock, connection() as c:
-        c.execute("INSERT INTO magic(th, email, created, expires) VALUES(?,?,?,?)",
-                  (_h(tok), email, now, now + MAGIC_TTL))
-    proto = "http" if cfg("DC_INSECURE_COOKIE", "1") == "1" else "https"
-    link = f"{proto}://{host}/api/auth/verify?t={tok}"
-    write_outbox(email, link)
-    return {"ok": True, "mailed": False}, 200
+        if delivery['mode'] == 'smtp':
+            # Bound mail abuse even for unknown addresses; never reveal membership.
+            c.execute('DELETE FROM login_attempt WHERE started < ?', (now-3600,))
+            for key,limit in ((_h('email:'+email),5),(_h('ip:'+ip),50)):
+                row = c.execute('SELECT count FROM login_attempt WHERE key=?', (key,)).fetchone()
+                if row and row[0] >= limit:
+                    return {"ok":False,"error":"try again later"},429
+                c.execute('INSERT INTO login_attempt(key,started,count) VALUES(?,?,1) ON CONFLICT(key) DO UPDATE SET count=count+1', (key,now))
+        known = c.execute("SELECT role FROM user WHERE email=?", (email,)).fetchone()
+        if (not known or known['role'] not in portal.ROLES) and not (allow_demo and login_delivery.demo_signup_enabled() and not known):
+            return {"ok": True, "mailed": delivery['mode']=='smtp'}, 200
+        tok = secrets.token_urlsafe(32)
+        c.execute("INSERT INTO magic(th,email,created,expires) VALUES(?,?,?,?)", (_h(tok),email,now,now+MAGIC_TTL))
+    if delivery['mode']=='smtp':
+        origin=delivery['origin']  # Never use a caller-controlled Host in mail.
+    else:
+        proto="http" if cfg("DC_INSECURE_COOKIE","1")=="1" else "https"
+        origin=f"{proto}://{host}"
+    link=f"{origin}/api/auth/verify?t={tok}"
+    if payload.get('service') in ('day','night','walk'):
+        link+='&service='+payload['service']
+    try:
+        if delivery['mode']=='development':write_outbox(email,link)
+        else:login_delivery.send(delivery,email,link)
+    except (login_delivery.DeliveryUnavailable,OSError):
+        with _lock,connection() as c:
+            c.execute('DELETE FROM magic WHERE th=?',(_h(tok),))
+        return {"ok":False,"error":"login delivery unavailable"},503
+    return {"ok":True,"mailed":delivery['mode']=='smtp'},200
 
 
 def do_auth_verify(query):
@@ -434,6 +470,9 @@ def do_auth_verify(query):
         c.execute("BEGIN IMMEDIATE")
         row = c.execute("SELECT email, expires, used FROM magic WHERE th=?", (_h(tok),)).fetchone()
         if not row or row["used"] or row["expires"] < now:
+            return None, "expired"
+        member = c.execute('SELECT id,role FROM user WHERE email=?',(row['email'],)).fetchone()
+        if (member and member['role'] not in portal.ROLES) or (not member and not login_delivery.demo_signup_enabled()):
             return None, "expired"
         uid, _bid = ensure_account(c, row["email"])
         c.execute("UPDATE magic SET used=1 WHERE th=?", (_h(tok),))
@@ -459,15 +498,15 @@ def state_of(user, c=None):
             for r in c.execute("SELECT id, slug, name FROM dog WHERE business_id=? ORDER BY id",
                                (user["business_id"],))]
     business = c.execute("SELECT imported, revision FROM business WHERE id=?", (user["business_id"],)).fetchone()
-    obs = observations_map(c, user["business_id"])
-    inv = invites_list(c, user["business_id"])
-    return {"ok": True, "business_id": user["business_id"], "imported": bool(business["imported"]),
+    obs = observations_map(c, user["business_id"]) if user["role"] in portal.STAFF else {}
+    inv = invites_list(c, user["business_id"]) if user["role"] == "owner" else []
+    return portal.project(c, user, {"ok": True, "business_id": user["business_id"], "imported": bool(business["imported"]),
             "revision": business["revision"],
             "email": user["email"], "role": user["role"],
             "language": lang, "dogs": dogs, "observations": obs, "invites": inv,
             "daily": daily.load(c, user["business_id"]),
-            "knowledge": knowledge.load(c, user["business_id"]),
-            "finance": finance.load(c, user["business_id"])}
+            "knowledge": knowledge.load(c, user["business_id"]) if user["role"] in portal.STAFF else None,
+            "finance": finance.load(c, user["business_id"]) if user["role"] == "owner" else None})
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -489,6 +528,9 @@ class Handler(BaseHTTPRequestHandler):
         u = user_of(self)
         if not u:
             self._send({"ok": False, "error": "not signed in"}, 401)
+        elif u["role"] not in portal.ROLES:
+            self._send({"ok": False, "error": "access denied"}, 403)
+            return None
         return u
 
     def _read_json(self):
@@ -527,6 +569,14 @@ class Handler(BaseHTTPRequestHandler):
     def _need_mutation_user(self):
         user = self._need_user()
         if not user:
+            return None
+        path = urlparse(self.path).path
+        client_paths = ("/api/prefs", "/api/auth/logout", "/api/portal/requests")
+        owner_paths = ("/api/finance", "/api/invites", "/api/import", "/api/portal/members", "/api/portal/revoke", "/api/portal/extras", "/api/portal/extra-remove", "/api/portal/quote")
+        if ((user["role"] == "client" and path not in client_paths) or
+                (path in owner_paths and user["role"] != "owner") or
+                (path == "/api/portal/requests" and user["role"] != "client")):
+            self._send({"ok": False, "error": "access denied"}, 403)
             return None
         business = self.headers.get("X-DogCare-Business")
         if business != str(user["business_id"]):
@@ -615,7 +665,15 @@ class Handler(BaseHTTPRequestHandler):
                     document.update(id=ident, href="/api/documents/" + ident)
                     current["documents"].append(document)
                 else:
-                    current = daily.validate(payload.get("daily"), current)
+                    previous = current
+                    current = daily.validate(payload.get("daily"), previous)
+                    if user['role'] != 'owner':
+                        old = {b['id']: b for b in previous['bookings']}
+                        if current['rates'] != previous['rates'] or any(
+                            b['unitMinor'] != (old[b['id']]['unitMinor'] if b['id'] in old else None) or
+                            b['currency'] != (old[b['id']]['currency'] if b['id'] in old else current['rates']['currency'])
+                            for b in current['bookings']):
+                            raise ValueError('only the owner can set prices')
                 if uploading:
                     c.execute("INSERT INTO daily_document(business_id,id,mime,contents) VALUES(?,?,?,?)",
                               (user["business_id"], ident, payload["type"], blob))
@@ -636,6 +694,9 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/auth/verify":
             sid, err = do_auth_verify(query)
             dest = "/?signin=ok" if sid else f"/?signin={err or 'bad'}"
+            service = (query.get("service") or [""])[0]
+            if service in ("day", "night", "walk"):
+                dest += "&service=" + service
             self.send_response(302)
             self.send_header("Location", dest)
             self.send_header("Cache-Control", "no-store")
@@ -644,11 +705,40 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", "0")
             self.end_headers()
             return
+        if path == "/api/public/services":
+            # Explicit deployment binding only: never infer a public business from
+            # the first account or expose a visitor's private account snapshot.
+            public_id = cfg("DC_PUBLIC_BUSINESS", "")
+            with connection() as c:
+                exists = c.execute("SELECT id FROM business WHERE id=?", (public_id,)).fetchone() if public_id.isdigit() else None
+                rates = daily.load(c, exists[0])["rates"] if exists else None
+            return self._send({"ok": True, "rates": rates})
         if path == "/api/auth/me":
             u = user_of(self)
             if not u:
                 return self._send({"ok": False}, 200)
             return self._send({"ok": True, "email": u["email"], "role": u["role"]})
+        if path in ("/api/finance", "/api/knowledge", "/api/daily") or path.startswith("/api/finance-documents/") or path == "/api/invites":
+            u = self._need_user()
+            if not u:
+                return
+            if u["role"] == "client" or (path == "/api/invites" or path.startswith("/api/finance")) and u["role"] != "owner":
+                return self._send({"ok": False, "error": "access denied"}, 403)
+        if path == "/api/portal/estimate":
+            u = self._need_user()
+            if not u:
+                return
+            try:
+                with connection() as c:
+                    c.execute("BEGIN")
+                    current = daily.load(c, u['business_id'])
+                    if u['role'] != 'client' or (query.get('dogId') or [''])[0] not in portal.allowed_dogs(c, u, current):
+                        return self._send({'ok': False, 'error': 'access denied'}, 403)
+                    item = {key: (query.get(key) or [''])[0] for key in ('service', 'start', 'end')}
+                    result = quotes.estimate(current, item)
+                return self._send({'ok': True, 'quote': result})
+            except (ValueError, KeyError):
+                return self._send({'ok': False, 'error': 'invalid service dates'}, 400)
         if path == "/api/state":
             u = self._need_user()
             if not u:
@@ -673,6 +763,10 @@ class Handler(BaseHTTPRequestHandler):
                 (did, u["business_id"]),
             ).fetchone()
             c.close()
+            if row and u["role"] == "client":
+                with connection() as c:
+                    if row["slug"] not in portal.allowed_dogs(c, u):
+                        row = None
             if not row:
                 return self._send({"ok": False, "error": "not found"}, 404)
             return self._send({"ok": True, "dog": {"id": row["id"], "slug": row["slug"],
@@ -687,17 +781,21 @@ class Handler(BaseHTTPRequestHandler):
             if not u:
                 return
             return self._send({"ok": True, "invites": state_of(u)["invites"]})
-        if path.startswith(("/api/documents/", "/api/finance-documents/")):
+        if path.startswith(("/api/documents/", "/api/finance-documents/", "/api/client-documents/")):
             u = self._need_user()
             if not u:
                 return
             ident = path.rsplit("/", 1)[1]
-            table = "finance_document" if path.startswith("/api/finance-documents/") else "daily_document"
+            table = "client_document" if path.startswith("/api/client-documents/") else "finance_document" if path.startswith("/api/finance-documents/") else "daily_document"
+            if (table == "finance_document" and u["role"] != "owner") or (table == "daily_document" and u["role"] == "client"):
+                return self._send({"ok": False, "error": "access denied"}, 403)
             if not daily.ID.fullmatch(ident):
                 return self._send({"ok": False, "error": "not found"}, 404)
             with connection() as c:
-                row = c.execute(f"SELECT mime,contents FROM {table} WHERE business_id=? AND id=?",
+                row = c.execute(f"SELECT * FROM {table} WHERE business_id=? AND id=?",
                                 (u["business_id"], ident)).fetchone()
+                if row and table == "client_document" and u["role"] == "client" and (row["dog_id"] not in portal.allowed_dogs(c, u) or row["client_id"] != portal.client_id(c,u)):
+                    row = None
             if not row:
                 return self._send({"ok": False, "error": "not found"}, 404)
             extension = {"application/pdf": "pdf", "image/jpeg": "jpg", "image/png": "png"}[row["mime"]]
@@ -715,6 +813,8 @@ class Handler(BaseHTTPRequestHandler):
             u = self._need_user()
             if not u:
                 return
+            if u["role"] == "client":
+                return self._send({"ok": False, "error": "access denied"}, 403)
             name = path[len("/api/blobs/"):]
             if not BLOB_RE.match(name):
                 return self._send({"ok": False, "error": "not found"}, 404)
@@ -761,13 +861,29 @@ class Handler(BaseHTTPRequestHandler):
         payload = self._read_json()
         if payload is None:
             return
-        if path == "/api/auth/request":
+        if path in ("/api/auth/access", "/api/auth/request"):
             host = (self.headers.get("Host") or "127.0.0.1").split(",")[0].strip()
-            obj, code = do_auth_request(payload, host)
+            obj, code = do_auth_request(payload, host, self.client_address[0], allow_demo=path=="/api/auth/request")
             return self._send(obj, code)
         u = self._need_mutation_user()
         if not u:
             return
+        if path.startswith("/api/portal/"):
+            route = path[len("/api/portal/"):]
+            if route == "members" and not EMAIL_RE.fullmatch(str(payload.get("email", "")).strip()):
+                return self._send({"ok": False, "error": "invalid email"}, 400)
+            try:
+                with _lock, connection() as c:
+                    c.execute("BEGIN IMMEDIATE")
+                    if self._advance_revision(c, u) is None:
+                        return
+                    portal.mutate(c, u, route, payload)
+                    result = state_of(u, c)
+            except PermissionError as error:
+                return self._send({"ok": False, "error": str(error)}, 403)
+            except (ValueError, TypeError, KeyError) as error:
+                return self._send({"ok": False, "error": str(error)}, 400)
+            return self._send(result)
         if path == "/api/documents":
             return self._write_daily(u, payload, uploading=True)
         if path == "/api/import":

@@ -319,7 +319,7 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
         await super().asyncSetUp()
 
     async def route(self, route):
-        await self.page.click(f'#main-nav [data-page="{route}"]')
+        await self.open_route(f'{route}')
         await self.page.wait_for_function('!savePending')
         if route == 'business':
             await self.page.click('[data-finance-tab="rates"]')
@@ -1188,9 +1188,10 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
                         failures.append((width, locale, route, overflow))
                     if locale == 'fr' and width in (390, 1024) and route in ('dashboard', 'dogs', 'handoff', 'story'):
                         await self.capture_evidence(f'daily-long-names-{route}-{width}-{self.api_mode}.png')
-                    active = self.page.locator(f'#main-nav [data-page="{route}"]')
+                    active = self.page.locator(f'[data-page="{route}"]')
                     self.assertEqual(await active.get_attribute('aria-current'), 'page')
-                    self.assertGreaterEqual((await active.bounding_box())['height'], 44)
+                    if await active.is_visible():
+                        self.assertGreaterEqual((await active.bounding_box())['height'], 44)
                     if route == 'capture':
                         button = self.page.locator('#save-observation')
                         self.assertIn(dog_name, await button.inner_text())
@@ -1488,7 +1489,7 @@ class StaticDailyBrowserAcceptanceTest(DailyBrowserAcceptanceTest):
         page.on('console', lambda message: self.console_errors.append(message.text) if message.type == 'error' else None)
         await page.goto(self.url)
         await page.wait_for_function("document.querySelector('#app-content')?.dataset.ready === 'true'")
-        await page.click(f'#main-nav [data-page="{route}"]')
+        await self.open_route(f'{route}', page=page)
         if route == 'business':
             await page.click('[data-finance-tab="rates"]')
         return page
@@ -1515,7 +1516,7 @@ class StaticDailyBrowserAcceptanceTest(DailyBrowserAcceptanceTest):
             self.assertEqual(await other.locator('#rates-saved').inner_text(), '')
         await other.reload()
         await other.wait_for_function("document.querySelector('#app-content')?.dataset.ready === 'true'")
-        await other.click('#main-nav [data-page="business"]')
+        await self.open_route('business', page=other)
         await other.click('[data-finance-tab="rates"]')
         await other.fill('#rates-form [name="day"]', '42.00')
         await other.click('#rates-form button')

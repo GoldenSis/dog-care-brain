@@ -24,6 +24,9 @@
   function syncDogs() {
     const profiles=new Map((w.DogCareAPI?.getDogs() || []).map(dog=>[dog.slug,{id:dog.slug,name:dog.name}]));
     for (const dog of daily.dogs) profiles.set(dog.id,{...dog,owner:client(dog)});
+    if(w.DogCareAPI){
+      for(const key of Object.keys(dogs))if(!profiles.has(key))delete dogs[key];
+    }
     for (const dog of profiles.values()) {
       const existing=Object.hasOwn(dogs,dog.id) ? dogs[dog.id] : null;
       dogs[dog.id]={...(existing || {emoji:'🐕',age:'Profile to complete',breed:'Breed to confirm',last:'',health:'Add current health and medication instructions.',behaviour:'Add routine, triggers and favourite rewards.',vet:'Add preferred vet and emergency contact',vets:[],needs:{energy:'Confirm with owner',movement:'Set a daily movement target',enrichment:'Add favourite enrichment',sensitivities:'Add sensitivities and recovery needs'},colour:''}),name:dog.name,owner:dog.owner ?? existing?.owner ?? ''};
@@ -37,6 +40,7 @@
       const candidate=!w.DogCareAPI && localSnapshot===null ? M.empty() : raw; M.validateDaily(candidate); daily=candidate;
     } catch { loadError=true; }
     syncDogs();
+    if(!Object.hasOwn(dogs,state.dog))state.dog=Object.keys(dogs)[0] || '';
   }
   async function commitDaily(next) {
     if(loadError)return false;
@@ -237,5 +241,5 @@
       if(!ok)return;state.dog=dogId;navigate('dogs');document.querySelector('#dog-documents').scrollIntoView({block:'start'});showToast(text('saved'));
     };
   }
-  w.DailyUI={text,load,snapshot:()=>loadError?null:structuredClone(daily),home,schedule,business,documents,dogControls,rememberDogDraft,bind};
+  w.DailyUI={text,load,snapshot:()=>loadError?null:structuredClone(daily),alerts:()=>unavailable()+followups(),home,schedule,business,documents,dogControls,rememberDogDraft,bind};
 })(window);

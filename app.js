@@ -1905,7 +1905,43 @@ function revealActiveNavigation() {
     });
   }
 }
-function navigate(page) { if(savePending)return; if(!appReady)return; if(state.page==='dogs')DailyUI.rememberDogDraft(); if(state.page==='business')FinanceUI.rememberDraft(); if(state.page==='health')KnowledgeUI.rememberDraft(); if(state.page==='capture'){stopActiveRecording();stopTranscription(true);rememberCaptureDraft();} state.page=page; if(page==='capture')audioDraft=captureDrafts[state.dog]?.audio || null; document.querySelectorAll('.nav-item').forEach(n=>{const active=n.dataset.page===page;n.classList.toggle('active',active);if(active)n.setAttribute('aria-current','page');else n.removeAttribute('aria-current');}); content.innerHTML=views[page](); localizeContent(); bindView(); window.scrollTo({top:0}); revealActiveNavigation(); }
+function navigate(page) {
+  if(savePending || !appReady)return;
+  if(PortalUI.client() && !['dogs','reservations','news','documents'].includes(page))page='dogs';
+  if(!PortalUI.client() && !Object.hasOwn(views,page))page='dashboard';
+  if(!PortalUI.owner() && ['business','invite','settings'].includes(page))page='dashboard';
+  if(state.page==='dogs')DailyUI.rememberDogDraft();
+  if(state.page==='business')FinanceUI.rememberDraft();
+  if(state.page==='health')KnowledgeUI.rememberDraft();
+  if(state.page==='capture'){stopActiveRecording();stopTranscription(true);rememberCaptureDraft();}
+  WelcomeUI.hide();
+  document.querySelector('#workspace-tools-dialog').close();
+  state.page=page;
+  if(page==='capture')audioDraft=captureDrafts[state.dog]?.audio || null;
+  document.querySelectorAll('.nav-item').forEach(n=>{const active=n.dataset.page===page;n.classList.toggle('active',active);if(active)n.setAttribute('aria-current','page');else n.removeAttribute('aria-current');});
+  const needsDog=['capture','assistant','handoff','story'].includes(page) && !Object.keys(dogs).length;
+  if(needsDog)setHeader('',t('Dogs'),true);
+  content.innerHTML=PortalUI.client()?PortalUI.render(page):needsDog?DailyUI.dogControls():page==='dashboard'?PortalUI.ownerHome():views[page]();
+  if(PortalUI.owner() && page==='schedule')content.insertAdjacentHTML('beforeend',QuoteUI.bookings());
+  if(!PortalUI.client() && page==='dogs')content.insertAdjacentHTML('beforeend',PortalUI.sharedTools());
+  if(!PortalUI.client() && page==='invite')content.insertAdjacentHTML('afterbegin',PortalUI.access());
+  localizeContent();bindView();PortalUI.bind();window.scrollTo({top:0});revealActiveNavigation();
+}
+function configureWorkspace() {
+  const client=PortalUI.client(),owner=PortalUI.owner();
+  if(client)document.querySelector('#main-nav').innerHTML=['dogs','reservations','news','documents'].map(page=>`<button class="nav-item" data-page="${page}">${escapeHtml(PortalUI.text(page))}</button>`).join('');
+  document.querySelector('#workspace-tools').hidden=client;
+  document.querySelector('.top-actions [data-go="capture"]').hidden=client;
+  document.querySelectorAll('#workspace-tools-dialog [data-page]').forEach(b=>{b.hidden=client || (!owner && ['business','invite','settings'].includes(b.dataset.page));});
+  document.querySelectorAll('.nav-item[data-page]').forEach(b=>b.onclick=()=>navigate(b.dataset.page));
+  document.querySelector('#public-home').textContent=PortalUI.text('public');
+  document.querySelector('#workspace-tools').textContent=PortalUI.text('tools')+' +';
+  document.querySelector('#tools-heading').textContent=PortalUI.text('tools');
+  document.querySelector('.workspace-close').setAttribute('aria-label',PortalUI.text('close'));
+  document.querySelector('#account-logout').hidden=!window.DogCareAPI;
+  document.querySelector('#account-logout').textContent=PortalUI.text('logout');
+}
+
 function bindView() {
   DailyUI.bind();
   if(state.page==='health')KnowledgeUI.bind();
@@ -2011,6 +2047,7 @@ languagePicker.onchange=async()=>{
     }
   } else localStorage.setItem('dogcare-language',language);
   state.language=language;
+  configureWorkspace();
   navigate(state.page);
 };
 async function boot() {
@@ -2024,13 +2061,18 @@ async function boot() {
     state.observations = loadObservations();
     state.invites = loadInvites();
   }
-  DailyUI.load();
-  KnowledgeUI.load();
-  await FinanceStore.load();
+  if(!PortalUI.client()) {
+    DailyUI.load();
+    KnowledgeUI.load();
+    if(PortalUI.owner())await FinanceStore.load();
+  }
   languagePicker.value = state.language;
   languagePicker.disabled = false;
   appReady = true;
-  navigate('dashboard');
+  configureWorkspace();
+  const requestedService=new URLSearchParams(location.search).get('service');
+  if(['day','night','walk'].includes(requestedService)){try{sessionStorage.setItem('dogcare-request-service',requestedService);}catch{}}
+  navigate(PortalUI.client()?(requestedService?'reservations':'dogs'):'dashboard');
   content.dataset.ready = 'true';
 }
 if (window.DogCareAPI) {
@@ -2038,7 +2080,25 @@ if (window.DogCareAPI) {
   setHeader('ACCOUNT', 'Loading your care records…');
   window.DogCareAPI.ready.then(ready => {
     if (ready) { boot(); return; }
+    if (window.DogCareAPI.isAnonymous()) {
+      WelcomeUI.show(state.language, () => boot());
+      content.dataset.ready = "true";
+      return;
+    }
     accountUnavailable=true;
     renderAccountRecovery();
   });
 } else boot();
+
+document.querySelector('#workspace-tools').onclick=()=>document.querySelector('#workspace-tools-dialog').showModal();
+document.querySelector('.workspace-close').onclick=()=>document.querySelector('#workspace-tools-dialog').close();
+document.querySelector('#public-home').onclick=()=>{
+  if(savePending)return;
+  navigate(PortalUI.client()?'dogs':'dashboard');
+  WelcomeUI.show(state.language,()=>navigate(PortalUI.client()?'reservations':'schedule'));
+};
+document.querySelector('#account-logout').onclick=async()=>{
+  if(savePending)return;
+  stopActiveRecording();stopTranscription(true);
+  await window.DogCareAPI.logout();
+};

@@ -22,7 +22,16 @@ def load(c, bid):
     return json.loads(row[0]) if row else empty()
 
 
+def bind_clients(c, bid, value):
+    families = {dog['id']:dog['clientId'] for dog in value['dogs']}
+    for booking in value['bookings']:
+        cid = families.get(booking['dogId'])
+        if cid:
+            c.execute('INSERT OR IGNORE INTO booking_client(business_id,id,client_id) VALUES(?,?,?)',(bid,booking['id'],cid))
+
+
 def save(c, bid, value):
+    bind_clients(c,bid,value)
     c.execute("INSERT INTO business_daily(business_id,snapshot) VALUES(?,?) "
               "ON CONFLICT(business_id) DO UPDATE SET snapshot=excluded.snapshot",
               (bid, json.dumps(value, ensure_ascii=False)))

@@ -14,35 +14,15 @@
   <link rel="stylesheet" href="daily.css">
   <link rel="stylesheet" href="knowledge.css">
   <link rel="stylesheet" href="finance.css">
+  <link rel="stylesheet" href="welcome.css">
+  <link rel="stylesheet" href="workspace.css">
 </head>
 <body>
   <a class="skip-link" href="#app-content" data-i18n="Skip to content">Aller au contenu</a>
-  <header class="utility-bar"><a href="#dashboard" data-route="dashboard" class="utility-brand">LE BUS <span>DES TOUTOUS</span></a><a class="utility-by" href="https://plusdefun.ch" target="_blank" rel="noopener">by <b>PlusDeFun</b></a><span class="utility-workspace" data-i18n="Your workspace">Votre espace</span></header>
-  <div class="app-shell">
-    <aside class="sidebar" aria-label="Navigation principale">
-      <nav id="main-nav" aria-label="Votre espace">
-        <div class="nav-group" role="group" aria-labelledby="nav-group-0">
-          <p class="nav-group-label" id="nav-group-0" data-i18n="Today">Aujourd’hui</p>
-          <button class="nav-item" data-page="dashboard"><b data-i18n="Home">Accueil</b></button>
-          <button class="nav-item" data-page="schedule"><b data-i18n="Schedule">Planning</b></button>
-          <button class="nav-item" data-page="dogs"><b data-i18n="Dogs">Chiens</b></button>
-          <button class="nav-item" data-page="capture"><b data-i18n="Capture">Ajouter une note</b></button>
-          <button class="nav-item" data-page="handoff"><b data-i18n="Handoff">Passer le relais</b></button>
-          <button class="nav-item" data-page="health"><b data-i18n="Care & wellbeing">Maison de la Santé</b></button>
-          <button class="nav-item" data-page="assistant"><b data-i18n="Muse assistant">Muse</b></button>
-          <button class="nav-item" data-page="story"><b data-i18n="Daily story">Résumé du jour</b></button>
-        </div>
-        <div class="nav-group" role="group" aria-labelledby="nav-group-1">
-          <p class="nav-group-label" id="nav-group-1" data-i18n="Share & organise">Organisation</p>
-          <button class="nav-item" data-page="gallery"><b data-i18n="Gallery">En images</b></button>
-          <button class="nav-item" data-page="invite"><b data-i18n="Invite">Inviter</b></button>
-          <button class="nav-item" data-page="business"><b data-i18n="Accounting">Comptabilité</b></button>
-          <button class="nav-item" data-page="settings"><b data-i18n="Settings">Réglages</b></button>
-        </div>
-      </nav>
-    </aside>
-    <main>
-      <header class="topbar"><div><p class="eyebrow" id="page-eyebrow" hidden></p><h1 id="page-title" tabindex="-1">Bonjour, Adine-Sophie.</h1></div><div class="top-actions"><select id="language-picker" aria-label="Langue"><option value="fr" selected>FR</option><option value="en">EN</option><option value="it">IT</option><option value="de">DE</option><option value="es">ES</option></select><button class="primary compact" data-go="capture">＋ <span data-i18n="Capture update">Ajouter une note</span></button></div></header>
+  <header class="utility-bar"><div class="workspace-brand"><a href="#dashboard" data-route="dashboard" class="utility-brand"><span class="workspace-mark" aria-hidden="true"><svg viewBox="0 0 32 32" width="26" height="26" fill="currentColor"><ellipse cx="8" cy="11" rx="3" ry="4"/><ellipse cx="15" cy="7" rx="3" ry="4"/><ellipse cx="23" cy="10" rx="3" ry="4"/><path d="M6 23Q6 18 12 16Q16 12 20 17Q28 22 23 26Q20 28 16 25Q10 29 7 25Z"/></svg></span>Le Bus des Toutous</a><a class="utility-by" href="https://plusdefun.ch" target="_blank" rel="noopener">by <b>Plus de Fun</b></a></div><div class="utility-actions"><button id="public-home">Site public</button><button id="account-logout" hidden>Se déconnecter</button></div></header>
+  <div class="app-shell"><main>
+      <header class="topbar"><div><p class="eyebrow" id="page-eyebrow" hidden></p><h1 id="page-title" tabindex="-1"></h1></div><div class="top-actions"><select id="language-picker" aria-label="Langue"><option value="fr" selected>FR</option><option value="en">EN</option><option value="it">IT</option><option value="de">DE</option><option value="es">ES</option></select><button class="primary compact" data-go="capture">＋ <span data-i18n="Capture update">Ajouter une note</span></button></div></header>
+      <aside class="sidebar" aria-label="Navigation principale"><nav id="main-nav" aria-label="Votre espace"><button class="nav-item" data-page="dashboard"><b data-i18n="Home">Accueil</b></button><button class="nav-item" data-page="schedule"><b data-i18n="Schedule">Planning</b></button><button class="nav-item" data-page="dogs"><b data-i18n="Dogs">Chiens</b></button><button class="nav-item" data-page="capture"><b data-i18n="Capture">Ajouter une note</b></button></nav><button class="ghost" id="workspace-tools" aria-haspopup="dialog">Tous mes outils +</button><dialog id="workspace-tools-dialog"><button class="workspace-close" aria-label="Fermer">×</button><h2 id="tools-heading">Tous mes outils</h2><nav aria-label="Outils"><button class="nav-item" data-page="handoff"><b data-i18n="Handoff">Passer le relais</b></button><button class="nav-item" data-page="health"><b data-i18n="Care & wellbeing">Maison de la Santé</b></button><button class="nav-item" data-page="assistant"><b data-i18n="Muse assistant">Muse</b></button><button class="nav-item" data-page="story"><b data-i18n="Daily story">Résumé du jour</b></button><button class="nav-item" data-page="gallery"><b data-i18n="Gallery">En images</b></button><button class="nav-item" data-page="invite"><b data-i18n="Invite">Inviter</b></button><button class="nav-item" data-page="business"><b data-i18n="Accounting">Comptabilité</b></button><button class="nav-item" data-page="settings"><b data-i18n="Settings">Réglages</b></button></nav></dialog></aside>
       <section id="app-content" class="content" tabindex="-1" aria-live="polite"></section>
     </main>
   </div>
@@ -60,6 +40,10 @@
   <script src="finance-documents.js"></script>
   <script src="finance-export.js"></script>
   <script src="finance-ui.js"></script>
+  <script src="portal-copy.js"></script>
+  <script src="quote-ui.js"></script>
+  <script src="portal-ui.js"></script>
+  <script src="welcome.js"></script>
   <script src="api.js"></script>
   <script src="app.js"></script>
 </body>

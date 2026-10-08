@@ -26,9 +26,9 @@ test('missing accounting stays unavailable and retry preserves business and revi
   assert.equal(JSON.stringify(h.api.getFinance()),JSON.stringify(finance));
 });
 
-function adapter({ local = {}, fetcher, confirm = () => true, enabled = true, timers = {} } = {}) {
+function adapter({ local = {}, fetcher, confirm = () => true, enabled = true, timers = {}, identity = {ok:true,email:'fixture@example.test',role:'owner'} } = {}) {
   const storage = new Map(Object.entries(local));
-  const calls = [], toasts = [], notices = [];
+  const calls = [], identityCalls = [], toasts = [], notices = [];
   const window = {
     DOGCARE_API: enabled ? '/api' : undefined,
     localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) },
@@ -36,11 +36,12 @@ function adapter({ local = {}, fetcher, confirm = () => true, enabled = true, ti
     confirm: text => { notices.push(text); return confirm(text); },
   };
   vm.runInNewContext(source, { window, AbortController, setTimeout, clearTimeout, ...timers, fetch: async (url, options) => {
+    if (url.endsWith('/auth/me')) {identityCalls.push(url);return response(identity);}
     const call = { url, ...options, payload: options.body && JSON.parse(options.body) };
     calls.push(call);
     return fetcher ? fetcher(call, calls) : response(serverState);
   } });
-  return { api: window.DogCareAPI, storage, calls, toasts, notices };
+  return { api: window.DogCareAPI, storage, calls, identityCalls, toasts, notices };
 }
 
 test('flag off leaves storage and network untouched', () => {
@@ -295,4 +296,22 @@ test('document downloads use only authenticated private document URLs and retain
   assert.deepEqual(await h.api.getDocument('a'.repeat(32)),{synthetic:true});
   assert.equal(h.calls.at(-1).credentials,'include');
   assert.equal(h.calls.at(-1).url,'/api/documents/'+'a'.repeat(32));
+});
+
+// A public load must never hydrate private state or import a local account snapshot.
+test('anonymous identity stops before private state, import or storage access', async () => {
+  const h=adapter({identity:{ok:false},local:{'dogcare-observations':'private browser data'}});
+  assert.equal(await h.api.ready,false);
+  assert.equal(h.api.isAnonymous(),true);
+  assert.equal(h.api.getUser(),null);
+  assert.equal(h.identityCalls.length,1);
+  assert.equal(h.calls.length,0);
+  assert.equal(h.notices.length,0);
+});
+test('client hydration never imports owner browser data', async () => {
+  const h=adapter({identity:{ok:true,role:'client'},local:{'dogcare-observations':'private browser data'},fetcher:async()=>response({...serverState,role:'client'})});
+  assert.equal(await h.api.ready,true);
+  assert.equal(h.api.getUser().role,'client');
+  assert.equal(h.calls.length,1);
+  assert.equal(h.calls[0].url,'/api/state');
 });

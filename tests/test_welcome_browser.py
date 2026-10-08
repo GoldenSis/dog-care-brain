@@ -1,0 +1,148 @@
+"""Public choices → real client request → owner quote, isolated synthetic accounts."""
+import os
+import uuid
+from pathlib import Path
+from urllib.parse import urlparse
+
+from tests.test_browser_acceptance import BrowserFixture
+from tests.test_tenant_isolation import _http, _latest_link
+
+
+class WelcomeJourneyTest(BrowserFixture):
+    async def asyncSetUp(self):
+        prefix=uuid.uuid4().hex
+        self.sid=self.login(prefix+'-owner@example.com')
+        self.client_email=prefix+'-family@example.com'
+        daily={'version':1,'clients':[{'id':'family','name':'Synthetic family'},{'id':'other','name':'Other synthetic family'}],
+               'dogs':[{'id':'nino','name':'Nino','clientId':'family'},{'id':'pablo','name':'Private Pablo','clientId':'other'}],
+               'bookings':[],'rates':{'currency':'CHF','day':None,'night':None,'walk':None},'documents':[]}
+        self.assertEqual(_http(self.port,'PUT','/api/daily',{'daily':daily},cookie=self.sid)[0],200)
+        self.assertEqual(_http(self.port,'POST','/api/portal/members',{'email':self.client_email,'role':'client','clientId':'family'},cookie=self.sid)[0],200)
+        await super().asyncSetUp()
+        await self.page.select_option('#language-picker','fr')
+        await self.page.wait_for_function('!savePending')
+
+    async def test_each_service_survives_signin_request_reload_and_owner_decision(self):
+        await self.context.clear_cookies()
+        await self.page.goto(self.url)
+        await self.page.wait_for_selector('#public-welcome')
+        api=[]
+        self.page.on('request',lambda r:api.append(urlparse(r.url).path) if '/api/' in r.url else None)
+        descriptions=[]
+        for service in ('day','night','walk'):
+            await self.page.click(f'[data-service="{service}"]')
+            descriptions.append(await self.page.locator('#service-detail').inner_text())
+            self.assertEqual(await self.page.get_attribute(f'[data-service="{service}"]','aria-pressed'),'true')
+        self.assertEqual(len(set(descriptions)),3)
+        self.assertIn('déjà accueillis',descriptions[2])
+        self.assertFalse(any(path in api for path in ('/api/state','/api/daily','/api/finance')))
+        for width in (1440,390):
+            await self.page.set_viewport_size({'width':width,'height':900})
+            self.assertLessEqual(await self.page.evaluate('document.documentElement.scrollWidth'),width)
+            await self.capture_evidence(f'welcome-services-{width}.png',full_page=False)
+        for service in ('day','night','walk'):
+            await self.page.click(f'[data-service="{service}"]')
+            await self.page.click('[data-request]')
+            await self.page.fill('#access-email',self.client_email)
+            await self.page.click('#access-form button')
+            await self.page.wait_for_function("document.querySelector('#access-result').textContent.includes('Aucun e-mail')")
+            link=_latest_link(self.outbox,self.client_email)
+            self.assertIn('service='+service,link)
+            # A new tab has no sessionStorage: the personal link must retain intent.
+            client=await self.context.new_page()
+            await client.goto(link)
+            await client.wait_for_selector('#client-request-form')
+            self.assertEqual(await client.input_value('#client-request-form [name=service]'),service)
+            self.assertNotIn('Private Pablo',await client.locator('body').inner_text())
+            form=client.locator('#client-request-form')
+            await form.locator('[name=start]').fill('2026-11-04')
+            await form.locator('[name=end]').fill('2026-11-05' if service=='night' else '2026-11-04')
+            await client.wait_for_selector('#request-estimate .quoted-total')
+            self.assertIn('Total à convenir',await client.inner_text('#request-estimate'))
+            await form.locator('[name=note]').fill('Synthetic '+service+' request')
+            await form.locator('button').click()
+            await client.wait_for_function('!savePending && DogCareAPI.getPortal().requests.length > 0')
+            await client.reload()
+            await client.wait_for_selector('#client-request-form')
+            requests=await client.evaluate('DogCareAPI.getPortal().requests')
+            saved=next(r for r in requests if r['service']==service)
+            self.assertEqual(saved['status'],'requested')
+            self.assertIn('À confirmer',await client.inner_text('#app-content'))
+            self.assertEqual(await client.locator('[data-page=business]:visible').count(),0)
+            self.assertEqual(await client.locator('[data-page=health]:visible').count(),0)
+            await client.close()
+            await self.context.clear_cookies()
+            await self.page.goto(self.url)
+            await self.page.wait_for_selector('#public-welcome')
+        await self.context.add_cookies([{'name':'dc_s','value':self.sid,'url':self.url,'httpOnly':True}])
+        await self.page.goto(self.url)
+        await self.wait_ready()
+        self.assertEqual(await self.page.locator('[data-decision=accepted]').count(),3)
+        ident=await self.page.locator('[data-decision=accepted]').first.get_attribute('data-request-id')
+        await self.page.click(f'[data-request-id="{ident}"][data-decision=accepted]')
+        await self.page.wait_for_function('!savePending && DogCareAPI.getDaily().bookings.length === 1')
+        await self.page.reload()
+        await self.wait_ready()
+        self.assertEqual(len(await self.page.evaluate('DogCareAPI.getDaily().bookings')),1)
+        await self.capture_evidence('owner-real-requests.png',full_page=False)
+
+    async def test_owner_extra_edit_reload_and_client_total(self):
+        cookie=self.login(self.client_email)
+        status,saved,_=_http(self.port,'POST','/api/portal/requests',{'dogId':'nino','service':'day','start':'2026-11-04','end':'2026-11-05','note':'Synthetic priced request'},cookie=cookie)
+        self.assertEqual(status,200,saved)
+        ident=saved['portal']['requests'][0]['id']
+        await self.page.reload();await self.wait_ready()
+        panel=self.page.locator(f'[data-quote="{ident}"]')
+        await panel.locator('summary').click()
+        # These amounts exist only in the isolated test, never in public preview rates.
+        base=panel.locator('.base-price-form')
+        await base.locator('[name=unitMinor]').fill('12,25')
+        await base.locator('button').click()
+        await self.page.wait_for_function('!savePending')
+        await panel.locator('summary').click()
+        extra=panel.locator('.extra-form')
+        await extra.locator('[name=label]').fill('Synthetic optional pickup')
+        await extra.locator('[name=unitMinor]').fill('2,50')
+        await extra.locator('[name=quantity]').fill('2')
+        await extra.locator('[name=reusable]').check()
+        self.assertIn('5,00',await extra.locator('output').inner_text())
+        await extra.locator('button').click();await self.page.wait_for_function('!savePending')
+        await self.page.reload();await self.wait_ready()
+        q=await self.page.evaluate('(id)=>DogCareAPI.getPortal().quotes[id]',ident)
+        self.assertEqual(q['totalMinor'],2950)
+        await panel.locator('summary').click()
+        await panel.locator('[data-edit-extra]').click()
+        await extra.locator('[name=quantity]').fill('3')
+        await extra.locator('button').click();await self.page.wait_for_function('!savePending')
+        self.assertEqual((await self.page.evaluate('(id)=>DogCareAPI.getPortal().quotes[id]',ident))['totalMinor'],3200)
+        for width in (1440,390):
+            await self.page.set_viewport_size({'width':width,'height':900})
+            self.assertLessEqual(await self.page.evaluate('document.documentElement.scrollWidth'),width)
+            if not await panel.locator('.extra-form').is_visible():
+                await panel.locator('summary').click()
+            if os.environ.get('DOGCARE_EVIDENCE_DIR'):
+                await panel.locator('..').screenshot(path=str(Path(os.environ['DOGCARE_EVIDENCE_DIR'])/f'owner-real-extras-{width}.png'),animations='disabled')
+        await self.page.click(f'[data-request-id="{ident}"][data-decision=accepted]')
+        await self.page.wait_for_function('!savePending && DogCareAPI.getDaily().bookings.length === 1')
+        await self.open_route('business')
+        await self.page.click('#finance-new-sale')
+        await self.page.click('#finance-booking')
+        await self.page.select_option('#finance-booking + select',ident)
+        self.assertEqual(await self.page.input_value('[name="unit-0"]'),'12.25')
+        self.assertEqual(await self.page.input_value('[name="description-1"]'),'Synthetic optional pickup')
+        self.assertEqual(await self.page.input_value('[name="quantity-1"]'),'3')
+        self.assertIn('32,00',await self.page.inner_text('#finance-total'))
+        await self.page.click('#finance-form button[value=draft]')
+        await self.page.wait_for_function('!savePending')
+        await self.context.clear_cookies()
+        await self.context.add_cookies([{'name':'dc_s','value':cookie,'url':self.url,'httpOnly':True}])
+        await self.page.goto(self.url+'/?service=day');await self.wait_ready()
+        self.assertIn('Synthetic optional pickup',await self.page.inner_text('#app-content'))
+        self.assertIn('32,00',await self.page.inner_text('#app-content'))
+        self.assertEqual(await self.page.locator('.extra-form').count(),0)
+        self.assertIsNone(await self.page.evaluate('DogCareAPI.getFinance()'))
+        for width in (1440,390):
+            await self.page.set_viewport_size({'width':width,'height':900})
+            self.assertLessEqual(await self.page.evaluate('document.documentElement.scrollWidth'),width)
+            if os.environ.get('DOGCARE_EVIDENCE_DIR'):
+                await self.page.locator('.portal-card').last.screenshot(path=str(Path(os.environ['DOGCARE_EVIDENCE_DIR'])/f'client-real-quote-{width}.png'),animations='disabled')

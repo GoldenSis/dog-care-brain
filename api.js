@@ -20,6 +20,7 @@
     daily: null,
     knowledge: null,
     finance: null,
+    portal: {updates:[],requests:[],documents:[],members:[]},
   };
 
   function url(path) {
@@ -31,6 +32,8 @@
   }
 
   let hydrated = false;
+  let sessionUser = null;
+  let anonymous = false;
   let businessId = null;
   let revision = null;
   let writeBlocked = "";
@@ -63,7 +66,7 @@
       if (writing && (data.reload_required || r.status === 401)) {
         writeBlocked = "Not saved — your account or care records changed. Copy your draft, then reload before saving.";
       }
-      if (writing && r.ok && path !== "/blobs") {
+      if (writing && r.ok && path !== "/blobs" && path !== "/auth/logout") {
         if (data.business_id !== businessId || !Number.isSafeInteger(data.revision)) {
           failed();
           return { ok: false, status: r.status, data: {} };
@@ -136,6 +139,7 @@
         Array.isArray(data.observations) || !Array.isArray(data.invites) ||
         !Number.isSafeInteger(data.business_id) || !Number.isSafeInteger(data.revision) ||
         (businessId !== null && data.business_id !== businessId)) return false;
+    sessionUser = {email:data.email, role:data.role || "owner"};
     businessId = data.business_id;
     revision = data.revision;
     cache.observations = data.observations;
@@ -145,10 +149,14 @@
     cache.daily = data.daily ?? null;
     cache.knowledge = data.knowledge || {version:1,experiences:[]};
     cache.finance = data.finance ?? null;
+    cache.portal = data.portal || {updates:[],requests:[],documents:[],members:[]};
     return true;
   }
 
   const ready = (async function hydrate() {
+    const identity = await req("/auth/me");
+    if (!identity.ok) return false;
+    if (!identity.data.ok) { anonymous = true; return false; }
     const state = await req("/state");
     if (state.status === 401) {
       loadError = "Open your sign-in link in this browser to access your account. If the link has expired or was already used, request a new one from the person who gave you access.";
@@ -156,7 +164,7 @@
     }
     if (!state.ok || !acceptState(state.data)) return false;
     const marker = "dogcare-imported:" + state.data.business_id;
-    if (!state.data.imported && !w.localStorage.getItem(marker)) {
+    if (sessionUser.role === "owner" && !state.data.imported && !w.localStorage.getItem(marker)) {
       const payload = {};
       for (const key of ["observations", "invites", "language"]) {
         const raw = w.localStorage.getItem("dogcare-" + key);
@@ -195,7 +203,22 @@
   // Observation saves reconcile uploaded data URLs into the supplied objects.
   w.DogCareAPI = {
     ready,
+    isAnonymous() { return anonymous; },
+    getUser() { return sessionUser && {...sessionUser}; },
     getLoadError() { return loadError; },
+    getPortal() { return JSON.parse(JSON.stringify(cache.portal)); },
+    savePortal(action, payload) {
+      const snapshot = JSON.parse(JSON.stringify(payload));
+      return enqueue(async () => {
+        const result = await postJson("/portal/" + action, snapshot);
+        return result.ok && acceptState(result.data);
+      });
+    },
+    async logout() {
+      const result = await req('/auth/logout', {method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+      if(result.ok) w.location.reload();
+      return result.ok;
+    },
     whenSaved() { return writes; },
     getObservations() {
       return cache.observations || {};
@@ -233,6 +256,11 @@
         const result = await putJson("/knowledge", {knowledge: snapshot});
         return result.ok && acceptState(result.data);
       });
+    },
+    async estimateRequest(item) {
+      if(!hydrated)return null;
+      const result=await req('/portal/estimate?'+new URLSearchParams(item));
+      return result.ok ? result.data.quote : null;
     },
     getDaily() { return JSON.parse(JSON.stringify(cache.daily)); },
     saveDaily(daily) {

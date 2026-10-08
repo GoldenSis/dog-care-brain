@@ -14,6 +14,8 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 - Generated crawl corpora belong outside the repository unless explicitly reviewed and approved for inclusion.
 - French terminology: use **carnet de bord** for everyday records and **dog-sitter** for the person, following the user's correction (2026-09-16). Label individual entries **notes du quotidien**. Do not translate everyday care as **soins** or the role as **gardeur/gardien de chien**. Keep actual health and veterinary terms, medical guidance, privacy meaning, and the idiom **Aux petits soins** intact.
 
+- API role projections, explicit client access, login transport and quoted options are documented in `docs/client-portal.md`. Real signup is closed; tests opt into loopback development signup. Never enable debug-outbox delivery for production.
+
 ## Maintaining this file
 
 Keep this file for knowledge useful to almost every future agent session in this project.
