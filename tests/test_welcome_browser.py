@@ -3,6 +3,7 @@ import os
 import uuid
 from pathlib import Path
 from urllib.parse import urlparse
+from unittest.mock import patch
 
 from tests.test_browser_acceptance import BrowserFixture
 from tests.test_tenant_isolation import _http, _latest_link
@@ -118,6 +119,7 @@ class WelcomeJourneyTest(BrowserFixture):
         for width in (1440,390):
             await self.page.set_viewport_size({'width':width,'height':900})
             self.assertLessEqual(await self.page.evaluate('document.documentElement.scrollWidth'),width)
+            await self.page.wait_for_function("!document.querySelector('#toast').classList.contains('show')")
             if not await panel.locator('.extra-form').is_visible():
                 await panel.locator('summary').click()
             if os.environ.get('DOGCARE_EVIDENCE_DIR'):
@@ -146,3 +148,62 @@ class WelcomeJourneyTest(BrowserFixture):
             self.assertLessEqual(await self.page.evaluate('document.documentElement.scrollWidth'),width)
             if os.environ.get('DOGCARE_EVIDENCE_DIR'):
                 await self.page.locator('.portal-card').last.screenshot(path=str(Path(os.environ['DOGCARE_EVIDENCE_DIR'])/f'client-real-quote-{width}.png'),animations='disabled')
+
+    async def test_public_price_load_keeps_signin_draft_and_shows_real_configured_unit(self):
+        import asyncio
+        release=asyncio.Event()
+        async def prices(route):
+            await release.wait()
+            await route.fulfill(json={'ok':True,'rates':{'day':1234,'night':None,'walk':0,'currency':'EUR'}})
+        await self.context.clear_cookies()
+        await self.page.route('**/api/public/services',prices)
+        await self.page.goto(self.url)
+        await self.page.wait_for_selector('[data-request]')
+        await self.page.click('[data-request]')
+        await self.page.fill('#access-email','draft@example.com')
+        release.set()
+        await self.page.wait_for_function("document.querySelector('#service-detail strong').textContent.includes('12,34')")
+        self.assertEqual(await self.page.input_value('#access-email'),'draft@example.com')
+        self.assertTrue(await self.page.locator('.welcome-dialog').is_visible())
+        await self.page.click('.welcome-close')
+        self.assertIn('par journée',await self.page.inner_text('#service-detail'))
+        await self.page.click('[data-service=walk]')
+        self.assertIn('0,00',await self.page.inner_text('#service-detail'))
+        self.assertIn('par balade',await self.page.inner_text('#service-detail'))
+        await self.page.click('[data-service=night]')
+        self.assertIn('Tarif à convenir',await self.page.inner_text('#service-detail'))
+
+    async def test_uninvited_visitor_has_truthful_contact_route_without_account_or_message(self):
+        await self.context.clear_cookies()
+        await self.context.grant_permissions(['clipboard-read','clipboard-write'])
+        await self.page.goto(self.url)
+        await self.page.wait_for_selector('[data-service=night]')
+        await self.page.click('[data-service=night]')
+        await self.page.click('[data-request]')
+        self.assertTrue(await self.page.locator('.first-contact').evaluate('(e)=>e.open'))
+        self.assertIn('Une nuit',await self.page.input_value('#contact-draft'))
+        self.assertEqual(await self.page.locator('.first-contact a').get_attribute('href'),'https://www.instagram.com/bus_destoutous/')
+        await self.page.click('#copy-contact')
+        self.assertEqual(await self.page.evaluate('navigator.clipboard.readText()'),await self.page.input_value('#contact-draft'))
+        self.assertIn('Message copié',await self.page.inner_text('#contact-result'))
+        unknown='uninvited-'+uuid.uuid4().hex+'@example.com'
+        with self.server_mod.connection() as connection:
+            before=connection.execute('SELECT count(*) FROM user').fetchone()[0]
+            tokens=connection.execute('SELECT count(*) FROM magic').fetchone()[0]
+        # Isolated SMTP configuration boundary; no external transport is invoked.
+        with patch('login_delivery.configuration',return_value={'mode':'smtp','origin':'https://dogs.example.com'}),patch('login_delivery.send') as send:
+            await self.page.fill('#access-email',unknown)
+            await self.page.click('#access-form button')
+            await self.page.wait_for_function("document.querySelector('#access-result').textContent.includes('Si votre accès est enregistré')")
+            self.assertNotIn('a été envoyé',await self.page.inner_text('#access-result'))
+            send.assert_not_called()
+        with self.server_mod.connection() as connection:
+            self.assertEqual(connection.execute('SELECT count(*) FROM user').fetchone()[0],before)
+            self.assertEqual(connection.execute('SELECT count(*) FROM magic').fetchone()[0],tokens)
+        self.assertFalse(list(Path(self.outbox).glob('*'+unknown+'*')))
+        for width in (1440,390):
+            await self.page.set_viewport_size({'width':width,'height':900})
+            self.assertLessEqual(await self.page.evaluate('document.documentElement.scrollWidth'),width)
+            await self.page.locator('.welcome-dialog').evaluate('(e)=>e.scrollTop=0')
+            await self.capture_evidence(f'first-visit-contact-{width}.png',full_page=False)
+        self.assertEqual(self.console_errors,[])

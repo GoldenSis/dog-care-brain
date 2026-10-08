@@ -1,6 +1,6 @@
 # Public welcome and private client space
 
-The API app opens on a public French welcome for **Le Bus des Toutous · by Plus de Fun**. Day care, an overnight stay and a walk each reveal their own explanation and configured price. Contact links to the already documented public Instagram profile. **Mon espace** requests a personal sign-in link. No private snapshot is fetched before authentication.
+The API app opens on a public French welcome for **Le Bus des Toutous · by Plus de Fun**. Day care, an overnight stay and a walk each reveal their own explanation and configured price. Contact links to the already documented public Instagram profile. **Mon espace** requests a personal sign-in link. No private snapshot is fetched before authentication. First-time visitors also have a first-contact route in the request dialog: a selected-service message they can copy and send themselves through the verified public Instagram profile. This is an external conversation, not a saved in-app request or an account grant.
 
 The service choice travels in the login link, so a link opened in a fresh tab returns to the request form. A client chooses their dog, service and dates; the API calculates the estimate. Submission records a **request awaiting confirmation**, not a confirmed reservation or a payment. The owner sees the request and can accept or decline it. Acceptance creates an ordinary saved booking, retaining the quoted service rate. A missing rate remains unknown until the owner explicitly completes it.
 
@@ -32,9 +32,9 @@ Delivery is disabled unless configured. No production request falls back to a de
 | `DC_PUBLIC_ORIGIN` | Required HTTPS origin for SMTP links; never inferred from the request's Host header. |
 | `DC_INSECURE_COOKIE=0` | Required with SMTP so sessions use secure cookies. |
 | `DC_SMTP_HOST`, `DC_SMTP_USER`, `DC_SMTP_PASSWORD`, `DC_SMTP_FROM` | Required SMTP connection and sender configuration. Supply secrets through the deployment's private environment. |
-| `DC_SMTP_TLS` / `DC_SMTP_PORT` | `ssl` / 465 by default; `starttls` / 587 also supported. Unencrypted delivery is not supported. |
+| `DC_SMTP_TLS` / `DC_SMTP_PORT` | `ssl` / 465 by default; `starttls` / 587 also supported; the deployment template explicitly selects the authorized Infomaniak transport on port 2525. Unencrypted delivery is not supported. |
 
-Links are single-use with a 15-minute lifetime. Production attempts are bounded per address and source IP. Unknown addresses receive the same conditional acknowledgment as known members without receiving a token or acquiring an account. Tokens, credentials and SMTP response details are not returned in API bodies. Tests mock both TLS transports; they do not establish that an actual host can deliver email. Deployment, real credentials, sender authorization, mailbox receipt and HTTPS must be verified separately before inviting real users.
+Links are single-use with a 15-minute lifetime. Production attempts are bounded per address and source IP. Messages use the authenticated mailbox as envelope sender, matching the visible From address, with Date, Message-ID and Auto-Submitted headers. Unknown addresses receive the same conditional acknowledgment as known members without receiving a token or acquiring an account. Tokens, credentials and SMTP response details are not returned in API bodies. Tests mock both TLS transports; they do not establish that an actual host can deliver email. Deployment, real credentials, sender authorization, mailbox receipt and HTTPS must be verified separately before inviting real users.
 
 ## Prices and options
 
@@ -68,3 +68,5 @@ All `/api/portal/*` writes use the business/revision contract from the README an
 Start a disposable loopback API with `DC_DATA_DIR` outside the static root, `DC_AUTH_MODE=development` and `DC_ALLOW_DEMO_SIGNUP=1`. `scripts/seed_private_preview.py --url <loopback-url> --data-dir <temporary-dir>` creates synthetic owner/family access and private local review links. It rejects external hosts, non-temporary stores and stores with non-test email addresses. Seed rates remain unknown. Do not use this helper with real accounts.
 
 The new regression suites are `tests.test_client_portal`, `tests.test_login_delivery` and `tests.test_welcome_browser`. They cover client isolation, forbidden endpoints, sign-in return in a fresh tab, all service requests, persistence, owner visibility, price snapshots, priced options and mocked delivery failures. Existing care, daily, knowledge, finance, browser and adapter suites remain required. Browser evidence uses real API sessions with synthetic data; it does not verify real-device microphone operation or deployed email delivery.
+
+See [private-beta-release.md](private-beta-release.md) for pinned releases, environment configuration, proxy permissions, backup/restore and the unexecuted deployment checks.

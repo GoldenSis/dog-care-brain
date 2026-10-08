@@ -8,8 +8,8 @@ from tests.test_tenant_isolation import ApiServerTestCase, _http
 class LoginDeliveryTest(ApiServerTestCase):
     def smtp(self):
         return patch.dict(os.environ,{'DC_AUTH_MODE':'smtp','DC_ALLOW_DEMO_SIGNUP':'0','DC_PUBLIC_ORIGIN':'https://dogs.example.com',
-            'DC_INSECURE_COOKIE':'0','DC_SMTP_HOST':'smtp.example.com','DC_SMTP_USER':'synthetic','DC_SMTP_PASSWORD':'synthetic-test-only',
-            'DC_SMTP_FROM':'access@example.com','DC_SMTP_TLS':'ssl'})
+            'DC_INSECURE_COOKIE':'0','DC_SMTP_HOST':'smtp.example.com','DC_SMTP_USER':'access@example.com','DC_SMTP_PASSWORD':'synthetic-test-only',
+            'DC_SMTP_FROM':'Le Bus des Toutous by Plus de Fun <access@example.com>','DC_SMTP_TLS':'ssl'})
 
     def test_closed_signup_unknown_and_revoked_accounts_do_not_get_links(self):
         import login_delivery
@@ -40,16 +40,22 @@ class LoginDeliveryTest(ApiServerTestCase):
             self.assertEqual((status,body),(200,{'ok':True,'mailed':True}))
             factory.assert_called_once()
             self.assertTrue(factory.call_args.kwargs['context'].check_hostname)
-            smtp.login.assert_called_once_with('synthetic','synthetic-test-only')
+            smtp.login.assert_called_once_with('access@example.com','synthetic-test-only')
             message=smtp.send_message.call_args.args[0]
             self.assertIn('https://dogs.example.com/api/auth/verify?',message.get_content())
             self.assertIn('&service=walk',message.get_content())
             self.assertNotIn('attacker.example',message.get_content())
             self.assertIn('by Plus de Fun',message['Subject'])
+            self.assertIn('by Plus de Fun',message['From'])
+            self.assertTrue(message['Date'])
+            self.assertTrue(message['Message-ID'].endswith('@example.com>'))
+            self.assertEqual(message['Auto-Submitted'],'auto-generated')
+            self.assertEqual(smtp.send_message.call_args.kwargs,{'from_addr':'access@example.com','to_addrs':['smtp-owner@example.com']})
             outbox.assert_not_called()
-        with self.smtp(),patch.dict(os.environ,{'DC_SMTP_TLS':'starttls'}),patch('login_delivery.smtplib.SMTP',return_value=smtp):
+        with self.smtp(),patch.dict(os.environ,{'DC_SMTP_TLS':'starttls','DC_SMTP_PORT':'2525'}),patch('login_delivery.smtplib.SMTP',return_value=smtp) as factory:
             login_delivery.send(login_delivery.configuration(),'synthetic@example.com','https://dogs.example.com/link')
             self.assertTrue(smtp.starttls.call_args.kwargs['context'].check_hostname)
+            factory.assert_called_once_with('smtp.example.com',2525,timeout=15)
 
     def test_missing_failed_transport_invalidates_token_without_fallback(self):
         import login_delivery
@@ -70,6 +76,13 @@ class LoginDeliveryTest(ApiServerTestCase):
             self.assertEqual(_http(self.port,'POST','/api/auth/request',{'email':'nobody@example.com'})[0],503)
         with patch.dict(os.environ,{'DC_AUTH_MODE':'development','DC_HOST':'0.0.0.0'}):
             self.assertEqual(_http(self.port,'POST','/api/auth/request',{'email':'nobody@example.com'})[0],503)
+
+    def test_sender_must_match_authenticated_mailbox(self):
+        import login_delivery
+        for sender in ('Other <other@example.com>', 'access@example.com\r\nBcc: other@example.com'):
+            with self.smtp(),patch.dict(os.environ,{'DC_SMTP_FROM':sender}):
+                with self.assertRaises(login_delivery.DeliveryUnavailable):
+                    login_delivery.configuration()
 
     def test_production_attempts_are_bounded_even_for_unknown_addresses(self):
         with self.smtp():

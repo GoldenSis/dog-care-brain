@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Dog-Care-Brain API — stdlib ThreadingHTTPServer + sqlite3, zero deps.
 
-One process, one SQLite file, magic-link auth. Slice 1 mailer writes local
-outbox JSON (no SMTP, no keys); all runtime storage must be outside DC_ROOT.
+One process, one SQLite file, closed-membership magic-link auth. Delivery is
+explicitly configured; all runtime storage must be outside DC_ROOT.
 See README.md for configuration defaults, endpoints, and the snapshot contract.
 
 Run:  python3 api/server.py

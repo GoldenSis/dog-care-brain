@@ -1,8 +1,10 @@
 """Explicit login transport. No production debug-outbox fallback."""
 import os
+import re
 import smtplib
 import ssl
 from email.message import EmailMessage
+from email.utils import formatdate, make_msgid, parseaddr
 from urllib.parse import urlparse
 
 
@@ -27,6 +29,9 @@ def configuration():
     tls = os.environ.get('DC_SMTP_TLS', 'ssl')
     if tls not in ('ssl','starttls') or any(not value or '\r' in value or '\n' in value for value in keys.values()):
         raise DeliveryUnavailable('SMTP configuration is incomplete')
+    if (not re.fullmatch(r'[^@\s<>]+@[^@\s<>]+\.[^@\s<>]+', keys['user']) or
+            parseaddr(keys['from'])[1].lower() != keys['user'].lower()):
+        raise DeliveryUnavailable('sender must match the authenticated mailbox')
     try:
         port = int(os.environ.get('DC_SMTP_PORT', '465' if tls=='ssl' else '587'))
         if not 1 <= port <= 65535:raise ValueError()
@@ -47,6 +52,9 @@ def send(config, email, link):
     message = EmailMessage()
     message['From'] = config['from']
     message['To'] = email
+    message['Date'] = formatdate(localtime=False, usegmt=True)
+    message['Message-ID'] = make_msgid(domain=config['user'].rsplit('@', 1)[1])
+    message['Auto-Submitted'] = 'auto-generated'
     message['Subject'] = 'Votre accès · Le Bus des Toutous by Plus de Fun'
     message.set_content('Votre lien personnel (valable 15 minutes, une seule utilisation) :\n\n'+link+
                         '\n\nSi vous n’avez pas demandé ce lien, ignorez ce message.\n\nLe Bus des Toutous · by Plus de Fun\n')
@@ -55,14 +63,14 @@ def send(config, email, link):
         if config['tls'] == 'ssl':
             with smtplib.SMTP_SSL(config['host'], config['port'], timeout=15, context=context) as smtp:
                 smtp.login(config['user'], config['password'])
-                if smtp.send_message(message):raise DeliveryUnavailable('recipient rejected')
+                if smtp.send_message(message, from_addr=config['user'], to_addrs=[email]):raise DeliveryUnavailable('recipient rejected')
         else:
             with smtplib.SMTP(config['host'], config['port'], timeout=15) as smtp:
                 smtp.ehlo()
                 smtp.starttls(context=context)
                 smtp.ehlo()
                 smtp.login(config['user'], config['password'])
-                if smtp.send_message(message):raise DeliveryUnavailable('recipient rejected')
+                if smtp.send_message(message, from_addr=config['user'], to_addrs=[email]):raise DeliveryUnavailable('recipient rejected')
     except (OSError, smtplib.SMTPException) as error:
         # Never surface SMTP credentials, response text or usable links to clients.
         raise DeliveryUnavailable('login delivery failed') from error
