@@ -29,6 +29,8 @@ class WelcomeJourneyTest(BrowserFixture):
         await self.page.wait_for_selector('#public-welcome')
         api=[]
         self.page.on('request',lambda r:api.append(urlparse(r.url).path) if '/api/' in r.url else None)
+        await self.page.evaluate('document.fonts.ready')
+        self.assertTrue(await self.page.evaluate("Array.from(document.fonts).some(f=>f.family==='DM Sans' && f.status==='loaded')"))
         descriptions=[]
         for service in ('day','night','walk'):
             await self.page.click(f'[data-service="{service}"]')
@@ -275,7 +277,7 @@ class WelcomeJourneyTest(BrowserFixture):
         self.assertIn(email,await self.page.inner_text('#member-list'))
         for width in (1440,390):
             await self.page.set_viewport_size({'width':width,'height':900})
-            await self.capture_evidence(f'owner-real-access-{width}.png',full_page=False)
+            await self.capture_evidence(f'owner-real-access-{width}.png',full_page=True)
         await self.open_route('settings')
         self.assertEqual(await self.page.locator('#reset-demo').count(),0)
         await self.capture_evidence('owner-real-settings-390.png',full_page=False)
