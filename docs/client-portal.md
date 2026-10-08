@@ -4,6 +4,8 @@ The API app opens on a public French welcome for **Le Bus des Toutous · by Plus
 
 The service choice travels in the login link, so a link opened in a fresh tab returns to the request form. A client chooses their dog, service and dates; the API calculates the estimate. Submission records a **request awaiting confirmation**, not a confirmed reservation or a payment. The owner sees the request and can accept or decline it. Acceptance creates an ordinary saved booking, retaining the quoted service rate. A missing rate remains unknown until the owner explicitly completes it.
 
+After a dog is reassigned, its original pending request can still be declined; acceptance stays blocked. The original family retains that pending or declined request and its quoted amounts in reservation history, even with no dogs currently assigned. This history does not grant access to the dog's current profile or the new family's records.
+
 ## Accounts and access
 
 Public email submission only signs in known active members. It never grants owner status or creates a new business. Existing owners and language preferences are retained. Newly bootstrapped owners start in French. Bootstrap a new, empty owner account deliberately with `python3 api/create_owner.py --email <owner-email>` against the intended private `DC_DATA_DIR`; this does not send mail. Disable demo signup first.

@@ -513,6 +513,9 @@ class ClientPortalTest(ApiServerTestCase):
         self.assertEqual(_http(self.port,'PUT','/api/daily',{'daily':changed},cookie=self.owner)[0],200)
         _,saved,_=_http(self.port,'GET','/api/state',cookie=self.owner)
         self.assertEqual(saved['portal']['bookingClients'], {ident:'one'})
+        _,original,_=_http(self.port,'GET','/api/state',cookie=self.client)
+        self.assertEqual(original['portal']['requests'], [])
+        self.assertEqual(original['portal']['quotes'], {})
         self.member(other_family_email,'client','two')
         sibling=self.login(other_family_email)
         _,other,_=_http(self.port,'GET','/api/state',cookie=sibling)
@@ -524,6 +527,92 @@ class ClientPortalTest(ApiServerTestCase):
         self.assertEqual(other['portal']['quotes'],{})
         self.assertEqual(other['portal']['bookingClients'],{})
         self.assertEqual(_http(self.port,'GET','/api/client-documents/'+doc['id'],cookie=sibling)[0],404)
+        self.assertEqual(_http(self.port, 'POST', '/api/portal/cancel-booking', {'id': ident}, cookie=self.owner)[0], 200)
+        _,original,_=_http(self.port,'GET','/api/state',cookie=self.client)
+        self.assertEqual(original['portal']['requests'], [])
+        self.assertEqual(original['portal']['quotes'], {})
+
+    def reassigned_pending_request(self):
+        payload = {'dogId': 'nino', 'service': 'day', 'start': '2026-11-02', 'end': '2026-11-02',
+                   'note': 'Original family request'}
+        status, state, _ = _http(self.port, 'POST', '/api/portal/requests', payload, cookie=self.client)
+        self.assertEqual(status, 200, state)
+        request = state['portal']['requests'][0]
+        extra = {'targetId': request['id'], 'id': '', 'label': 'Original family option', 'unitMinor': 1250,
+                 'currency': 'CHF', 'quantity': 2, 'reusable': False}
+        status, state, _ = _http(self.port, 'POST', '/api/portal/extras', extra, cookie=self.owner)
+        self.assertEqual(status, 200, state)
+        quote = state['portal']['quotes'][request['id']]
+        changed = state['daily']
+        next(d for d in changed['dogs'] if d['id'] == 'nino').update(clientId='two', name='New family dog name')
+        changed['rates']['day'] = 100
+        status, state, _ = _http(self.port, 'PUT', '/api/daily', {'daily': changed}, cookie=self.owner)
+        self.assertEqual(status, 200, state)
+        email = self.prefix + '-new-family@example.com'
+        self.member(email, 'client', 'two')
+        return request, quote, self.login(email)
+
+    def test_reassigned_pending_request_stays_with_original_family_projection(self):
+        request, quote, family_two = self.reassigned_pending_request()
+        payload = {'dogId': 'nino', 'service': 'walk', 'start': '2026-11-03', 'end': '2026-11-03',
+                   'note': 'New family request'}
+        status, new_state, _ = _http(self.port, 'POST', '/api/portal/requests', payload, cookie=family_two)
+        self.assertEqual(status, 200, new_state)
+        newer = new_state['portal']['requests'][0]
+        self.upload('/api/portal/documents')
+        self.assertEqual(_http(self.port, 'POST', '/api/portal/updates',
+                               {'dogId': 'nino', 'text': 'New family news'}, cookie=self.owner)[0], 200)
+        status, original, _ = _http(self.port, 'GET', '/api/state', cookie=self.client)
+        self.assertEqual(status, 200, original)
+        self.assertEqual(original['portal']['requests'], [request])
+        self.assertEqual(original['portal']['quotes'], {request['id']: quote})
+        self.assertEqual(original['dogs'], [])
+        self.assertEqual(original['daily']['dogs'], [])
+        self.assertEqual(original['daily']['bookings'], [])
+        self.assertEqual(original['portal']['updates'], [])
+        self.assertEqual(original['portal']['documents'], [])
+        self.assertNotIn('New family', str(original))
+        status, new_state, _ = _http(self.port, 'GET', '/api/state', cookie=family_two)
+        self.assertEqual(status, 200, new_state)
+        self.assertEqual(new_state['portal']['requests'], [newer])
+        self.assertEqual(set(new_state['portal']['quotes']), {newer['id']})
+        self.assertNotIn('Original family', str(new_state))
+
+    def test_owner_can_decline_reassigned_request_but_cannot_accept_it(self):
+        request, quote, family_two = self.reassigned_pending_request()
+        _, before, _ = _http(self.port, 'GET', '/api/state', cookie=self.owner)
+        for decision in ('accepted', 'declined'):
+            for cookie, expected in ((self.client, 403), (family_two, 403), (self.other_owner, 400)):
+                with self.subTest(decision=decision, expected=expected):
+                    status, _, _ = _http(self.port, 'POST', '/api/portal/decide',
+                                         {'id': request['id'], 'status': decision}, cookie=cookie)
+                    self.assertEqual(status, expected)
+        status, _, _ = _http(self.port, 'POST', '/api/portal/decide',
+                             {'id': request['id'], 'status': 'accepted'}, cookie=self.owner)
+        self.assertEqual(status, 400)
+        self.assertEqual(_http(self.port, 'GET', '/api/state', cookie=self.owner)[1], before)
+        status, declined, _ = _http(self.port, 'POST', '/api/portal/decide',
+                                    {'id': request['id'], 'status': 'declined'}, cookie=self.owner)
+        self.assertEqual(status, 200, declined)
+        self.assertEqual(declined['daily'], before['daily'])
+        self.assertEqual(declined['finance'], before['finance'])
+        self.assertEqual(declined['portal']['requests'], [{**request, 'status': 'declined'}])
+        self.assertEqual(declined['portal']['quotes'], {request['id']: quote})
+        self.assertEqual(declined['portal']['bookingClients'], {})
+        self.assertEqual(_http(self.port, 'GET', '/api/state', cookie=self.owner)[1], declined)
+        _, original, _ = _http(self.port, 'GET', '/api/state', cookie=self.client)
+        self.assertEqual(original['portal']['requests'], declined['portal']['requests'])
+        self.assertEqual(original['portal']['quotes'], {request['id']: quote})
+        self.assertEqual(original['dogs'], [])
+        self.assertEqual(original['daily']['dogs'], [])
+        self.assertEqual(original['daily']['bookings'], [])
+        _, other, _ = _http(self.port, 'GET', '/api/state', cookie=family_two)
+        self.assertEqual(other['portal']['requests'], [])
+        self.assertEqual(other['portal']['quotes'], {})
+        self.assertEqual(other['daily']['bookings'], [])
+        for decision in ('accepted', 'declined'):
+            self.assertEqual(_http(self.port, 'POST', '/api/portal/decide',
+                                   {'id': request['id'], 'status': decision}, cookie=self.owner)[0], 400)
 
     def test_carer_bookings_receive_stored_rates_without_price_editing(self):
         import copy

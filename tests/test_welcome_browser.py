@@ -109,6 +109,56 @@ class WelcomeJourneyTest(BrowserFixture):
         self.assertEqual(len(await self.page.evaluate('DogCareAPI.getDaily().bookings')),1)
         await self.capture_evidence('owner-real-requests.png',full_page=False)
 
+    async def test_declined_reassigned_request_remains_in_original_family_history(self):
+        cookie = self.login(self.client_email)
+        payload = {'dogId': 'nino', 'service': 'day', 'start': '2026-11-04', 'end': '2026-11-04',
+                   'note': 'Original family history'}
+        status, saved, _ = _http(self.port, 'POST', '/api/portal/requests', payload, cookie=cookie)
+        self.assertEqual(status, 200, saved)
+        ident = saved['portal']['requests'][0]['id']
+        status, saved, _ = _http(self.port, 'POST', '/api/portal/quote',
+                                {'targetId': ident, 'unitMinor': 1234, 'currency': 'CHF'}, cookie=self.sid)
+        self.assertEqual(status, 200, saved)
+        quote = saved['portal']['quotes'][ident]
+        changed = saved['daily']
+        next(d for d in changed['dogs'] if d['id'] == 'nino').update(clientId='other', name='New family name')
+        self.assertEqual(_http(self.port, 'PUT', '/api/daily', {'daily': changed}, cookie=self.sid)[0], 200)
+        await self.page.reload()
+        await self.wait_ready()
+        await self.page.click(f'[data-request-id="{ident}"][data-decision=declined]')
+        await self.page.wait_for_function("!savePending && DogCareAPI.getPortal().requests[0].status === 'declined'")
+        self.assertEqual(await self.page.evaluate('DogCareAPI.getDaily().bookings'), [])
+        await self.context.add_cookies([{'name': 'dc_s', 'value': cookie, 'url': self.url, 'httpOnly': True}])
+        for width in (1440, 390):
+            await self.page.set_viewport_size({'width': width, 'height': 900})
+            await self.page.reload()
+            await self.wait_ready()
+            await self.open_route('reservations')
+            row = self.page.locator('#app-content .portal-row')
+            self.assertEqual(await row.count(), 1)
+            self.assertIn('Original family history', await row.inner_text())
+            self.assertEqual(await row.locator('.portal-tag').inner_text(), 'Déclinée')
+            self.assertIn('12,34', await row.locator('.quoted-total').inner_text())
+            self.assertEqual(await self.page.evaluate('DogCareAPI.getPortal().quotes'), {ident: quote})
+            self.assertEqual(await self.page.evaluate('DogCareAPI.getDaily().dogs'), [])
+            self.assertEqual(await self.page.locator('#client-request-form').count(), 0)
+            self.assertNotIn('New family name', await self.page.locator('body').inner_text())
+            self.assertNotIn('Private Pablo', await self.page.locator('body').inner_text())
+            self.assertLessEqual(await self.page.evaluate('document.documentElement.scrollWidth'), width)
+            await self.capture_evidence(f'reassigned-request-history-{width}.png', full_page=False)
+        other_email = uuid.uuid4().hex + '-family@example.com'
+        self.assertEqual(_http(self.port, 'POST', '/api/portal/members',
+                               {'email': other_email, 'role': 'client', 'clientId': 'other'}, cookie=self.sid)[0], 200)
+        other_cookie = self.login(other_email)
+        await self.context.add_cookies([{'name': 'dc_s', 'value': other_cookie, 'url': self.url, 'httpOnly': True}])
+        await self.page.reload()
+        await self.wait_ready()
+        await self.open_route('reservations')
+        self.assertNotIn('Original family history', await self.page.locator('body').inner_text())
+        self.assertEqual(await self.page.evaluate('DogCareAPI.getPortal().requests'), [])
+        self.assertEqual(await self.page.evaluate('DogCareAPI.getPortal().quotes'), {})
+        self.assertEqual(self.console_errors, [])
+
     async def test_owner_extra_edit_reload_and_client_total(self):
         cookie=self.login(self.client_email)
         status,saved,_=_http(self.port,'POST','/api/portal/requests',{'dogId':'nino','service':'day','start':'2026-11-04','end':'2026-11-05','note':'Synthetic priced request'},cookie=cookie)

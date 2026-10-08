@@ -23,8 +23,8 @@
   }
   function render(page) {
     const d=daily(), p=data(), names=dogNames(d), bookedIds=new Set(d.bookings.map(b=>b.id));setHeader('', text('workspace'),true);
-    if(!d.dogs.length)return `<section class="portal-card"><p>${esc(text('noDogs'))}</p></section>`;
-    if(page==='reservations')return `<section class="portal-card"><h2>${esc(text('request'))}</h2>${reservationForm(d)}</section><section class="portal-card"><h2>${esc(text('reservations'))}</h2>${rows(d.bookings,p,names) || `<p>${esc(text('noBookings'))}</p>`}${rows(p.requests.filter(r=>r.status!=='accepted'&&(r.status!=='cancelled'||!bookedIds.has(r.id))),p,names,true)}</section>`;
+    if(!d.dogs.length && (page!=='reservations'||!p.requests.length))return `<section class="portal-card"><p>${esc(text('noDogs'))}</p></section>`;
+    if(page==='reservations')return `${d.dogs.length?`<section class="portal-card"><h2>${esc(text('request'))}</h2>${reservationForm(d)}</section>`:''}<section class="portal-card"><h2>${esc(text('reservations'))}</h2>${rows(d.bookings,p,names) || `<p>${esc(text('noBookings'))}</p>`}${rows(p.requests.filter(r=>r.status!=='accepted'&&(r.status!=='cancelled'||!bookedIds.has(r.id))),p,names,true)}</section>`;
     if(page==='news')return `<section class="portal-card"><h2>${esc(text('news'))}</h2>${p.updates.map(u=>`<article class="portal-row"><div><strong>${esc(dogName(u.dogId,names))}</strong><p class="portal-message">${esc(u.text)}</p></div></article>`).join('') || `<p>${esc(text('noUpdates'))}</p>`}</section>`;
     if(page==='documents')return `<section class="portal-card"><h2>${esc(text('documents'))}</h2>${p.documents.map(d=>`<a class="portal-row" href="/api/client-documents/${encodeURIComponent(d.id)}"><span><strong>${esc(d.label)}</strong><small>${esc(dogName(d.dogId,names))}</small></span><span aria-hidden="true">↗</span></a>`).join('') || `<p>${esc(text('noDocuments'))}</p>`}</section>`;
     const next=d.bookings.filter(b=>DailyModel.activeBooking(b)&&b.end>=localDay()).sort((a,b)=>a.start.localeCompare(b.start))[0];

@@ -89,3 +89,31 @@ test('quote binding uses one snapshot while reusable options and save retain the
   assert.equal(saved[0].payload.unitMinor, 789);
   assert.equal(reads.portal, 1);
 });
+
+test('client reservations retain request history and quotes without current dog access', () => {
+  const { context, daily, portal } = fixture(1);
+  context.DogCareAPI.getUser = () => ({ role: 'client' });
+  daily.dogs = [];
+  daily.bookings = [];
+  portal.quotes['booking-0'].extras.push({ label: 'Original family option', quantity: 1, totalMinor: 100, currency: 'CHF' });
+  for (const status of ['requested', 'declined']) {
+    portal.requests[0].status = status;
+    const rendered = context.PortalUI.render('reservations');
+    assert.match(rendered, /Request 0/);
+    assert.match(rendered, /Original family option/);
+    assert.match(rendered, new RegExp('portal-tag">' + status));
+    assert.doesNotMatch(rendered, /client-request-form|Dog 0/);
+  }
+  portal.requests = [];
+  const empty = context.PortalUI.render('reservations');
+  assert.match(empty, /noDogs/);
+  assert.doesNotMatch(empty, /client-request-form|portal-row/);
+});
+
+test('client reservations show accepted requests once when the booking remains visible', () => {
+  const { context, portal } = fixture(1);
+  portal.requests[0].status = 'accepted';
+  const rendered = context.PortalUI.render('reservations');
+  assert.equal((rendered.match(/class="portal-row"/g) || []).length, 1);
+  assert.match(rendered, /client-request-form/);
+});

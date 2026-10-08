@@ -39,7 +39,8 @@ def snapshot(c, user, current):
         if row["dogId"] in allowed and (staff or row["clientId"] == cid)]
     requests = [dict(row) for row in c.execute(
         "SELECT id,client_id AS clientId,dog_id AS dogId,service,start,end,note,status FROM booking_request WHERE business_id=? ORDER BY created DESC,id", (bid,))
-        if row["dogId"] in allowed and (staff or row["clientId"] == cid)]
+        if staff or (cid is not None and row["clientId"] == cid and
+                     (row["dogId"] in allowed or row["status"] in ("requested", "declined")))]
     cancelled = {b['id'] for b in current['bookings'] if b.get('status') == 'cancelled'}
     for request in requests:
         if request['status'] == 'accepted' and request['id'] in cancelled:
@@ -140,9 +141,11 @@ def mutate(c, user, route, payload):
         if payload["status"] not in ("accepted", "declined"):
             raise ValueError("invalid decision")
         request = c.execute("SELECT * FROM booking_request WHERE business_id=? AND id=? AND status='requested'", (bid, payload["id"])).fetchone()
-        if not request or not any(d["id"] == request["dog_id"] and d["clientId"] == request["client_id"] for d in current["dogs"]):
+        if not request:
             raise ValueError("request unavailable")
         if payload["status"] == "accepted":
+            if not any(d["id"] == request["dog_id"] and d["clientId"] == request["client_id"] for d in current["dogs"]):
+                raise ValueError("request unavailable")
             price = quotes.quote(c, bid, dict(request))
             current["bookings"].append({"id": request["id"], "dogId": request["dog_id"], "service": request["service"],
                                         "start": request["start"], "end": request["end"], "unitMinor": price["unitMinor"], "currency": price["currency"]})
