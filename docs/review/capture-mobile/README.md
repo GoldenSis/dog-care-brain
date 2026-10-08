@@ -1,5 +1,7 @@
 # Care-note capture on mobile
 
+Historical capture review from 16 September 2026. The screenshots and coordinates below predate the [compact-navigation stage](../muse-compact-navigation/README.md) and the [current workspace](../../../README.md#navigate-the-workspace); they are measurements of that earlier layout, not the current one. The current phone layout fixes the Save area above the visual viewport's bottom inset and reserves space beneath the form; the document-flow description below records this earlier revision.
+
 The Save button previously began 1000 px below the top of a 390 × 844 viewport. The revised form retains the existing visual identity and dog context, removes the repeated introductory heading and keeps Save within reach.
 
 | View | Before | After |

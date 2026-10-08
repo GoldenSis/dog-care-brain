@@ -5,24 +5,97 @@ const { test } = require('node:test');
 
 const source = fs.readFileSync(require('node:path').join(__dirname, '..', 'api.js'), 'utf8');
 const serverState = { ok: true, business_id: 1, revision: 0, imported: false, observations: { billie: [{ id: 1, text: 'Server history' }] }, invites: [], language: 'en' };
-const response = (data, status = 200) => ({ ok: status < 400, status, text: async () => JSON.stringify(data) });
+const response = (data, status = 200) => ({ ok: status < 400, status, text: async () => JSON.stringify(data), json: async () => data });
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
-function adapter({ local = {}, fetcher, confirm = () => true, enabled = true, timers = {} } = {}) {
+test('missing accounting stays unavailable and retry preserves business and revision guards', async () => {
+  const finance={version:1,profile:{name:'',address:'',taxId:''},entries:[],documents:[]};
+  let state=serverState;
+  const h=adapter({fetcher:async()=>response(state)});
+  assert.equal(await h.api.ready,true);
+  assert.equal(h.api.getFinance(),null);
+  assert.equal(await h.api.saveFinance(finance),false);
+  assert.equal(h.calls.length,1);
+  for(const patch of [{business_id:2},{revision:1}]){
+    state={...serverState,...patch,finance};
+    assert.equal(await h.api.reloadFinance(),false);
+    assert.equal(h.api.getFinance(),null);
+  }
+  state={...serverState,finance};
+  assert.equal(await h.api.reloadFinance(),true);
+  assert.equal(JSON.stringify(h.api.getFinance()),JSON.stringify(finance));
+});
+
+test('portal refresh rejects failed, switched or stale snapshots without replacing local records', async () => {
+  const portal = {shareCatalog: [{key:'original'}], professionals: []};
+  let state = {...serverState, portal}, status = 200;
+  const h = adapter({fetcher:async call => call.method === 'PUT'
+    ? response({...serverState, revision:1}) : response(state, status)});
+  assert.equal(await h.api.ready, true);
+  const observations = h.api.getObservations();
+  observations.billie[0].text = 'Unsaved local edit';
+  for (const patch of [{business_id:2}, {revision:1}, {ok:false}, {portal:null}]) {
+    state = {...serverState, portal:{shareCatalog:[{key:'unexpected'}]}, ...patch};
+    assert.equal(await h.api.reloadPortal(), false);
+    assert.equal(JSON.stringify(h.api.getPortal()), JSON.stringify(portal));
+    assert.equal(h.api.getObservations(), observations);
+  }
+  status = 503;
+  state = {...serverState, portal};
+  assert.equal(await h.api.reloadPortal(), false);
+  status = 200;
+  state = {...serverState, portal:{shareCatalog:[{key:'current'}]}};
+  assert.equal(await h.api.reloadPortal(), true);
+  assert.equal(h.api.getPortal().shareCatalog[0].key, 'current');
+  assert.equal(h.api.getObservations().billie[0].text, 'Unsaved local edit');
+  assert.equal(await h.api.saveObservations(observations), true);
+  assert.equal(h.calls.at(-1).headers['If-Match'], '"0"');
+});
+
+test('portal refresh waits for preceding writes and retains edits queued during its read', async () => {
+  let revision = 0, release;
+  const h = adapter({fetcher:async call => {
+    if (call.method === 'PUT') {
+      assert.equal(call.headers['If-Match'], `"${revision}"`);
+      return response({...serverState, revision:++revision});
+    }
+    if (revision === 1) return new Promise(resolve => {release = resolve;});
+    return response({...serverState, portal:{shareCatalog:[]}});
+  }});
+  await h.api.ready;
+  const first = h.api.saveObservations({billie:[{id:2, text:'Newly saved note'}]});
+  const refresh = h.api.reloadPortal();
+  await first;
+  await tick();
+  assert.equal(typeof release, 'function');
+  const second = h.api.saveObservations({billie:[{id:2, text:'Next queued edit'}]});
+  await tick();
+  assert.equal(h.calls.filter(call => call.method === 'PUT').length, 1);
+  release(response({...serverState, revision:1, portal:{shareCatalog:[{key:'new-note'}]}}));
+  assert.equal(await refresh, true);
+  assert.equal(await second, true);
+  assert.equal(h.api.getPortal().shareCatalog[0].key, 'new-note');
+  assert.equal(h.api.getObservations().billie[0].text, 'Next queued edit');
+  assert.deepEqual(h.calls.map(call => call.url), ['/api/state','/api/observations','/api/state','/api/observations']);
+});
+
+function adapter({ local = {}, fetcher, confirm = () => true, enabled = true, timers = {}, xhr, identity = {ok:true,email:'fixture@example.test',role:'owner'} } = {}) {
   const storage = new Map(Object.entries(local));
-  const calls = [], toasts = [], notices = [];
+  const calls = [], identityCalls = [], toasts = [], notices = [], reloads = [];
   const window = {
     DOGCARE_API: enabled ? '/api' : undefined,
     localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) },
     showToast: text => toasts.push(text),
     confirm: text => { notices.push(text); return confirm(text); },
+    location: { reload: () => reloads.push(true) },
   };
-  vm.runInNewContext(source, { window, AbortController, setTimeout, clearTimeout, ...timers, fetch: async (url, options) => {
+  vm.runInNewContext(source, { window, AbortController, URLSearchParams, XMLHttpRequest: xhr, setTimeout, clearTimeout, ...timers, fetch: async (url, options) => {
+    if (url.endsWith('/auth/me')) {identityCalls.push(url);return response(identity);}
     const call = { url, ...options, payload: options.body && JSON.parse(options.body) };
     calls.push(call);
     return fetcher ? fetcher(call, calls) : response(serverState);
   } });
-  return { api: window.DogCareAPI, storage, calls, toasts, notices };
+  return { api: window.DogCareAPI, storage, calls, identityCalls, toasts, notices, reloads };
 }
 
 test('flag off leaves storage and network untouched', () => {
@@ -67,6 +140,20 @@ test('stale or switched accounts stop queued writes and retain the hydrated iden
   assert.deepEqual(results, [false, false, false]);
   assert.equal(h.calls.filter(call => call.method === 'PUT').length, 1);
   assert.match(h.toasts[0], /reload/i);
+});
+
+test('logout works after a stale save and stays bound to the loaded business', async () => {
+  const h = adapter({ fetcher: async call => call.method === 'PUT'
+    ? response({ ok: false, reload_required: true }, 409)
+    : call.url.endsWith('/auth/logout') ? response({ ok: true }) : response(serverState) });
+  assert.equal(await h.api.ready, true);
+  assert.equal(await h.api.saveLanguage('fr'), false);
+  assert.equal(await h.api.logout(), true);
+  const logout = h.calls.find(call => call.url.endsWith('/auth/logout'));
+  assert.equal(logout.headers['X-DogCare-Business'], '1');
+  assert.equal(h.reloads.length, 1);
+  assert.equal(await h.api.saveInvites([]), false);
+  assert.equal(h.calls.filter(call => call.method === 'PUT').length, 1);
 });
 
 test('failed hydration blocks all persistence', async () => {
@@ -240,4 +327,114 @@ test('interrupted write bodies show failure and the save queue recovers', async 
   await h.api.saveLanguage('de');
   await tick();
   assert.equal(h.calls.filter(call => call.method === 'PUT').length, 2);
+});
+
+test('daily and document saves share account revision queue without touching browser records', async () => {
+  let revision = 0;
+  const daily = { version: 1, clients: [], dogs: [], bookings: [], rates: {currency:'CHF',walk:null,day:null,night:null}, documents: [] };
+  const h = adapter({fetcher: async call => {
+    if (call.method === 'PUT' || call.method === 'POST') {
+      assert.equal(call.headers['X-DogCare-Business'], '1');
+      assert.equal(call.headers['If-Match'], `"${revision}"`);
+      revision++;
+    }
+    return response({...serverState, imported:true, revision, daily});
+  }});
+  await h.api.ready;
+  assert.deepEqual(await Promise.all([h.api.saveDaily(daily),h.api.saveDocument({dogId:'test'}),h.api.saveLanguage('fr')]),[true,true,true]);
+  assert.equal(h.calls.filter(c=>c.method).length,3);
+  assert.equal(h.storage.size,0);
+  const copy=h.api.getDaily();copy.bookings.push({id:'local'});
+  assert.equal(h.api.getDaily().bookings.length,0);
+});
+
+test('conflicting daily save retains cached records and blocks a queued document upload', async () => {
+  const daily={version:1,clients:[],dogs:[],bookings:[],rates:{currency:'CHF',walk:null,day:null,night:null},documents:[]};
+  const h=adapter({fetcher: async call=>call.method ? response({ok:false,reload_required:true},409) : response({...serverState,imported:true,daily})});
+  await h.api.ready;
+  assert.deepEqual(await Promise.all([h.api.saveDaily({...daily,bookings:[{id:'unsaved'}]}),h.api.saveDocument({})]),[false,false]);
+  assert.equal(h.api.getDaily().bookings.length,0);
+  assert.equal(h.calls.filter(c=>c.method).length,1);
+});
+
+test('document downloads use only authenticated private document URLs and retain failure state', async () => {
+  const h=adapter({fetcher: async call=>call.url.includes('/documents/') ? {ok:true,blob:async()=>({synthetic:true})} : response({...serverState,imported:true})});
+  await h.api.ready;
+  assert.equal(await h.api.getDocument('../other'),null);
+  assert.deepEqual(await h.api.getDocument('a'.repeat(32)),{synthetic:true});
+  assert.equal(h.calls.at(-1).credentials,'include');
+  assert.equal(h.calls.at(-1).url,'/api/documents/'+'a'.repeat(32));
+});
+
+// A public load must never hydrate private state or import a local account snapshot.
+test('anonymous identity stops before private state, import or storage access', async () => {
+  const h=adapter({identity:{ok:false},local:{'dogcare-observations':'private browser data'}});
+  assert.equal(await h.api.ready,false);
+  assert.equal(h.api.isAnonymous(),true);
+  assert.equal(h.api.getUser(),null);
+  assert.equal(h.identityCalls.length,1);
+  assert.equal(h.calls.length,0);
+  assert.equal(h.notices.length,0);
+});
+test('client hydration never imports owner browser data', async () => {
+  const h=adapter({identity:{ok:true,role:'client'},local:{'dogcare-observations':'private browser data'},fetcher:async()=>response({...serverState,role:'client'})});
+  assert.equal(await h.api.ready,true);
+  assert.equal(h.api.getUser().role,'client');
+  assert.equal(h.calls.length,1);
+  assert.equal(h.calls[0].url,'/api/state');
+});
+
+test('media reloads and mutations bind responses to the loaded business', async () => {
+  const media = { items: [{ id: 'retained' }], covers: {}, branding: { hero: null, services: {} } };
+  let returnedBusiness = 1;
+  const h = adapter({ fetcher: async call => call.url.includes('/media')
+    ? response({ ok: true, business_id: returnedBusiness, media: { ...media, items: [{ id: 'unexpected' }] } })
+    : response({ ...serverState, imported: true, media }) });
+  assert.equal(await h.api.ready, true);
+  for (const returned of [2, undefined]) {
+    returnedBusiness = returned;
+    await assert.rejects(h.api.reloadMedia(), /compte|espace/i);
+    await assert.rejects(h.api.saveMedia('cover', { dogId: 'dog', mediaId: 'image' }), /compte|espace/i);
+    assert.equal(h.api.getMedia().items[0].id, 'retained');
+  }
+  assert.ok(h.calls.filter(call => call.url.includes('/media')).every(call => call.headers['X-DogCare-Business'] === '1'));
+  returnedBusiness = 1;
+  assert.equal((await h.api.reloadMedia()).items[0].id, 'unexpected');
+});
+
+test('raw media uploads reject responses for another business without replacing the album', async () => {
+  const media = { items: [{ id: 'retained' }], covers: {}, branding: { hero: null, services: {} } };
+  let returnedBusiness = 2;
+  const uploads = [];
+  class Upload {
+    constructor() { this.headers = {}; this.upload = {}; uploads.push(this); }
+    open(method, url) { this.method = method; this.url = url; }
+    setRequestHeader(name, value) { this.headers[name] = value; }
+    send(file) {
+      this.file = file;
+      queueMicrotask(() => {
+        this.status = 200;
+        this.responseText = JSON.stringify({ ok: true, business_id: returnedBusiness, uploadedId:'uploaded', media: { ...media, items: [{ id: 'uploaded' }] } });
+        this.onload();
+      });
+    }
+  }
+  const h = adapter({ xhr: Upload, fetcher: async () => response({ ...serverState, imported: true, media }) });
+  assert.equal(await h.api.ready, true);
+  const file = { name: 'synthetic.png', type: 'image/png' };
+  await assert.rejects(h.api.uploadMedia(file, { dogId: 'dog' }), /compte|espace/i);
+  assert.equal(h.api.getMedia().items[0].id, 'retained');
+  assert.equal(uploads[0].headers['X-DogCare-Business'], '1');
+  returnedBusiness = 1;
+  assert.equal((await h.api.uploadMedia(file, { dogId: 'dog' })).media.items[0].id, 'uploaded');
+  for (const [name, type, expected] of [
+    ['Phone.MOV', 'application/octet-stream', 'video/quicktime'],
+    ['Phone.HEIC', '', 'image/heic'], ['camera.JPEG', '', 'image/jpeg'],
+    ['unknown.bin', '', 'application/octet-stream'], ['wrong.MOV', 'text/plain', 'text/plain'],
+  ]) {
+    const phone = { name, type };
+    await h.api.uploadMedia(phone, { dogId: 'dog' });
+    assert.equal(uploads.at(-1).headers['Content-Type'], expected);
+    assert.equal(uploads.at(-1).file, phone);
+  }
 });

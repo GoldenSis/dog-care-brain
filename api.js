@@ -1,9 +1,12 @@
 /* Adapter behind window.DOGCARE_API (the API server injects "/api").
    Flag off (undefined/falsy) → no storage or network access from this file.
-   Flag on → hydrate account state, optionally import the three dogcare-* storage
-   keys once per business, then save through /api with a session cookie.
-   Browser copies remain unchanged; observations/invites are full replacements,
-   language is per user, and care writes bind to the loaded business/revision.
+   Flag on → hydrate account state, optionally import dogcare-observations,
+   dogcare-invites and dogcare-language once per business; daily records,
+   experiences and accounting records/originals are excluded. Save through /api
+   with a session cookie; browser copies stay intact. Observations/invites/daily
+   records/experiences/accounting use full replacement snapshots; accounting
+   writes retain existing records and commit new originals atomically. Language
+   is per user, and care writes bind to the loaded business/revision.
    See README.md's Slice 1 API section for the request and recovery contracts. */
 (function (w) {
   const base = w.DOGCARE_API;
@@ -11,8 +14,14 @@
 
   const cache = {
     observations: null,
+    dogs: [],
     invites: [],
     language: "fr",
+    daily: null,
+    knowledge: null,
+    finance: null,
+    media: {items:[],covers:{},branding:{hero:null,services:{}}},
+    portal: {updates:[],requests:[],documents:[],members:[]},
   };
 
   function url(path) {
@@ -24,6 +33,8 @@
   }
 
   let hydrated = false;
+  let sessionUser = null;
+  let anonymous = false;
   let businessId = null;
   let revision = null;
   let writeBlocked = "";
@@ -35,7 +46,7 @@
   async function req(path, opts) {
     const writing = opts && opts.method && opts.method !== "GET";
     if (writing) {
-      if (writeBlocked || businessId === null) { failed(); return { ok: false, status: 0, data: {} }; }
+      if ((writeBlocked && path !== '/auth/logout') || businessId === null) { failed(); return { ok: false, status: 0, data: {} }; }
       opts = { ...opts, headers: { ...opts.headers, "X-DogCare-Business": String(businessId), "If-Match": `"${revision}"` } };
     }
     const controller = new AbortController();
@@ -56,7 +67,7 @@
       if (writing && (data.reload_required || r.status === 401)) {
         writeBlocked = "Not saved — your account or care records changed. Copy your draft, then reload before saving.";
       }
-      if (writing && r.ok && path !== "/blobs") {
+      if (writing && r.ok && path !== "/blobs" && path !== "/auth/logout") {
         if (data.business_id !== businessId || !Number.isSafeInteger(data.revision)) {
           failed();
           return { ok: false, status: r.status, data: {} };
@@ -129,23 +140,33 @@
         Array.isArray(data.observations) || !Array.isArray(data.invites) ||
         !Number.isSafeInteger(data.business_id) || !Number.isSafeInteger(data.revision) ||
         (businessId !== null && data.business_id !== businessId)) return false;
+    sessionUser = {email:data.email, role:data.role || "owner"};
     businessId = data.business_id;
     revision = data.revision;
     cache.observations = data.observations;
+    cache.dogs = data.dogs || [];
     cache.invites = data.invites;
     cache.language = data.language || "en";
+    cache.daily = data.daily ?? null;
+    cache.knowledge = data.knowledge || {version:1,experiences:[]};
+    cache.finance = data.finance ?? null;
+    cache.media = data.media || {items:[],covers:{},branding:{hero:null,services:{}}};
+    cache.portal = data.portal || {updates:[],requests:[],documents:[],members:[]};
     return true;
   }
 
   const ready = (async function hydrate() {
+    const identity = await req("/auth/me");
+    if (!identity.ok) return false;
+    if (!identity.data.ok) { anonymous = true; return false; }
     const state = await req("/state");
     if (state.status === 401) {
-      loadError = "Sign in using your magic link, then reload to open your account.";
+      loadError = "Open your sign-in link in this browser to access your account. If the link has expired or was already used, request a new one from the person who gave you access.";
       return false;
     }
     if (!state.ok || !acceptState(state.data)) return false;
     const marker = "dogcare-imported:" + state.data.business_id;
-    if (!state.data.imported && !w.localStorage.getItem(marker)) {
+    if (sessionUser.role === "owner" && !state.data.imported && !w.localStorage.getItem(marker)) {
       const payload = {};
       for (const key of ["observations", "invites", "language"]) {
         const raw = w.localStorage.getItem("dogcare-" + key);
@@ -179,21 +200,167 @@
     return writes;
   }
 
-  // Await ready's boolean before using cached getters or saving. Valid save calls
-  // resolve to booleans in call order; whenSaved waits for writes already queued.
-  // Observation saves reconcile uploaded data URLs into the supplied objects.
+  function acceptMedia(result, expectedBusiness) {
+    if (!result?.ok || !Array.isArray(result.media?.items)) throw Error(result?.error || "Le média n’a pas été enregistré. Réessayez.");
+    if (businessId !== expectedBusiness || result.business_id !== expectedBusiness) throw Error("Le compte actif a changé. Rechargez votre espace avant de réessayer.");
+    cache.media = result.media;
+    return JSON.parse(JSON.stringify(cache.media));
+  }
+
+  async function mediaRequest(action, payload) {
+    if (!hydrated || businessId === null) throw Error("Rechargez votre espace avant de réessayer.");
+    const expectedBusiness = businessId;
+    const controller = new AbortController(), timer = setTimeout(() => controller.abort(), requestTimeout);
+    try {
+      const response = await fetch(url('/media' + (action ? '/' + action : '')), {
+        credentials:'include', signal:controller.signal,
+        headers:{'X-DogCare-Business':String(expectedBusiness),...(action ? {'Content-Type':'application/json'} : {})},
+        ...(action ? {method:'POST',body:JSON.stringify(payload)} : {})
+      });
+      const result = await response.json();
+      if (!response.ok) throw Error(result.error || "Le média n’a pas été enregistré. Réessayez.");
+      return acceptMedia(result, expectedBusiness);
+    } catch (error) {
+      if (error.name === 'AbortError' || error instanceof TypeError) throw Error("Connexion interrompue. Rechargez l’album avant de réessayer.");
+      throw error;
+    } finally { clearTimeout(timer); }
+  }
+
+  function mediaType(file) {
+    if (file.type && file.type !== 'application/octet-stream') return file.type;
+    const extension = String(file.name || '').split('.').pop().toLowerCase();
+    const types = {jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp',heic:'image/heic',heif:'image/heif',
+      mp4:'video/mp4',mov:'video/quicktime',webm:'video/webm'};
+    return Object.hasOwn(types, extension) ? types[extension] : 'application/octet-stream';
+  }
+
+  // Await ready's boolean before using cached getters or saving. Queued care and
+  // portal saves resolve to booleans in call order; whenSaved waits for that queue.
+  // Media operations run separately, return snapshots/upload results and reject
+  // on failure; see docs/media.md. Observation saves reconcile uploaded data URLs
+  // into the supplied objects.
   w.DogCareAPI = {
     ready,
+    isAnonymous() { return anonymous; },
+    getUser() { return sessionUser && {...sessionUser}; },
     getLoadError() { return loadError; },
+    getMedia() { return JSON.parse(JSON.stringify(cache.media)); },
+    mediaType,
+    reloadMedia() { return mediaRequest(); },
+    saveMedia(action, payload) { return mediaRequest(action, payload); },
+    uploadMedia(file, target, progress) {
+      return new Promise((resolve, reject) => {
+        if (!hydrated || businessId === null) { reject(Error("Rechargez votre espace avant de réessayer.")); return; }
+        const expectedBusiness = businessId;
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', url('/media/upload?' + new URLSearchParams(target)));
+        xhr.withCredentials = true;
+        xhr.timeout = 180000;
+        xhr.setRequestHeader('X-DogCare-Business', String(expectedBusiness));
+        xhr.setRequestHeader('X-DogCare-Filename', encodeURIComponent(file.name));
+        xhr.setRequestHeader('Content-Type', mediaType(file));
+        xhr.upload.onprogress = event => { if (event.lengthComputable) progress?.(Math.round(event.loaded / event.total * 100)); };
+        xhr.onload = () => {
+          try {
+            const result = JSON.parse(xhr.responseText);
+            if (xhr.status < 200 || xhr.status >= 300) throw Error(result.error || "Le fichier n’a pas été ajouté.");
+            if (typeof result.uploadedId !== 'string' || !result.media?.items?.some(item => item.id === result.uploadedId)) throw Error("Le fichier ajouté n’a pas été identifié. Rechargez l’album avant de réessayer.");
+            resolve({media:acceptMedia(result, expectedBusiness), uploadedId:result.uploadedId});
+          } catch (error) { reject(error); }
+        };
+        xhr.onerror = xhr.ontimeout = xhr.onabort = () => reject(Error("Transfert interrompu. Rechargez l’album avant de réessayer."));
+        xhr.send(file);
+      });
+    },
+    getPortal() { return JSON.parse(JSON.stringify(cache.portal)); },
+    reloadPortal() {
+      return enqueue(async () => {
+        const result = await req('/state');
+        if (!result.ok || !result.data.ok || result.data.business_id !== businessId || result.data.revision !== revision || !Array.isArray(result.data.portal?.shareCatalog)) return false;
+        cache.portal = result.data.portal;
+        return true;
+      });
+    },
+    savePortal(action, payload) {
+      const snapshot = JSON.parse(JSON.stringify(payload));
+      return enqueue(async () => {
+        const result = await postJson("/portal/" + action, snapshot);
+        return result.ok && acceptState(result.data);
+      });
+    },
+    async logout() {
+      const result = await req('/auth/logout', {method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+      if(result.ok) w.location.reload();
+      return result.ok;
+    },
     whenSaved() { return writes; },
     getObservations() {
       return cache.observations || {};
     },
+    getDogs() { return JSON.parse(JSON.stringify(cache.dogs)); },
     getInvites() {
       return cache.invites || [];
     },
     getLanguage() {
       return cache.language || "en";
+    },
+    getFinance() { return JSON.parse(JSON.stringify(cache.finance)); },
+    reloadFinance() {
+      return enqueue(async()=>{
+        const result=await req('/state');
+        if(!result.ok || !result.data.ok || result.data.business_id!==businessId || result.data.revision!==revision || !result.data.finance)return false;
+        cache.finance=result.data.finance;return true;
+      });
+    },
+    saveFinance(finance, uploads=[]) {
+      if(!cache.finance)return Promise.resolve(false);
+      const snapshot=JSON.parse(JSON.stringify({finance,uploads}));
+      return enqueue(async()=>{const result=await putJson('/finance',snapshot);return result.ok&&acceptState(result.data);});
+    },
+    async getFinanceDocument(id) {
+      if(!hydrated || writeBlocked || !/^[a-f0-9]{64}$/.test(id))return null;
+      const controller=new AbortController(), timer=setTimeout(()=>controller.abort(),requestTimeout);
+      try{const response=await fetch(url('/finance-documents/'+id),{credentials:'include',signal:controller.signal});return response.ok?await response.blob():null;}
+      catch{return null;}finally{clearTimeout(timer);}
+    },
+    getKnowledge() { return JSON.parse(JSON.stringify(cache.knowledge)); },
+    saveKnowledge(knowledge) {
+      const snapshot = JSON.parse(JSON.stringify(knowledge));
+      return enqueue(async () => {
+        const result = await putJson("/knowledge", {knowledge: snapshot});
+        return result.ok && acceptState(result.data);
+      });
+    },
+    async estimateRequest(item) {
+      if(!hydrated)return null;
+      const result=await req('/portal/estimate?'+new URLSearchParams(item));
+      return result.ok ? result.data.quote : null;
+    },
+    getDaily() { return JSON.parse(JSON.stringify(cache.daily)); },
+    saveDaily(daily) {
+      const snapshot = JSON.parse(JSON.stringify(daily));
+      return enqueue(async () => {
+        const result = await putJson("/daily", {daily: snapshot});
+        return result.ok && acceptState(result.data);
+      });
+    },
+    saveDocument(document) {
+      const snapshot = JSON.parse(JSON.stringify(document));
+      return enqueue(async () => {
+        const result = await postJson("/documents", snapshot);
+        return result.ok && acceptState(result.data);
+      });
+    },
+    async getDocument(id) {
+      if (!hydrated || writeBlocked || !/^[a-f0-9]{32}$/.test(id)) return null;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), requestTimeout);
+      try {
+        const response = await fetch(url("/documents/" + id), {credentials:"include",signal:controller.signal});
+        if (!response.ok) return null;
+        return await response.blob();
+      } catch { return null; }
+      finally { clearTimeout(timer); }
     },
     saveObservations(obs) {
       if (!hydrated) return enqueue(() => false);

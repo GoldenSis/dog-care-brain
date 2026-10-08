@@ -83,3 +83,161 @@ CREATE TABLE IF NOT EXISTS pref (
   user_id INTEGER PRIMARY KEY REFERENCES user(id),
   language TEXT NOT NULL DEFAULT 'en'
 );
+
+-- Explicit professional grants never confer family or business-wide staff access.
+CREATE TABLE IF NOT EXISTS professional_dog (
+  user_id INTEGER NOT NULL REFERENCES user(id),
+  business_id INTEGER NOT NULL REFERENCES business(id),
+  dog_id TEXT NOT NULL,
+  client_id TEXT,
+  PRIMARY KEY (user_id, dog_id)
+);
+CREATE TABLE IF NOT EXISTS professional_record (
+  user_id INTEGER NOT NULL REFERENCES user(id),
+  business_id INTEGER NOT NULL REFERENCES business(id),
+  dog_id TEXT NOT NULL,
+  record_key TEXT NOT NULL,
+  snapshot TEXT NOT NULL,
+  PRIMARY KEY (user_id, record_key)
+);
+
+-- Additive operational records; existing accounts start without invented activity.
+CREATE TABLE IF NOT EXISTS business_daily (
+  business_id INTEGER PRIMARY KEY REFERENCES business(id),
+  snapshot TEXT NOT NULL
+);
+
+-- Never exposed through the public static tree; downloads require the owning account.
+CREATE TABLE IF NOT EXISTS daily_document (
+  business_id INTEGER NOT NULL REFERENCES business(id),
+  id TEXT NOT NULL,
+  mime TEXT NOT NULL,
+  contents BLOB NOT NULL,
+  PRIMARY KEY (business_id, id)
+);
+
+-- User-entered experience remains private and separate from sourced education.
+CREATE TABLE IF NOT EXISTS business_knowledge (
+  business_id INTEGER PRIMARY KEY REFERENCES business(id),
+  snapshot TEXT NOT NULL
+);
+
+-- Private accounting originals are immutable and scoped to their business.
+CREATE TABLE IF NOT EXISTS business_finance (
+  business_id INTEGER PRIMARY KEY REFERENCES business(id),
+  snapshot TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS finance_document (
+  business_id INTEGER NOT NULL REFERENCES business(id),
+  id TEXT NOT NULL,
+  mime TEXT NOT NULL,
+  contents BLOB NOT NULL,
+  PRIMARY KEY (business_id, id)
+);
+
+-- Client membership is explicit; old accounts and care records stay internal.
+CREATE TABLE IF NOT EXISTS client_access (
+  user_id INTEGER PRIMARY KEY REFERENCES user(id),
+  business_id INTEGER NOT NULL REFERENCES business(id),
+  client_id TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS client_update (
+  id TEXT PRIMARY KEY,
+  business_id INTEGER NOT NULL REFERENCES business(id),
+  dog_id TEXT NOT NULL,
+  client_id TEXT,
+  author_id INTEGER NOT NULL REFERENCES user(id),
+  text TEXT NOT NULL,
+  created INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS booking_request (
+  id TEXT PRIMARY KEY,
+  business_id INTEGER NOT NULL REFERENCES business(id),
+  user_id INTEGER NOT NULL REFERENCES user(id),
+  dog_id TEXT NOT NULL,
+  client_id TEXT,
+  service TEXT NOT NULL,
+  start TEXT NOT NULL,
+  end TEXT NOT NULL,
+  note TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'requested',
+  created INTEGER NOT NULL
+);
+-- Explicitly client-facing files. Health and accounting originals stay separate.
+CREATE TABLE IF NOT EXISTS client_document (
+  id TEXT PRIMARY KEY,
+  business_id INTEGER NOT NULL REFERENCES business(id),
+  dog_id TEXT NOT NULL,
+  client_id TEXT,
+  label TEXT NOT NULL,
+  name TEXT NOT NULL,
+  mime TEXT NOT NULL,
+  contents BLOB NOT NULL
+);
+
+-- Quote values never rewrite issued invoices or execute payments.
+CREATE TABLE IF NOT EXISTS request_quote (
+  business_id INTEGER NOT NULL REFERENCES business(id),
+  id TEXT NOT NULL,
+  unit_minor INTEGER,
+  currency TEXT NOT NULL,
+  PRIMARY KEY (business_id, id)
+);
+CREATE TABLE IF NOT EXISTS booking_extra (
+  business_id INTEGER NOT NULL REFERENCES business(id),
+  target_id TEXT NOT NULL,
+  id TEXT NOT NULL,
+  label TEXT NOT NULL,
+  unit_minor INTEGER NOT NULL,
+  currency TEXT NOT NULL,
+  quantity INTEGER NOT NULL,
+  PRIMARY KEY (business_id, id)
+);
+CREATE INDEX IF NOT EXISTS booking_extra_target ON booking_extra(business_id, target_id);
+CREATE TABLE IF NOT EXISTS extra_template (
+  business_id INTEGER NOT NULL REFERENCES business(id),
+  id TEXT NOT NULL,
+  label TEXT NOT NULL,
+  unit_minor INTEGER NOT NULL,
+  currency TEXT NOT NULL,
+  PRIMARY KEY (business_id, id),
+  UNIQUE (business_id, label, currency)
+);
+CREATE TABLE IF NOT EXISTS login_attempt (
+  key TEXT PRIMARY KEY,
+  started INTEGER NOT NULL,
+  count INTEGER NOT NULL
+);
+
+-- Immutable family audience for saved bookings, even if a dog is reassigned later.
+CREATE TABLE IF NOT EXISTS booking_client (
+  business_id INTEGER NOT NULL REFERENCES business(id),
+  id TEXT NOT NULL,
+  client_id TEXT NOT NULL,
+  PRIMARY KEY (business_id,id)
+);
+
+CREATE TABLE IF NOT EXISTS media_asset (
+  id TEXT PRIMARY KEY,
+  business_id INTEGER NOT NULL REFERENCES business(id),
+  dog_id TEXT,
+  client_id TEXT,
+  purpose TEXT NOT NULL CHECK (purpose IN ('dog','branding')),
+  mime TEXT NOT NULL,
+  name TEXT NOT NULL,
+  size INTEGER NOT NULL,
+  sha256 TEXT NOT NULL,
+  contents BLOB NOT NULL,
+  created INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS media_business ON media_asset(business_id);
+CREATE TABLE IF NOT EXISTS dog_cover (
+  business_id INTEGER NOT NULL REFERENCES business(id),
+  dog_id TEXT NOT NULL,
+  media_id TEXT NOT NULL REFERENCES media_asset(id),
+  PRIMARY KEY (business_id,dog_id)
+);
+CREATE TABLE IF NOT EXISTS business_branding (
+  business_id INTEGER PRIMARY KEY REFERENCES business(id),
+  snapshot TEXT NOT NULL
+);

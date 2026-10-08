@@ -1,0 +1,14 @@
+# Dedicated site: do not import a global policy that disables mic/camera.
+dogcare.plusdefun.ch {
+    encode gzip
+    header {
+        Strict-Transport-Security "max-age=31536000"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        X-Frame-Options "SAMEORIGIN"
+        Permissions-Policy "camera=(self), microphone=(self), geolocation=(), payment=()"
+    }
+    reverse_proxy 127.0.0.1:18847 {
+        header_up X-DogCare-Client-IP {http.request.remote.host}
+    }
+}

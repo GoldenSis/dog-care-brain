@@ -2,7 +2,7 @@ const baseObservations = {
   billie: [
     { id: 1, time: '08:25', date: 'Today', title: 'Breakfast & morning check-in', text: 'Finished her full breakfast and drank well. Bright, relaxed and ready for the day.', tags: ['Nutrition', 'Mood · bright'] },
     { id: 2, time: '10:10', date: 'Today', title: 'Woodland walk', text: 'A calm 42-minute sniff walk. Good recall around two dogs and no stiffness noticed.', tags: ['Exercise · 42 min', 'Behaviour · calm'] },
-    { id: 3, time: '18:40', date: 'Yesterday', title: 'Evening medication', text: 'Joint supplement given with dinner. Coat and paws checked after rain.', tags: ['Medication', 'Health check'] }
+    { id: 3, time: '18:40', date: 'Yesterday', title: 'Evening rest', text: 'Settled comfortably after the afternoon walk.', tags: ['Rest', 'Mood · settled'] }
   ],
   charlie: [
     { id: 4, time: '09:15', date: 'Today', title: 'Settled into day care', text: 'A little vocal at drop-off, then settled on the green bed after five minutes.', tags: ['Behaviour', 'Mood · settled'] },
@@ -11,8 +11,8 @@ const baseObservations = {
 };
 
 const dogs = {
-  billie: { name: 'Billie Blue', emoji: '🐕‍🦺', age: 'Profile to complete', breed: 'Breed to confirm', owner: 'Arnaud Chrétien', last: '10:10 woodland walk', health: 'Radiograph recorded at Clinique Artémis. Add current care instructions.', behaviour: 'Add routine, triggers and favourite rewards.', vet: 'Clinique Artémis · Vet.Avenir', vets: [{name:'Vet.Avenir', role:'Current clinic · verified public contact', phone:'+41223615540', video:'Clinic booking site'}, {name:'Clinique Artémis', role:'Radiograph history · contact to verify'}], needs: { energy: 'Confirm with owner', movement: 'Set a daily movement target', enrichment: 'Add favourite enrichment', sensitivities: 'Add sensitivities and recovery needs' }, colour: '' },
-  charlie: { name: 'Charlie Rose', emoji: '🐶', age: 'Profile to complete', breed: 'Breed to confirm', owner: 'Arnaud Chrétien', last: '11:30 garden play', health: 'Add current health and medication instructions.', behaviour: 'Add routine, triggers and favourite rewards.', vet: 'Add preferred vet and emergency contact', vets: [], needs: { energy: 'Confirm with owner', movement: 'Set a daily movement target', enrichment: 'Add favourite enrichment', sensitivities: 'Add sensitivities and recovery needs' }, colour: 'charlie' }
+  billie: { name: 'Billie Blue', emoji: '🐕‍🦺', age: 'Profile to complete', breed: 'Breed to confirm', owner: 'Owner to confirm', last: '10:10 woodland walk', health: 'Add current health and medication instructions.', behaviour: 'Add routine, triggers and favourite rewards.', vet: 'Add preferred vet and emergency contact', vets: [], needs: { energy: 'Confirm with owner', movement: 'Set a daily movement target', enrichment: 'Add favourite enrichment', sensitivities: 'Add sensitivities and recovery needs' }, colour: '' },
+  charlie: { name: 'Charlie Rose', emoji: '🐶', age: 'Profile to complete', breed: 'Breed to confirm', owner: 'Owner to confirm', last: '11:30 garden play', health: 'Add current health and medication instructions.', behaviour: 'Add routine, triggers and favourite rewards.', vet: 'Add preferred vet and emergency contact', vets: [], needs: { energy: 'Confirm with owner', movement: 'Set a daily movement target', enrichment: 'Add favourite enrichment', sensitivities: 'Add sensitivities and recovery needs' }, colour: 'charlie' }
 };
 
 // Localization dictionaries — keyed by the exact English source string.
@@ -22,6 +22,16 @@ const dogs = {
 const translations = {
   en: {},
   fr: {
+    "Care & wellbeing": "Maison de la Santé",
+    // Account loading and recovery
+    "ACCOUNT":"COMPTE",
+    "Loading your care records…":"Chargement de votre carnet de bord…",
+    "Your account is not ready":"Votre compte n’est pas ouvert",
+    "Reload account":"Recharger le compte",
+    "Open your sign-in link in this browser to access your account. If the link has expired or was already used, request a new one from the person who gave you access.":"Ouvrez votre lien de connexion dans ce navigateur pour accéder à votre compte. Si le lien a expiré ou a déjà été utilisé, demandez-en un nouveau à la personne qui vous a donné accès.",
+    "Could not load your account. Check your connection and reload.":"Impossible de charger votre compte. Vérifiez votre connexion, puis rechargez la page.",
+    "Your browser records could not be imported. They are still here; reload to retry.":"Les notes de ce navigateur n’ont pas pu être importées. Elles sont toujours ici ; rechargez la page pour réessayer.",
+    "Recording import paused. Your browser records are still here; reload to continue.":"L’importation des enregistrements est en pause. Les notes de ce navigateur sont toujours ici ; rechargez la page pour continuer.",
     // Navigation & chrome
     Today:'Aujourd’hui', Dogs:'Chiens', Capture:'Saisir', Gallery:'Galerie', 'Daily story':'Récit du jour', Schedule:'Planning', Business:'Activité', Settings:'Réglages', Invite:'Inviter',
     'All systems calm':'Tout est calme', 'Capture update':'Ajouter une note',
@@ -152,8 +162,6 @@ const translations = {
     'Finished her full breakfast and drank well. Bright, relaxed and ready for the day.':'A terminé tout son petit-déjeuner et bien bu. Éveillée, détendue et prête pour la journée.',
     'Woodland walk':'Balade en forêt',
     'A calm 42-minute sniff walk. Good recall around two dogs and no stiffness noticed.':'Une balade reniflage tranquille de 42 minutes. Bon rappel auprès de deux chiens et aucune raideur remarquée.',
-    'Evening medication':'Médication du soir',
-    'Joint supplement given with dinner. Coat and paws checked after rain.':'Complément articulaire donné au dîner. Pelage et pattes vérifiés après la pluie.',
     'Settled into day care':'Bien installé en garde de jour',
     'A little vocal at drop-off, then settled on the green bed after five minutes.':'Un peu bruyant à l’arrivée, puis installé sur le lit vert après cinq minutes.',
     'Play session':'Séance de jeu',
@@ -161,7 +169,6 @@ const translations = {
     Yesterday:'Hier',
     // Dog profile placeholder guidance
     'Profile to complete':'Profil à compléter', 'Breed to confirm':'Race à confirmer',
-    'Radiograph recorded at Clinique Artémis. Add current care instructions.':'Radiographie enregistrée à la Clinique Artémis. Ajoutez les instructions de soin actuelles.',
     'Add current health and medication instructions.':'Ajoutez les instructions de santé et de médication actuelles.',
     'Add routine, triggers and favourite rewards.':'Ajoutez la routine, les déclencheurs et les récompenses préférées.',
     'Add preferred vet and emergency contact':'Ajoutez le vétérinaire préféré et le contact d’urgence',
@@ -213,6 +220,16 @@ const translations = {
     'Saved for this session, but browser storage is full':'Enregistré pour cette session, mais le stockage du navigateur est plein'
   },
   it: {
+    "Care & wellbeing": "Casa della salute",
+    // Account loading and recovery
+    "ACCOUNT":"ACCOUNT",
+    "Loading your care records…":"Caricamento del diario…",
+    "Your account is not ready":"Il tuo account non è aperto",
+    "Reload account":"Ricarica l’account",
+    "Open your sign-in link in this browser to access your account. If the link has expired or was already used, request a new one from the person who gave you access.":"Apri il tuo link di accesso in questo browser per accedere al tuo account. Se il link è scaduto o è già stato usato, richiedine uno nuovo alla persona che ti ha dato accesso.",
+    "Could not load your account. Check your connection and reload.":"Impossibile caricare il tuo account. Controlla la connessione e ricarica la pagina.",
+    "Your browser records could not be imported. They are still here; reload to retry.":"Non è stato possibile importare le note di questo browser. Sono ancora qui; ricarica la pagina per riprovare.",
+    "Recording import paused. Your browser records are still here; reload to continue.":"Importazione delle registrazioni in pausa. Le note di questo browser sono ancora qui; ricarica la pagina per continuare.",
     Today:'Oggi', Dogs:'Cani', Capture:'Registra', Gallery:'Galleria', 'Daily story':'Racconto del giorno', Schedule:'Agenda', Business:'Attività', Settings:'Impostazioni', Invite:'Invita',
     'All systems calm':'Tutto è tranquillo', 'Capture update':'Aggiungi nota',
     'SUNDAY · 12 JULY':'DOMENICA · 12 LUGLIO', 'Good morning, Adine-Sophie':'Buongiorno, Adine-Sophie',
@@ -327,15 +344,12 @@ const translations = {
     'Finished her full breakfast and drank well. Bright, relaxed and ready for the day.':'Ha finito tutta la colazione e ha bevuto bene. Vivace, rilassata e pronta per la giornata.',
     'Woodland walk':'Passeggiata nel bosco',
     'A calm 42-minute sniff walk. Good recall around two dogs and no stiffness noticed.':'Una tranquilla passeggiata annusa-annusa di 42 minuti. Buon richiamo vicino a due cani e nessuna rigidità notata.',
-    'Evening medication':'Farmaci della sera',
-    'Joint supplement given with dinner. Coat and paws checked after rain.':'Integratore per le articolazioni dato a cena. Pelo e zampe controllati dopo la pioggia.',
     'Settled into day care':'Ben ambientato all’asilo diurno',
     'A little vocal at drop-off, then settled on the green bed after five minutes.':'Un po’ vocale all’arrivo, poi sistemato sul lettino verde dopo cinque minuti.',
     'Play session':'Sessione di gioco',
     'Gentle play with Billie in the garden. Responded well to breaks and name cues.':'Gioco delicato con Billie in giardino. Ha risposto bene alle pause e ai richiami del nome.',
     Yesterday:'Ieri',
     'Profile to complete':'Profilo da completare', 'Breed to confirm':'Razza da confermare',
-    'Radiograph recorded at Clinique Artémis. Add current care instructions.':'Radiografia registrata alla Clinique Artémis. Aggiungi le istruzioni di cura attuali.',
     'Add current health and medication instructions.':'Aggiungi le istruzioni attuali di salute e farmaci.',
     'Add routine, triggers and favourite rewards.':'Aggiungi routine, fattori scatenanti e premi preferiti.',
     'Add preferred vet and emergency contact':'Aggiungi il veterinario preferito e il contatto di emergenza',
@@ -387,6 +401,16 @@ const translations = {
     'Saved for this session, but browser storage is full':'Salvato per questa sessione, ma la memoria del browser è piena'
   },
   de: {
+    "Care & wellbeing": "Haus der Gesundheit",
+    // Account loading and recovery
+    "ACCOUNT":"KONTO",
+    "Loading your care records…":"Dein Betreuungsbuch wird geladen…",
+    "Your account is not ready":"Dein Konto ist nicht geöffnet",
+    "Reload account":"Konto neu laden",
+    "Open your sign-in link in this browser to access your account. If the link has expired or was already used, request a new one from the person who gave you access.":"Öffne deinen Anmeldelink in diesem Browser, um auf dein Konto zuzugreifen. Wenn der Link abgelaufen ist oder bereits verwendet wurde, bitte die Person, die dir Zugang gegeben hat, um einen neuen Link.",
+    "Could not load your account. Check your connection and reload.":"Dein Konto konnte nicht geladen werden. Prüfe deine Verbindung und lade die Seite neu.",
+    "Your browser records could not be imported. They are still here; reload to retry.":"Die Notizen aus diesem Browser konnten nicht importiert werden. Sie sind noch hier; lade die Seite neu, um es erneut zu versuchen.",
+    "Recording import paused. Your browser records are still here; reload to continue.":"Der Import der Aufnahmen wurde angehalten. Die Notizen aus diesem Browser sind noch hier; lade die Seite neu, um fortzufahren.",
     Today:'Heute', Dogs:'Hunde', Capture:'Erfassen', Gallery:'Galerie', 'Daily story':'Tagesbericht', Schedule:'Planung', Business:'Betrieb', Settings:'Einstellungen', Invite:'Einladen',
     'All systems calm':'Alles im grünen Bereich', 'Capture update':'Notiz erfassen',
     'SUNDAY · 12 JULY':'SONNTAG · 12. JULI', 'Good morning, Adine-Sophie':'Guten Morgen, Adine-Sophie',
@@ -501,15 +525,12 @@ const translations = {
     'Finished her full breakfast and drank well. Bright, relaxed and ready for the day.':'Hat ihr ganzes Frühstück gefressen und gut getrunken. Munter, entspannt und bereit für den Tag.',
     'Woodland walk':'Waldspaziergang',
     'A calm 42-minute sniff walk. Good recall around two dogs and no stiffness noticed.':'Ein ruhiger 42-minütiger Schnüffelspaziergang. Guter Rückruf bei zwei Hunden und keine Steifheit bemerkt.',
-    'Evening medication':'Abendmedikation',
-    'Joint supplement given with dinner. Coat and paws checked after rain.':'Gelenkpräparat zum Abendessen gegeben. Fell und Pfoten nach dem Regen kontrolliert.',
     'Settled into day care':'Gut in der Tagesbetreuung angekommen',
     'A little vocal at drop-off, then settled on the green bed after five minutes.':'Bei der Abgabe etwas laut, dann nach fünf Minuten auf dem grünen Bett zur Ruhe gekommen.',
     'Play session':'Spieleinheit',
     'Gentle play with Billie in the garden. Responded well to breaks and name cues.':'Sanftes Spiel mit Billie im Garten. Hat gut auf Pausen und Namenssignale reagiert.',
     Yesterday:'Gestern',
     'Profile to complete':'Profil zu vervollständigen', 'Breed to confirm':'Rasse zu bestätigen',
-    'Radiograph recorded at Clinique Artémis. Add current care instructions.':'Röntgenbild in der Clinique Artémis erfasst. Aktuelle Pflegeanweisungen hinzufügen.',
     'Add current health and medication instructions.':'Aktuelle Gesundheits- und Medikationsanweisungen hinzufügen.',
     'Add routine, triggers and favourite rewards.':'Routine, Auslöser und Lieblingsbelohnungen hinzufügen.',
     'Add preferred vet and emergency contact':'Bevorzugten Tierarzt und Notfallkontakt hinzufügen',
@@ -561,6 +582,16 @@ const translations = {
     'Saved for this session, but browser storage is full':'Für diese Sitzung gespeichert, aber der Browserspeicher ist voll'
   },
   es: {
+    "Care & wellbeing": "Casa de la salud",
+    // Account loading and recovery
+    "ACCOUNT":"CUENTA",
+    "Loading your care records…":"Cargando tu diario de cuidados…",
+    "Your account is not ready":"Tu cuenta no está abierta",
+    "Reload account":"Recargar la cuenta",
+    "Open your sign-in link in this browser to access your account. If the link has expired or was already used, request a new one from the person who gave you access.":"Abre tu enlace de acceso en este navegador para acceder a tu cuenta. Si el enlace ha caducado o ya se ha utilizado, pide uno nuevo a la persona que te dio acceso.",
+    "Could not load your account. Check your connection and reload.":"No se ha podido cargar tu cuenta. Comprueba tu conexión y recarga la página.",
+    "Your browser records could not be imported. They are still here; reload to retry.":"No se han podido importar las notas de este navegador. Siguen aquí; recarga la página para intentarlo de nuevo.",
+    "Recording import paused. Your browser records are still here; reload to continue.":"La importación de las grabaciones está en pausa. Las notas de este navegador siguen aquí; recarga la página para continuar.",
     Today:'Hoy', Dogs:'Perros', Capture:'Registrar', Gallery:'Galería', 'Daily story':'Historia del día', Schedule:'Agenda', Business:'Negocio', Settings:'Ajustes', Invite:'Invitar',
     'All systems calm':'Todo está en calma', 'Capture update':'Añadir nota',
     'SUNDAY · 12 JULY':'DOMINGO · 12 DE JULIO', 'Good morning, Adine-Sophie':'Buenos días, Adine-Sophie',
@@ -675,15 +706,12 @@ const translations = {
     'Finished her full breakfast and drank well. Bright, relaxed and ready for the day.':'Terminó todo su desayuno y bebió bien. Despierta, relajada y lista para el día.',
     'Woodland walk':'Paseo por el bosque',
     'A calm 42-minute sniff walk. Good recall around two dogs and no stiffness noticed.':'Un tranquilo paseo olfativo de 42 minutos. Buena respuesta a la llamada junto a dos perros y sin rigidez apreciada.',
-    'Evening medication':'Medicación de la tarde',
-    'Joint supplement given with dinner. Coat and paws checked after rain.':'Suplemento articular dado con la cena. Pelaje y patas revisados tras la lluvia.',
     'Settled into day care':'Bien adaptado en la guardería',
     'A little vocal at drop-off, then settled on the green bed after five minutes.':'Un poco vocal al llegar, luego se acomodó en la cama verde tras cinco minutos.',
     'Play session':'Sesión de juego',
     'Gentle play with Billie in the garden. Responded well to breaks and name cues.':'Juego suave con Billie en el jardín. Respondió bien a las pausas y a las llamadas por su nombre.',
     Yesterday:'Ayer',
     'Profile to complete':'Perfil por completar', 'Breed to confirm':'Raza por confirmar',
-    'Radiograph recorded at Clinique Artémis. Add current care instructions.':'Radiografía registrada en la Clinique Artémis. Añade las instrucciones de cuidado actuales.',
     'Add current health and medication instructions.':'Añade las instrucciones actuales de salud y medicación.',
     'Add routine, triggers and favourite rewards.':'Añade la rutina, los desencadenantes y las recompensas favoritas.',
     'Add preferred vet and emergency contact':'Añade el veterinario preferido y el contacto de emergencia',
@@ -1191,7 +1219,7 @@ Object.assign(translations.it, { "Speech-to-text is not available in this browse
 Object.assign(translations.de, { "Speech-to-text is not available in this browser. Recording still saves an audio note; you can also type your update.": "Spracherkennung ist in diesem Browser nicht verfügbar. Die Aufnahme speichert trotzdem eine Audionotiz; du kannst deine Notiz auch tippen." });
 Object.assign(translations.es, { "Speech-to-text is not available in this browser. Recording still saves an audio note; you can also type your update.": "El reconocimiento de voz no está disponible en este navegador. La grabación guarda igualmente una nota de audio; también puedes escribir tu actualización." });
 
-let state = { page: 'dashboard', dog: 'billie', handoffAudience: 'carer', language: 'fr', observations: window.DogCareAPI ? {billie:[],charlie:[]} : structuredClone(baseObservations), invites: [], assistantMessages: [] };
+let state = { page: 'dashboard', dog: 'billie', handoffAudience: 'carer', language: 'fr', observations: window.DogCareAPI ? {} : structuredClone(baseObservations), invites: [], assistantMessages: [] };
 let audioDraft = null;
 const captureDrafts = {};
 const SAVE_FAILED = 'Note not saved. Browser storage is unavailable or full. Your draft is still here; copy it before closing this page, or free space and retry.';
@@ -1310,25 +1338,30 @@ Object.assign(translations.es, {
   'Add the next useful observation so the owner has a continuous record.':'Añade la siguiente observación útil para que el dueño tenga un registro continuo.'
 });
 
+Object.assign(translations.fr, {'Owner to confirm':'Propriétaire à confirmer','Evening rest':'Repos du soir','Settled comfortably after the afternoon walk.':'Installé tranquillement après la balade de l’après-midi.'});
+Object.assign(translations.it, {'Owner to confirm':'Proprietario da confermare','Evening rest':'Riposo serale','Settled comfortably after the afternoon walk.':'Si è sistemato tranquillamente dopo la passeggiata pomeridiana.'});
+Object.assign(translations.de, {'Owner to confirm':'Besitzer zu bestätigen','Evening rest':'Abendruhe','Settled comfortably after the afternoon walk.':'Nach dem Nachmittagsspaziergang ruhig zur Ruhe gekommen.'});
+Object.assign(translations.es, {'Owner to confirm':'Dueño por confirmar','Evening rest':'Descanso de la tarde','Settled comfortably after the afternoon walk.':'Se acomodó tranquilamente después del paseo de la tarde.'});
+
 const assistantCopy = {
   en: {
-    edition:'PRIVATE CARE ASSISTANT', heroKicker:'MUSE · LE BUS DES TOUTOUS', heroHeading:'Good morning, Adine-Sophie.', heroText:'Billie Blue and Charlie Rose are both checked in. I’ve gathered their care context and today’s next moments for you.', talk:'Talk to Muse ✦', add:'Add a care moment',
-    eyebrow:'PRIVATE ASSISTANT · LE BUS DES TOUTOUS', heading:'Muse · Your care assistant', introKicker:'MUSE FOR ADINE-SOPHIE', introHeading:'How can I help with today’s care?', introText:'Ask naturally. Muse uses the care record already in this private prototype.', prompts:['Brief me on today','What needs attention?','Prepare the owner handoff'], ask:'Ask Muse', placeholder:'Ask about today, a dog, or the next handoff…', privacy:'Private prototype · Your question and care history stay in this browser. Muse does not contact clients or external services.', quick:'QUICK ACTIONS', keep:'Keep care moving', muse:'Muse', you:'You', actions:[['Add a care note','Speak, edit and validate'],['Review handoff','Highlights, evidence and next care'],['Preview owner story','Review before sharing']],
-    briefing:(billie,charlie)=>`Good morning, Adine-Sophie. Billie Blue has ${billie} care moments recorded today and Charlie Rose has ${charlie}. Both are checked in; lunch and quiet time are next at 12:30.`, noHealth:'No health-watch observations are recorded today for Billie Blue or Charlie Rose. That only reflects today’s care log and is not a diagnosis. Keep observing and record any change factually.', health:(count,notes)=>`I found ${count} factual health-watch note${count===1?'':'s'}: ${notes} This is care context, not a diagnosis; keep observing and contact the owner or a veterinarian if concerned.`, handoff:'The care handoff is ready to review. It links every highlight to its source observation and keeps health wording factual and non-diagnostic.', capture:'I can help you capture that. Open a care note, speak naturally, stop the recording, edit the text, then validate it into the dog’s timeline.', fallback:'I can brief you on today, flag recorded observations that may need attention, prepare a handoff, or open a new care note. This prototype answers only from the care information in this browser.'
+    edition:'PRIVATE CARE ASSISTANT', heroKicker:'MUSE', heroHeading:'Good morning, Adine-Sophie.',  talk:'Talk to Muse ✦', add:'Add a care moment',
+    eyebrow:'PRIVATE ASSISTANT', heading:'Muse · Your care assistant', introKicker:'MUSE FOR ADINE-SOPHIE', introHeading:'How can I help with today’s care?', introText:'Muse summarizes your saved notes and planning.', prompts:['Brief me on today','What needs attention?','Prepare the owner handoff'], ask:'Ask Muse', placeholder:'Ask about today, a dog, or the next handoff…', privacy:'Private prototype · Your question and care history stay in this browser. Muse does not contact clients or external services.', quick:'QUICK ACTIONS', keep:'Keep care moving', muse:'Muse', you:'You', actions:[['Add a care note','Speak, edit and validate'],['Review handoff','Highlights, evidence and next care'],['Preview owner story','Review before sharing']],
+    noHealth:'No health-watch observations are recorded today. That only reflects today’s care log and is not a diagnosis. Keep observing and record any change factually.', health:(count,notes)=>`I found ${count} factual health-watch note${count===1?'':'s'}: ${notes} This is care context, not a diagnosis; keep observing and contact the owner or a veterinarian if concerned.`, handoff:'The care handoff is ready to review. It links every highlight to its source observation and keeps health wording factual and non-diagnostic.', capture:'I can help you capture that. Open a care note, speak naturally, stop the recording, edit the text, then validate it into the dog’s timeline.', fallback:'I can brief you on today, flag recorded observations that may need attention, prepare a handoff, or open a new care note. Replies use the loaded records only.'
   },
   fr: {
-    edition:'ASSISTANT DE SOIN PRIVÉ', heroKicker:'MUSE · LE BUS DES TOUTOUS', heroHeading:'Bonjour, Adine-Sophie.', heroText:'Billie Blue et Charlie Rose sont bien arrivées. J’ai rassemblé leur contexte de soin et les prochaines étapes de la journée.', talk:'Parler à Muse ✦', add:'Ajouter une note de soin',
-    eyebrow:'ASSISTANT PRIVÉ · LE BUS DES TOUTOUS', heading:'Muse · Votre assistant du quotidien', introKicker:'MUSE POUR ADINE-SOPHIE', introHeading:'Comment puis-je aider aujourd’hui ?', introText:'Parlez naturellement. Muse utilise uniquement les notes du quotidien de ce prototype privé.', prompts:['Résume-moi la journée','Que faut-il surveiller ?','Préparer le relais propriétaire'], ask:'Demander à Muse', placeholder:'Posez une question sur la journée, un chien ou le prochain relais…', privacy:'Prototype privé · Votre question et le carnet de bord restent dans ce navigateur. Muse ne contacte aucun client ni service externe.', quick:'ACTIONS RAPIDES', keep:'Organiser la journée', muse:'Muse', you:'Vous', actions:[['Ajouter une note du quotidien','Dicter, modifier et valider'],['Vérifier le relais','Points clés, preuves et suite'],['Prévisualiser le récit','Relire avant partage']],
-    briefing:(billie,charlie)=>`Bonjour, Adine-Sophie. Billie Blue a ${billie} notes du quotidien aujourd’hui et Charlie Rose en a ${charlie}. Elles sont bien arrivées ; déjeuner et temps calme sont prévus à 12 h 30.`, noHealth:'Aucune observation de santé à surveiller n’est enregistrée aujourd’hui pour Billie Blue ou Charlie Rose. Cela reflète seulement le journal du jour et ne constitue pas un diagnostic. Continuez à observer et notez factuellement tout changement.', health:(count,notes)=>`J’ai trouvé ${count} observation${count===1?'':'s'} factuelle${count===1?'':'s'} à surveiller : ${notes} Il s’agit d’un contexte de soin, pas d’un diagnostic ; continuez à observer et contactez le propriétaire ou un vétérinaire en cas d’inquiétude.`, handoff:'Le relais est prêt à être vérifié. Chaque point clé renvoie à son observation source et le vocabulaire de santé reste factuel et non diagnostique.', capture:'Je peux vous aider à la noter. Ouvrez une note du quotidien, parlez naturellement, arrêtez l’enregistrement, modifiez le texte puis validez-le dans l’historique du chien.', fallback:'Je peux résumer la journée, signaler les observations à surveiller, préparer un relais ou ouvrir une nouvelle note du quotidien. Ce prototype répond uniquement à partir des informations présentes dans ce navigateur.'
+    edition:'ASSISTANT DE SOIN PRIVÉ', heroKicker:'MUSE', heroHeading:'Bonjour, Adine-Sophie.',  talk:'Parler à Muse ✦', add:'Ajouter une note de soin',
+    eyebrow:'ASSISTANT PRIVÉ', heading:'Muse · Votre assistant du quotidien', introKicker:'MUSE POUR ADINE-SOPHIE', introHeading:'Comment puis-je aider aujourd’hui ?', introText:'Muse résume vos notes du quotidien et votre planning enregistré.', prompts:['Résume-moi la journée','Que faut-il surveiller ?','Préparer le relais propriétaire'], ask:'Demander à Muse', placeholder:'Posez une question sur la journée, un chien ou le prochain relais…', privacy:'Prototype privé · Votre question et le carnet de bord restent dans ce navigateur. Muse ne contacte aucun client ni service externe.', quick:'ACTIONS RAPIDES', keep:'Organiser la journée', muse:'Muse', you:'Vous', actions:[['Ajouter une note du quotidien','Dicter, modifier et valider'],['Vérifier le relais','Points clés, preuves et suite'],['Prévisualiser le récit','Relire avant partage']],
+    noHealth:'Aucune observation de santé à surveiller n’est enregistrée aujourd’hui. Cela reflète seulement le journal du jour et ne constitue pas un diagnostic. Continuez à observer et notez factuellement tout changement.', health:(count,notes)=>`J’ai trouvé ${count} observation${count===1?'':'s'} factuelle${count===1?'':'s'} à surveiller : ${notes} Il s’agit d’un contexte de soin, pas d’un diagnostic ; continuez à observer et contactez le propriétaire ou un vétérinaire en cas d’inquiétude.`, handoff:'Le relais est prêt à être vérifié. Chaque point clé renvoie à son observation source et le vocabulaire de santé reste factuel et non diagnostique.', capture:'Je peux vous aider à la noter. Ouvrez une note du quotidien, parlez naturellement, arrêtez l’enregistrement, modifiez le texte puis validez-le dans l’historique du chien.', fallback:'Je peux résumer la journée, signaler les observations à surveiller, préparer un relais ou ouvrir une nouvelle note du quotidien. Les réponses utilisent uniquement les données chargées.'
   }
 };
-assistantCopy.it={...assistantCopy.en,heroHeading:'Buongiorno, Adine-Sophie.',heroText:'Billie Blue e Charlie Rose sono entrambe arrivate. Ho raccolto il loro contesto di cura e i prossimi momenti della giornata.',talk:'Parla con Muse ✦',add:'Aggiungi una nota di cura',eyebrow:'ASSISTENTE PRIVATO · LE BUS DES TOUTOUS',heading:'Muse · Il tuo assistente di cura',introKicker:'MUSE PER ADINE-SOPHIE',introHeading:'Come posso aiutarti oggi?',introText:'Parla naturalmente. Muse usa solo le informazioni di cura presenti in questo prototipo privato.',prompts:['Riepiloga la giornata','Cosa richiede attenzione?','Prepara il passaggio al proprietario'],ask:'Chiedi a Muse',placeholder:'Chiedi della giornata, di un cane o del prossimo passaggio…',privacy:'Prototipo privato · La domanda e lo storico delle cure restano in questo browser. Muse non contatta clienti o servizi esterni.',quick:'AZIONI RAPIDE',keep:'Porta avanti le cure',you:'Tu',actions:[['Aggiungi una nota','Parla, modifica e convalida'],['Controlla il passaggio','Punti chiave, prove e prossime cure'],['Anteprima del racconto','Rileggi prima di condividere']],briefing:(billie,charlie)=>`Buongiorno, Adine-Sophie. Billie Blue ha ${billie} momenti di cura registrati oggi e Charlie Rose ne ha ${charlie}. Sono entrambe arrivate; pranzo e riposo sono previsti alle 12:30.`};
-assistantCopy.es={...assistantCopy.en,heroHeading:'Buenos días, Adine-Sophie.',heroText:'Billie Blue y Charlie Rose ya han llegado. He reunido su contexto de cuidados y los próximos momentos del día.',talk:'Hablar con Muse ✦',add:'Añadir una nota de cuidado',eyebrow:'ASISTENTE PRIVADO · LE BUS DES TOUTOUS',heading:'Muse · Tu asistente de cuidados',introKicker:'MUSE PARA ADINE-SOPHIE',introHeading:'¿Cómo puedo ayudar hoy?',introText:'Habla con naturalidad. Muse solo utiliza la información de cuidados de este prototipo privado.',prompts:['Resume el día','¿Qué requiere atención?','Preparar el relevo al dueño'],ask:'Preguntar a Muse',placeholder:'Pregunta por el día, un perro o el próximo relevo…',privacy:'Prototipo privado · Tu pregunta y el historial de cuidados permanecen en este navegador. Muse no contacta con clientes ni servicios externos.',quick:'ACCIONES RÁPIDAS',keep:'Continuar los cuidados',you:'Tú',actions:[['Añadir una nota','Habla, edita y valida'],['Revisar el relevo','Puntos clave, pruebas y próximos cuidados'],['Vista previa del relato','Revisar antes de compartir']],briefing:(billie,charlie)=>`Buenos días, Adine-Sophie. Billie Blue tiene ${billie} momentos de cuidado registrados hoy y Charlie Rose tiene ${charlie}. Ambas han llegado; el almuerzo y el descanso son a las 12:30.`};
-Object.assign(assistantCopy.it,{noHealth:'Oggi non sono registrate osservazioni sanitarie da monitorare per Billie Blue o Charlie Rose. Questo riflette solo il diario odierno e non è una diagnosi. Continua a osservare e registra ogni cambiamento in modo fattuale.',health:(count,notes)=>`Ho trovato ${count} osservazioni sanitarie fattuali: ${notes} È un contesto di cura, non una diagnosi; continua a osservare e contatta il proprietario o un veterinario in caso di dubbi.`,handoff:'Il passaggio di cura è pronto per il controllo. Ogni punto chiave rimanda alla sua osservazione e il linguaggio sanitario resta fattuale e non diagnostico.',capture:'Posso aiutarti a registrarlo. Apri una nota di cura, parla naturalmente, interrompi la registrazione, modifica il testo e convalidalo nella cronologia del cane.',fallback:'Posso riepilogare la giornata, indicare le osservazioni da monitorare, preparare un passaggio o aprire una nuova nota. Questo prototipo risponde solo con le informazioni presenti in questo browser.'});
-Object.assign(assistantCopy.es,{noHealth:'Hoy no hay observaciones de salud que vigilar para Billie Blue o Charlie Rose. Esto solo refleja el diario de hoy y no es un diagnóstico. Sigue observando y registra cualquier cambio de forma objetiva.',health:(count,notes)=>`He encontrado ${count} observaciones de salud objetivas: ${notes} Es contexto de cuidados, no un diagnóstico; sigue observando y contacta con el dueño o un veterinario si te preocupa.`,handoff:'El relevo de cuidados está listo para revisar. Cada punto clave enlaza con su observación original y el lenguaje de salud se mantiene objetivo y no diagnóstico.',capture:'Puedo ayudarte a registrarlo. Abre una nota de cuidado, habla con naturalidad, detén la grabación, edita el texto y valídalo en el historial del perro.',fallback:'Puedo resumir el día, señalar observaciones que vigilar, preparar un relevo o abrir una nueva nota. Este prototipo solo responde con la información guardada en este navegador.'});
+assistantCopy.it={...assistantCopy.en,heroHeading:'Buongiorno, Adine-Sophie.',talk:'Parla con Muse ✦',add:'Aggiungi una nota di cura',eyebrow:'ASSISTENTE PRIVATO',heading:'Muse · Il tuo assistente di cura',introKicker:'MUSE PER ADINE-SOPHIE',introHeading:'Come posso aiutarti oggi?',introText:'Muse riassume le note e il calendario salvati.',prompts:['Riepiloga la giornata','Cosa richiede attenzione?','Prepara il passaggio al proprietario'],ask:'Chiedi a Muse',placeholder:'Chiedi della giornata, di un cane o del prossimo passaggio…',privacy:'Prototipo privato · La domanda e lo storico delle cure restano in questo browser. Muse non contatta clienti o servizi esterni.',quick:'AZIONI RAPIDE',keep:'Porta avanti le cure',you:'Tu',actions:[['Aggiungi una nota','Parla, modifica e convalida'],['Controlla il passaggio','Punti chiave, prove e prossime cure'],['Anteprima del racconto','Rileggi prima di condividere']],};
+assistantCopy.es={...assistantCopy.en,heroHeading:'Buenos días, Adine-Sophie.',talk:'Hablar con Muse ✦',add:'Añadir una nota de cuidado',eyebrow:'ASISTENTE PRIVADO',heading:'Muse · Tu asistente de cuidados',introKicker:'MUSE PARA ADINE-SOPHIE',introHeading:'¿Cómo puedo ayudar hoy?',introText:'Muse resume tus notas y tu planificación guardadas.',prompts:['Resume el día','¿Qué requiere atención?','Preparar el relevo al dueño'],ask:'Preguntar a Muse',placeholder:'Pregunta por el día, un perro o el próximo relevo…',privacy:'Prototipo privado · Tu pregunta y el historial de cuidados permanecen en este navegador. Muse no contacta con clientes ni servicios externos.',quick:'ACCIONES RÁPIDAS',keep:'Continuar los cuidados',you:'Tú',actions:[['Añadir una nota','Habla, edita y valida'],['Revisar el relevo','Puntos clave, pruebas y próximos cuidados'],['Vista previa del relato','Revisar antes de compartir']],};
+Object.assign(assistantCopy.it,{noHealth:'Oggi non sono registrate osservazioni sanitarie da monitorare. Questo riflette solo il diario odierno e non è una diagnosi. Continua a osservare e registra ogni cambiamento in modo fattuale.',health:(count,notes)=>`Ho trovato ${count} osservazioni sanitarie fattuali: ${notes} È un contesto di cura, non una diagnosi; continua a osservare e contatta il proprietario o un veterinario in caso di dubbi.`,handoff:'Il passaggio di cura è pronto per il controllo. Ogni punto chiave rimanda alla sua osservazione e il linguaggio sanitario resta fattuale e non diagnostico.',capture:'Posso aiutarti a registrarlo. Apri una nota di cura, parla naturalmente, interrompi la registrazione, modifica il testo e convalidalo nella cronologia del cane.',fallback:'Posso riepilogare la giornata, indicare le osservazioni da monitorare, preparare un passaggio o aprire una nuova nota. Le risposte usano solo i dati caricati.'});
+Object.assign(assistantCopy.es,{noHealth:'Hoy no hay observaciones de salud que vigilar. Esto solo refleja el diario de hoy y no es un diagnóstico. Sigue observando y registra cualquier cambio de forma objetiva.',health:(count,notes)=>`He encontrado ${count} observaciones de salud objetivas: ${notes} Es contexto de cuidados, no un diagnóstico; sigue observando y contacta con el dueño o un veterinario si te preocupa.`,handoff:'El relevo de cuidados está listo para revisar. Cada punto clave enlaza con su observación original y el lenguaje de salud se mantiene objetivo y no diagnóstico.',capture:'Puedo ayudarte a registrarlo. Abre una nota de cuidado, habla con naturalidad, detén la grabación, edita el texto y valídalo en el historial del perro.',fallback:'Puedo resumir el día, señalar observaciones que vigilar, preparar un relevo o abrir una nueva nota. Las respuestas solo usan los datos cargados.'});
 assistantCopy.it.edition='ASSISTENTE DI CURA PRIVATO';
 assistantCopy.es.edition='ASISTENTE DE CUIDADOS PRIVADO';
-assistantCopy.de={...assistantCopy.en,edition:'PRIVATER PFLEGEASSISTENT',heroHeading:'Guten Morgen, Adine-Sophie.',heroText:'Billie Blue und Charlie Rose sind beide angemeldet. Ich habe ihren Pflegekontext und die nächsten Momente von heute für Sie zusammengestellt.',talk:'Mit Muse sprechen ✦',add:'Einen Pflegemoment hinzufügen',eyebrow:'PRIVATER ASSISTENT · LE BUS DES TOUTOUS',heading:'Muse · Ihr Pflegeassistent',introKicker:'MUSE FÜR ADINE-SOPHIE',introHeading:'Wie kann ich heute bei der Pflege helfen?',introText:'Fragen Sie ganz natürlich. Muse nutzt die Pflegedaten, die bereits in diesem privaten Prototyp vorliegen.',prompts:['Fass mir den heutigen Tag zusammen','Was braucht Aufmerksamkeit?','Übergabe an den Besitzer vorbereiten'],ask:'Muse fragen',placeholder:'Fragen Sie nach heute, einem Hund oder der nächsten Übergabe…',privacy:'Privater Prototyp · Ihre Frage und der Pflegeverlauf bleiben in diesem Browser. Muse kontaktiert keine Kunden oder externen Dienste.',quick:'SCHNELLAKTIONEN',keep:'Pflege am Laufen halten',you:'Sie',actions:[['Pflegenotiz hinzufügen','Sprechen, bearbeiten und bestätigen'],['Übergabe prüfen','Höhepunkte, Belege und nächste Pflege'],['Besitzer-Story ansehen','Vor dem Teilen prüfen']],briefing:(billie,charlie)=>`Guten Morgen, Adine-Sophie. Billie Blue hat heute ${billie} Pflegemomente erfasst und Charlie Rose ${charlie}. Beide sind angemeldet; Mittagessen und Ruhezeit sind als Nächstes um 12:30.`,noHealth:'Heute sind für Billie Blue oder Charlie Rose keine zu beobachtenden Gesundheitsnotizen erfasst. Das spiegelt nur das heutige Pflegeprotokoll wider und ist keine Diagnose. Beobachten Sie weiter und notieren Sie jede Veränderung sachlich.',health:(count,notes)=>`Ich habe ${count} sachliche Gesundheitsnotiz${count===1?'':'en'} gefunden: ${notes} Das ist Pflegekontext, keine Diagnose; beobachten Sie weiter und kontaktieren Sie bei Sorge den Besitzer oder einen Tierarzt.`,handoff:'Die Pflegeübergabe ist bereit zur Prüfung. Sie verknüpft jeden Höhepunkt mit seiner Quellbeobachtung und hält die Gesundheitsformulierung sachlich und nicht diagnostisch.',capture:'Ich kann Ihnen helfen, das zu erfassen. Öffnen Sie eine Pflegenotiz, sprechen Sie natürlich, stoppen Sie die Aufnahme, bearbeiten Sie den Text und bestätigen Sie ihn in die Chronik des Hundes.',fallback:'Ich kann den heutigen Tag zusammenfassen, erfasste Beobachtungen hervorheben, die Aufmerksamkeit brauchen könnten, eine Übergabe vorbereiten oder eine neue Pflegenotiz öffnen. Dieser Prototyp antwortet nur mit den Pflegeinformationen in diesem Browser.'};
+assistantCopy.de={...assistantCopy.en,edition:'PRIVATER PFLEGEASSISTENT',heroHeading:'Guten Morgen, Adine-Sophie.',talk:'Mit Muse sprechen ✦',add:'Einen Pflegemoment hinzufügen',eyebrow:'PRIVATER ASSISTENT',heading:'Muse · Ihr Pflegeassistent',introKicker:'MUSE FÜR ADINE-SOPHIE',introHeading:'Wie kann ich heute bei der Pflege helfen?',introText:'Muse fasst Ihre gespeicherten Notizen und die Planung zusammen.',prompts:['Fass mir den heutigen Tag zusammen','Was braucht Aufmerksamkeit?','Übergabe an den Besitzer vorbereiten'],ask:'Muse fragen',placeholder:'Fragen Sie nach heute, einem Hund oder der nächsten Übergabe…',privacy:'Privater Prototyp · Ihre Frage und der Pflegeverlauf bleiben in diesem Browser. Muse kontaktiert keine Kunden oder externen Dienste.',quick:'SCHNELLAKTIONEN',keep:'Pflege am Laufen halten',you:'Sie',actions:[['Pflegenotiz hinzufügen','Sprechen, bearbeiten und bestätigen'],['Übergabe prüfen','Höhepunkte, Belege und nächste Pflege'],['Besitzer-Story ansehen','Vor dem Teilen prüfen']],noHealth:'Heute sind keine zu beobachtenden Gesundheitsnotizen erfasst. Das spiegelt nur das heutige Pflegeprotokoll wider und ist keine Diagnose. Beobachten Sie weiter und notieren Sie jede Veränderung sachlich.',health:(count,notes)=>`Ich habe ${count} sachliche Gesundheitsnotiz${count===1?'':'en'} gefunden: ${notes} Das ist Pflegekontext, keine Diagnose; beobachten Sie weiter und kontaktieren Sie bei Sorge den Besitzer oder einen Tierarzt.`,handoff:'Die Pflegeübergabe ist bereit zur Prüfung. Sie verknüpft jeden Höhepunkt mit seiner Quellbeobachtung und hält die Gesundheitsformulierung sachlich und nicht diagnostisch.',capture:'Ich kann Ihnen helfen, das zu erfassen. Öffnen Sie eine Pflegenotiz, sprechen Sie natürlich, stoppen Sie die Aufnahme, bearbeiten Sie den Text und bestätigen Sie ihn in die Chronik des Hundes.',fallback:'Ich kann den heutigen Tag zusammenfassen, erfasste Beobachtungen hervorheben, die Aufmerksamkeit brauchen könnten, eine Übergabe vorbereiten oder eine neue Pflegenotiz öffnen. Die Antworten verwenden nur die geladenen Daten.'};
 // Everyday wording for the French owner’s workspace.
 Object.assign(translations.fr, {
   "Good company": "En bonne compagnie",
@@ -1385,7 +1418,7 @@ Object.assign(translations.es, {
   "Sample workspace · care records to explore": "Espacio de demostración · fichas de ejemplo"
 });
 Object.assign(translations.fr, {
-  "Life with Le Bus des Toutous": "Le bonheur d’être ensemble",
+  "The joy of being together": "Le bonheur d’être ensemble",
   "The dogs.": "Les chiens.",
   "The fresh air.": "Le grand air.",
   "The good life.": "La belle vie.",
@@ -1397,19 +1430,19 @@ Object.assign(translations.fr, {
   "Review handoff": "Préparer le relais"
 });
 Object.assign(translations.it, {
-  "Life with Le Bus des Toutous": "La gioia di stare insieme",
+  "The joy of being together": "La gioia di stare insieme",
   "The dogs.": "I cani.",
   "The fresh air.": "L’aria aperta.",
   "The good life.": "La bella vita."
 });
 Object.assign(translations.de, {
-  "Life with Le Bus des Toutous": "Gemeinsam unterwegs",
+  "The joy of being together": "Gemeinsam unterwegs",
   "The dogs.": "Die Hunde.",
   "The fresh air.": "Die frische Luft.",
   "The good life.": "Das gute Leben."
 });
 Object.assign(translations.es, {
-  "Life with Le Bus des Toutous": "La alegría de estar juntos",
+  "The joy of being together": "La alegría de estar juntos",
   "The dogs.": "Los perros.",
   "The fresh air.": "El aire libre.",
   "The good life.": "La buena vida."
@@ -1481,7 +1514,6 @@ function saveInvites(invites = state.invites) {
   return true;
 }
 async function persistChange(save, button) {
-  if (!window.DogCareAPI) return save();
   if (savePending) return false;
   const shell = document.querySelector('.app-shell');
   const focused = document.activeElement;
@@ -1513,16 +1545,38 @@ function rememberCaptureDraft() {
 }
 function escapeHtml(value) { return String(value).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
 function showToast(message) { const toast=document.querySelector('#toast'); toast.textContent=message; toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'),2500); }
-function dogAvatar(key) { const d=dogs[key]; return `<div class="dog-avatar ${d.colour}">${key==='billie'?`<img src="assets/photos/billie-pines.jpg" alt="Billie Blue" width="960" height="1280">`:`<span class="dog-initials" aria-hidden="true">CR</span><small>${t('Photo to add')}</small>`}</div>`; }
+function dogAvatar(key) { const d=dogs[key], cover=window.MediaUI?.avatar(key,d.name); if(cover)return cover; return `<div class="dog-avatar ${d.colour}">${!window.DogCareAPI && key==='billie'?`<img src="assets/photos/billie-pines.jpg" alt="Billie Blue" width="960" height="1280">`:`<span class="dog-initials" aria-hidden="true">${escapeHtml(d.name.split(/\s+/).slice(0,2).map(part=>part[0] || '').join('').toUpperCase())}</span><small>${t('Photo to add')}</small>`}</div>`; }
+Object.entries({fr:'Comptabilité',en:'Accounting',it:'Contabilità',de:'Buchhaltung',es:'Contabilidad'}).forEach(([lang,label])=>{translations[lang]??={};translations[lang].Accounting=label;});
 function t(text) { return translations[state.language]?.[text] || text; }
+function formatLocale(formatter) {
+  try { return formatter.supportedLocalesOf(state.language)[0] || 'en'; }
+  catch { return 'en'; }
+}
 function tf(text, params) { let out = t(text); for (const key in params) out = out.split('{' + key + '}').join(params[key]); return out; }
 function translateTag(tag) {
   if (translations[state.language]?.[tag]) return t(tag);
   return String(tag).split(' · ').map(part => t(part)).join(' · ');
 }
-function setHeader(kicker, heading) { eyebrow.textContent=t(kicker); title.textContent=t(heading); }
-function localizeContent() { const walker=document.createTreeWalker(content, NodeFilter.SHOW_TEXT), nodes=[]; while(walker.nextNode()) nodes.push(walker.currentNode); nodes.forEach(node=>{const source=node.nodeValue.trim();if(source && translations[state.language]?.[source]) node.nodeValue=node.nodeValue.replace(source,t(source));}); document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=t(el.dataset.i18n)); document.documentElement.lang=state.language; }
+function setHeader(kicker, heading, literal=false) { eyebrow.textContent=t(kicker); eyebrow.hidden=!kicker; title.textContent=literal?heading:t(heading); }
+function localizeContent() {
+  const walker=document.createTreeWalker(content, NodeFilter.SHOW_TEXT), nodes=[];
+  while(walker.nextNode()) nodes.push(walker.currentNode);
+  nodes.forEach(node=>{
+    if(node.parentElement.closest('[translate="no"]'))return;
+    const source=node.nodeValue.trim();
+    if(source && translations[state.language]?.[source]) node.nodeValue=node.nodeValue.replace(source,t(source));
+  });
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    if(!el.closest('[translate="no"]'))el.textContent=t(el.dataset.i18n);
+  });
+  document.documentElement.lang=state.language;
+}
 function tagsHtml(tags) { return `<div class="mini-tags">${tags.map(tag=>`<span>${escapeHtml(translateTag(tag))}</span>`).join('')}</div>`; }
+function sampleObservations(key) { return Object.hasOwn(baseObservations,key) ? baseObservations[key] : []; }
+function isSampleObservation(key, observation) {
+  return !observation.audio && sampleObservations(key).some(sample =>
+    Object.entries(sample).every(([field, value]) => JSON.stringify(observation[field]) === JSON.stringify(value)));
+}
 function formatDuration(seconds) { const value=Math.max(0,Math.floor(seconds)); return `${String(Math.floor(value/60)).padStart(2,'0')}:${String(value%60).padStart(2,'0')}`; }
 function recordingUrl(value) {
   if (typeof value !== 'string') return '';
@@ -1575,7 +1629,7 @@ function observationDateLabel(observation) {
 }
 function todayObservations(key) {
   const today = localDay();
-  return state.observations[key].filter(observation => ['Today', today].includes(observationDay(observation)));
+  return (state.observations[key] || []).filter(observation => ['Today', today].includes(observationDay(observation)));
 }
 function hasTag(observation, pattern) { return observation.tags.some(tag => pattern.test(tag)); }
 function handoffSummary(key) {
@@ -1595,8 +1649,10 @@ function handoffSummary(key) {
 }
 
 function assistantBriefing() {
-  const billieCount=todayObservations('billie').length,charlieCount=todayObservations('charlie').length;
-  return assistantText().briefing(billieCount,charlieCount);
+  const c=PortalCopy[state.language] || PortalCopy.fr, registered=Object.entries(dogs);
+  const notes=registered.map(([key,dog])=>`${dog.name} : ${todayObservations(key).length} ${c.briefNotes}`).join(' · ');
+  const daily=DailyUI.snapshot(), count=daily?.bookings.filter(b=>DailyModel.activeBooking(b) && dogs[b.dogId] && DailyModel.serviceDates(b).includes(localDay())).length;
+  return (notes || c.briefEmpty)+'\n'+(daily ? c.briefBookings.replace('{count}',String(count)) : c.briefUnavailable);
 }
 
 function assistantReply(prompt,intent) {
@@ -1625,55 +1681,54 @@ function appendAssistantExchange(prompt,response) {
 
 const views = {
   dashboard() {
-    setHeader('LE BUS DES TOUTOUS', 'Hello, Adine-Sophie.');
+    setHeader('', 'Hello, Adine-Sophie.');
     const latest = state.observations.billie[0] || {title:'No observations captured today yet. Add a care moment before handoff.',text:'',time:'',date:'',tags:[]},copy=assistantText();
     return `<div class="care-club">
-      <section class="day-opening" aria-label="${t('Your day with the dogs')}">
-        <div class="day-scene"><div class="scene-copy"><span class="eyebrow">${t('Life with Le Bus des Toutous')}</span><h2>${t('The dogs.')}<br>${t('The fresh air.')}<br><em>${t('The good life.')}</em></h2><p>${t('From the doorstep to the forest, with Adine-Sophie.')}</p></div><figure class="scene-photo"><img src="assets/photos/good-company.jpg" alt="${t('Two dogs enjoying some company.')}" width="720" height="1280" fetchpriority="high"></figure><a class="scene-source" href="https://www.instagram.com/p/DYknTgAFPMo/" target="_blank" rel="noreferrer">@bus_destoutous <span aria-hidden="true">↗</span></a></div>
-        <div class="care-launchpad"><span class="eyebrow">${t('A HAND WITH THE DETAILS')}</span><h2>${t('A little care.')}<br>${t('A lovely day.')}</h2><div class="launch-actions">${[['capture','01','Add a care note','Write or dictate, then review.'],['handoff','02','Prepare the handoff','The details the next carer needs.'],['story','03','Daily story','A personal recap to review.']].map(([route,num,heading,detail])=>`<button data-go="${route}"><span class="action-index">${num}</span><span><strong>${t(heading)}</strong><small>${t(detail)}</small></span><span class="action-arrow" aria-hidden="true">↗</span></button>`).join('')}</div><p class="launch-foot">${t('A walk, a little company, a lot of care.')}</p></div>
-      </section>
+      ${DailyUI.home()}
       <div class="club-care-grid">
-        <section class="club-dogs"><div class="section-head"><h2>${t('The dogs')}</h2><button class="link-button" data-go="dogs">${t('View profiles')} <span aria-hidden="true">↗</span></button></div><div class="dog-row">${Object.entries(dogs).map(([key,d])=>`<button class="card dog-card" data-dog="${key}">${dogAvatar(key)}<span class="dog-meta"><strong class="dog-name">${d.name}</strong><span class="dog-owner">${d.owner}</span><span class="dog-record-count">${t('Open care record')}</span></span><span class="dog-arrow" aria-hidden="true">↗</span></button>`).join('')}</div><p class="sample-note">${t('Sample workspace · care records to explore')}</p></section>
+        <section class="club-dogs"><div class="section-head"><h2>${t('The dogs')}</h2><button class="link-button" data-go="dogs">${t('View profiles')} <span aria-hidden="true">↗</span></button></div><div class="dog-row">${Object.entries(dogs).map(([key,d])=>`<button class="card dog-card" data-dog="${key}">${dogAvatar(key)}<span class="dog-meta"><strong class="dog-name" translate="no">${escapeHtml(d.name)}</strong><span class="dog-owner" translate="no">${escapeHtml(d.owner)}</span><span class="dog-record-count">${t('Open care record')}</span></span><span class="dog-arrow" aria-hidden="true">↗</span></button>`).join('')}</div><p class="sample-note">${t('Sample workspace · care records to explore')}</p></section>
         <section class="club-latest"><div class="section-head"><h2>${t('From Billie’s care log')}</h2><button class="link-button" data-dog="billie">${t('View care timeline')} <span aria-hidden="true">↗</span></button></div><div class="activity-list"><button class="activity-row" ${latest.id != null ? `data-evidence-id="${latest.id}" data-evidence-dog="billie"` : 'data-capture-dog="billie"'}><span class="activity-time">${escapeHtml(latest.time)}<small>${escapeHtml(observationDateLabel(latest))}</small></span><span class="activity-copy"><strong>${escapeHtml(t(latest.title))}</strong><span class="activity-preview">${escapeHtml(t(latest.text))}</span></span><span class="activity-arrow" aria-hidden="true">↗</span></button></div><button class="club-assistant" data-go="assistant"><span><strong>${t('Ask Muse.')}</strong><small>${t('Review the day or get ready for the next handoff.')}</small></span><span aria-hidden="true">↗</span></button></section>
       </div>
       <section class="club-journal"><div class="journal-landscape"><img src="assets/photos/pack-on-the-trail.jpg" alt="${t('Dogs following a sunlit trail through the woods.')}" width="720" height="1280" loading="lazy"></div><div class="journal-intro"><span class="eyebrow">@BUS_DESTOUTOUS</span><h2>${t('A glimpse of their world.')}</h2><p>${t('Photos and films from @bus_destoutous.')}</p><button class="secondary" data-go="gallery">${t('See the photo journal')} <span aria-hidden="true">↗</span></button></div><div class="journal-portrait"><img src="assets/photos/adine-woodland.jpg" alt="${t('Adine-Sophie walking with the dogs in the woods.')}" width="720" height="1280" loading="lazy"></div></section>
     </div>
-    <footer class="workspace-footer"><strong>Le Bus des Toutous<span>.</span></strong><p>${t('A workspace to try with sample care records. Scheduling and business figures are previews.')}</p><details class="photo-credits"><summary>${t('Photo and video sources')}</summary><p><a href="https://www.instagram.com/reel/DJ2A0xrsF-a/" target="_blank" rel="noreferrer">@bus_destoutous / 19.05.2025</a><br><a href="https://www.instagram.com/p/DYknTgAFPMo/" target="_blank" rel="noreferrer">@bus_destoutous / ${t('Good company')}</a></p></details></footer>`;
+    <footer class="workspace-footer"><p>${DailyUI.text(window.DogCareAPI ? 'accountStorage' : 'browserStorage')}</p><details class="photo-credits"><summary>${t('Photo and video sources')}</summary><p><a href="https://www.instagram.com/reel/DJ2A0xrsF-a/" target="_blank" rel="noreferrer">@bus_destoutous / 19.05.2025</a><br><a href="https://www.instagram.com/p/DYknTgAFPMo/" target="_blank" rel="noreferrer">@bus_destoutous / ${t('Good company')}</a></p></details></footer>`;
   },  assistant() {
     const copy=assistantText();setHeader(copy.eyebrow,copy.heading);
     const messages=[{role:'muse',text:assistantBriefing()},...state.assistantMessages];
     return `<div class="assistant-layout"><section class="assistant-panel"><div class="assistant-intro"><div class="muse-orb" aria-hidden="true">M.</div><div><span class="muse-kicker">${copy.introKicker}</span><h2>${copy.introHeading}</h2><p>${copy.introText}</p></div></div><div class="assistant-prompts" aria-label="Suggested questions"><button data-assistant-prompt="brief">${copy.prompts[0]}</button><button data-assistant-prompt="attention">${copy.prompts[1]}</button><button data-assistant-prompt="handoff">${copy.prompts[2]}</button></div><div class="assistant-thread" id="assistant-thread" aria-live="polite">${messages.map(message=>`<div class="assistant-message ${message.role}"><span>${message.role==='muse'?copy.muse:copy.you}</span><p>${escapeHtml(message.text)}</p></div>`).join('')}</div><form class="assistant-compose" id="assistant-form"><label class="sr-only" for="assistant-question">${copy.ask}</label><input id="assistant-question" autocomplete="off" placeholder="${copy.placeholder}"><button class="primary" type="submit" aria-label="${copy.ask}">↑</button></form><p class="assistant-privacy">${window.DogCareAPI ? t(ACCOUNT_STORAGE) : copy.privacy}</p></section><aside class="assistant-actions"><span class="handoff-label">${copy.quick}</span><h2>${copy.keep}</h2><button data-assistant-action="capture"><span>＋</span><strong>${copy.actions[0][0]}</strong><small>${copy.actions[0][1]}</small></button><button data-assistant-action="handoff"><span>⇄</span><strong>${copy.actions[1][0]}</strong><small>${copy.actions[1][1]}</small></button><button data-assistant-action="story"><span>✦</span><strong>${copy.actions[2][0]}</strong><small>${copy.actions[2][1]}</small></button></aside></div>`;
   },
   dogs() {
-    const key=state.dog,d=dogs[key], obs=state.observations[key];
-    setHeader('DOG PROFILE', d.name);
-    return `<div class="page-title-row"><div><h2>${t('Care record')}</h2><p>${tf('Everything that helps {name} feel understood.', {name:d.name.split(' ')[0]})}</p></div><button class="primary" data-go="capture">${t('＋ Add observation')}</button></div><div class="grid page-grid"><div>
-      <section class="card profile-hero">${dogAvatar(key)}<div><h2>${d.name}</h2><p>${t(d.breed)} · ${t(d.age)} · ${t('Owner:')} ${d.owner}</p>${tagsHtml(['Checked in','Consent on file'])}</div></section>
-      <section class="card" style="margin-top:20px"><div class="section-head" style="margin-top:0"><div><h2>${t('Needs & lifestyle')}</h2><p>${t('Personalise these with the owner — not breed stereotypes.')}</p></div></div><div class="facts"><div class="fact"><small>${t('Energy')}</small><strong>${t(d.needs.energy)}</strong></div><div class="fact"><small>${t('Movement')}</small><strong>${t(d.needs.movement)}</strong></div><div class="fact"><small>${t('Enrichment')}</small><strong>${t(d.needs.enrichment)}</strong></div><div class="fact"><small>${t('Sensitivities')}</small><strong>${t(d.needs.sensitivities)}</strong></div></div></section>
-      <div class="section-head"><div><h2>${t('Care timeline')}</h2><p>${tf('{count} recorded moments', {count:obs.length})}</p></div><button class="link-button" data-go="handoff">${t('View daily handoff')}</button></div><div class="timeline">${obs.map(o=>`<article class="card timeline-card" id="observation-${o.id}"><div class="timeline-top"><h4>${escapeHtml(t(o.title))}</h4><time>${escapeHtml(o.time)} · ${escapeHtml(observationDateLabel(o))}</time></div><p>${escapeHtml(t(o.text))}</p>${audioHtml(o.audio, tf('{title} voice note', {title:t(o.title)}))}${tagsHtml(o.tags)}${shareControls(o,`share-${o.id}`)}</article>`).join('')}</div>
-    </div><aside><section class="card"><div class="section-head" style="margin-top:0"><div><h2>${t('Care insight')}</h2><p>${t('Evidence-based prompt · never a diagnosis')}</p></div></div><div class="context ${careInsight(key).level==='review'?'behaviour':''}"><strong>${careInsight(key).title}</strong><p>${careInsight(key).text}</p></div></section><section class="card" style="margin-top:20px"><div class="section-head" style="margin-top:0"><div><h2>${t('Care context')}</h2><p>${t('Quick reference for every handover')}</p></div></div><div class="context-list"><div class="context"><strong>${t('HEALTH')}</strong><p>${t(d.health)}</p></div><div class="context behaviour"><strong>${t('BEHAVIOUR')}</strong><p>${t(d.behaviour)}</p></div><div class="context vet"><strong>${t('VET & EMERGENCY')}</strong><p>${t(d.vet)}</p></div></div><div class="facts"><div class="fact"><small>${t('Food')}</small><strong>${t('Set with owner')}</strong></div><div class="fact"><small>${t('Walk')}</small><strong>${t('Set with owner')}</strong></div><div class="fact"><small>${t('Pickup')}</small><strong>${t('Set with owner')}</strong></div></div></section><section class="card" style="margin-top:20px"><div class="section-head" style="margin-top:0"><div><h2>${t('Vet access')}</h2><p>${t('Preview only · no clinic is contacted')}</p></div></div><p style="font-size:12px;color:var(--muted);line-height:1.5">${t(d.vet)}</p><div class="composer-actions"><button class="secondary" id="vet-call">${t('Call clinic')}</button><button class="ghost" id="vet-video">${t('Video consult')}</button></div></section><section class="card" style="margin-top:20px"><h3 style="font:400 20px Georgia,serif">${t('Switch dog')}</h3><div class="dog-picker">${Object.entries(dogs).map(([k,x])=>`<button class="dog-pick ${k===key?'active':''}" data-dog="${k}">${dogAvatar(k)}<div><strong>${x.name.split(' ')[0]}</strong><small>${t(x.age)}</small></div></button>`).join('')}</div></section></aside></div>`;
+    const key=state.dog,d=dogs[key], obs=state.observations[key] || [];
+    if(!d){setHeader('', 'Your dogs today');return DailyUI.dogControls();}
+    setHeader('DOG PROFILE', d.name, true);
+    return `${DailyUI.dogControls()}<div class="page-title-row"><div><h2>${t('Care record')}</h2><p>${escapeHtml(tf('Everything that helps {name} feel understood.', {name:d.name.split(' ')[0]}))}</p></div><button class="primary" data-go="capture">${t('＋ Add observation')}</button></div><div class="grid page-grid"><div>
+      <section class="card profile-hero">${dogAvatar(key)}<div><h2 translate="no">${escapeHtml(d.name)}</h2><p>${t(d.breed)} · ${t(d.age)} · ${t('Owner:')} <span translate="no">${escapeHtml(d.owner)}</span></p></div></section>
+      ${DailyUI.documents(key)}<section class="card" style="margin-top:20px"><div class="section-head" style="margin-top:0"><div><h2>${t('Needs & lifestyle')}</h2><p>${t('Personalise these with the owner — not breed stereotypes.')}</p></div></div><div class="facts"><div class="fact"><small>${t('Energy')}</small><strong>${t(d.needs.energy)}</strong></div><div class="fact"><small>${t('Movement')}</small><strong>${t(d.needs.movement)}</strong></div><div class="fact"><small>${t('Enrichment')}</small><strong>${t(d.needs.enrichment)}</strong></div><div class="fact"><small>${t('Sensitivities')}</small><strong>${t(d.needs.sensitivities)}</strong></div></div></section>
+      <div class="section-head"><div><h2>${t('Care timeline')}</h2><p>${tf('{count} recorded moments', {count:obs.length})}</p></div><button class="link-button" data-go="handoff">${t('View daily handoff')}</button></div><div class="timeline">${obs.map(o=>`<article class="card timeline-card" id="observation-${o.id}"><div class="timeline-top"><h4>${escapeHtml(t(o.title))}</h4><time>${escapeHtml(o.time)} · ${escapeHtml(observationDateLabel(o))}</time></div><p>${escapeHtml(t(o.text))}</p>${audioHtml(o.audio, tf('{title} voice note', {title:t(o.title)}))}${isSampleObservation(key,o)?`<p class="sample-note">${DailyUI.text('sampleNote')}</p>`:''}${tagsHtml(o.tags)}${shareControls(o,`share-${o.id}`)}</article>`).join('')}</div>
+    </div><aside><section class="card"><div class="section-head" style="margin-top:0"><div><h2>${t('Care insight')}</h2><p>${t('Evidence-based prompt · never a diagnosis')}</p></div></div><div class="context ${careInsight(key).level==='review'?'behaviour':''}"><strong>${careInsight(key).title}</strong><p>${careInsight(key).text}</p></div></section><section class="card" style="margin-top:20px"><div class="section-head" style="margin-top:0"><div><h2>${t('Care context')}</h2><p>${t('Quick reference for every handover')}</p></div></div><div class="context-list"><div class="context"><strong>${t('HEALTH')}</strong><p>${t(d.health)}</p></div><div class="context behaviour"><strong>${t('BEHAVIOUR')}</strong><p>${t(d.behaviour)}</p></div><div class="context vet"><strong>${t('VET & EMERGENCY')}</strong><p>${t(d.vet)}</p></div></div><div class="facts"><div class="fact"><small>${t('Food')}</small><strong>${t('Set with owner')}</strong></div><div class="fact"><small>${t('Walk')}</small><strong>${t('Set with owner')}</strong></div><div class="fact"><small>${t('Pickup')}</small><strong>${t('Set with owner')}</strong></div></div></section><section class="card" style="margin-top:20px"><div class="section-head" style="margin-top:0"><div><h2>${t('Vet access')}</h2><p>${t('Preview only · no clinic is contacted')}</p></div></div><p style="font-size:12px;color:var(--muted);line-height:1.5">${t(d.vet)}</p><p class="daily-help">${DailyUI.text('clinicUnavailable')}</p></section><section class="card" style="margin-top:20px"><h3 style="font:400 20px Georgia,serif">${t('Switch dog')}</h3><div class="dog-picker">${Object.entries(dogs).map(([k,x])=>`<button class="dog-pick ${k===key?'active':''}" data-dog="${k}">${dogAvatar(k)}<div><strong translate="no">${escapeHtml(x.name.split(' ')[0])}</strong><small>${t(x.age)}</small></div></button>`).join('')}</div></section></aside></div>`;
   },
   capture() {
     const d=dogs[state.dog]; setHeader('RAPID CAPTURE', 'Capture the moment');
-    return `<section class="card composer capture-composer" aria-labelledby="page-title"><label class="label">${t('Who is this about?')}</label><div class="dog-picker">${Object.entries(dogs).map(([k,x])=>`<button class="dog-pick ${k===state.dog?'active':''}" data-capture-dog="${k}" aria-pressed="${k===state.dog}">${dogAvatar(k)}<div><strong>${x.name}</strong><small>${t(x.last)}</small></div></button>`).join('')}</div><label class="label" for="observation">${t('Care update')}</label><div class="note-field" id="note-field"><textarea id="observation" aria-describedby="voice-service-notice" data-capture-owner="${state.dog}" placeholder="${t('Ate breakfast, enjoyed a walk, settled down for a nap…')}"></textarea><button class="mic-button" type="button" id="record-audio" aria-label="${t('Dictate your note')}"><span class="mic-glyph" aria-hidden="true">🎤</span><span class="mic-text">${t('Dictate')}</span></button><button class="mic-button recording" type="button" id="stop-audio" hidden aria-label="${t('Stop dictation')}"><span class="mic-glyph" aria-hidden="true">■</span><span class="mic-text">${t('Stop')}</span></button><div class="listening-badge" id="listening-badge" hidden><span class="pulse-dot" aria-hidden="true"></span><span class="listening-text">${t('Listening…')}</span><span id="recording-duration" class="listening-timer" aria-label="${t('Recording duration')}">00:00</span></div></div><div class="voice-meta"><p id="recording-status" role="status"></p><p id="transcription-status" role="status" class="voice-meta-status"></p><div id="audio-preview">${audioDraft ? `${audioHtml(audioDraft, t('Care update voice note'))}<button class="link-button discard-audio" type="button" id="discard-audio">${t('Discard recording')}</button>` : ''}</div><p id="voice-service-notice">${t('Dictation may send audio to your browser provider.')}</p></div><label class="label">${t('Detected details')} <small style="font-weight:400;text-transform:none;letter-spacing:0"> ${t('· updates as you type')}</small></label><div class="detected" id="detected"><em>${t('Start typing to see structured care tags')}</em></div><p id="health-safety" class="preview-note" hidden>${t('Health observations are factual notes, not diagnoses. Contact a veterinarian if concerned.')}</p><details class="capture-help"><summary>${t('Dictation and storage')}</summary><p>${t('Tap the mic to dictate — your words fill the note as you speak. The mic is only used after you tap it.')}</p><p class="transcription-privacy">${t('Speech-to-text uses your browser’s speech service. Depending on your browser, audio may be sent to its provider for transcription.')}</p><p class="storage-notice">${storageCopy('AI structuring and recorded audio stay in this browser. Speech transcription may use your browser provider’s service.')}</p></details><div class="composer-actions capture-save"><p id="save-error" role="alert" class="preview-note" ${captureDrafts[state.dog]?.error?'':'hidden'}>${captureDrafts[state.dog]?.error?t(SAVE_FAILED):''}</p><button class="primary" id="save-observation">${tf("Save to {name}'s timeline →", {name:d.name.split(' ')[0]})}</button></div></section>`;
+    return `<section class="card composer capture-composer" aria-labelledby="page-title"><div class="label">${t('Who is this about?')}</div><div class="dog-picker">${Object.entries(dogs).map(([k,x])=>`<button class="dog-pick ${k===state.dog?'active':''}" data-capture-dog="${k}" aria-pressed="${k===state.dog}">${dogAvatar(k)}<div><strong translate="no">${escapeHtml(x.name)}</strong><small>${t(x.last)}</small></div></button>`).join('')}</div><label class="label" for="observation">${t('Care update')}</label><div class="note-field" id="note-field"><textarea id="observation" aria-describedby="voice-service-notice" data-capture-owner="${state.dog}" placeholder="${t('Ate breakfast, enjoyed a walk, settled down for a nap…')}"></textarea><button class="mic-button" type="button" id="record-audio" aria-label="${t('Dictate your note')}"><span class="mic-glyph" aria-hidden="true">🎤</span><span class="mic-text">${t('Dictate')}</span></button><button class="mic-button recording" type="button" id="stop-audio" hidden aria-label="${t('Stop dictation')}"><span class="mic-glyph" aria-hidden="true">■</span><span class="mic-text">${t('Stop')}</span></button><div class="listening-badge" id="listening-badge" hidden><span class="pulse-dot" aria-hidden="true"></span><span class="listening-text">${t('Listening…')}</span><span id="recording-duration" class="listening-timer" aria-label="${t('Recording duration')}">00:00</span></div></div><div class="voice-meta"><p id="recording-status" role="status"></p><p id="transcription-status" role="status" class="voice-meta-status"></p><div id="audio-preview">${audioDraft ? `${audioHtml(audioDraft, t('Care update voice note'))}<button class="link-button discard-audio" type="button" id="discard-audio">${t('Discard recording')}</button>` : ''}</div><p id="voice-service-notice">${t('Dictation may send audio to your browser provider.')}</p></div><div class="label">${t('Detected details')} <small style="font-weight:400;text-transform:none;letter-spacing:0"> ${t('· updates as you type')}</small></div><div class="detected" id="detected"><em>${t('Start typing to see structured care tags')}</em></div><p id="health-safety" class="preview-note" hidden>${t('Health observations are factual notes, not diagnoses. Contact a veterinarian if concerned.')}</p><details class="capture-help"><summary>${t('Dictation and storage')}</summary><p>${t('Tap the mic to dictate — your words fill the note as you speak. The mic is only used after you tap it.')}</p><p class="transcription-privacy">${t('Speech-to-text uses your browser’s speech service. Depending on your browser, audio may be sent to its provider for transcription.')}</p><p class="storage-notice">${storageCopy('AI structuring and recorded audio stay in this browser. Speech transcription may use your browser provider’s service.')}</p></details><div class="composer-actions capture-save"><p id="save-error" role="alert" class="preview-note" ${captureDrafts[state.dog]?.error?'':'hidden'}>${captureDrafts[state.dog]?.error?t(SAVE_FAILED):''}</p><button class="primary" id="save-observation">${escapeHtml(tf("Save to {name}'s timeline →", {name:d.name.split(' ')[0]}))}</button></div></section>`;
   },
   gallery() { setHeader('OUTDOOR JOURNAL','Life at Le Bus des Toutous'); const items=[['good-company.jpg','Good company','DYknTgAFPMo'],['pack-on-the-trail.jpg','A walk with the pack','DJ2A0xrsF-a'],['adine-woodland.jpg','Out in the woods','DJ2A0xrsF-a']]; const audioItems=Object.values(state.observations).flat().filter(o=>o.audio?.url); return `<div class="page-title-row"><div><h2>${t('Photo journal')}</h2><p>${t('Photos and films from @bus_destoutous.')}</p></div></div>${audioItems.length?`<section class="card audio-library"><div class="section-head"><div><h2>${t('Voice notes')}</h2><p>${storageCopy('Attached locally to care updates for this browser session')}</p></div></div>${audioItems.map(o=>audioHtml(o.audio,t(o.title))).join('')}</section>`:''}<section class="journal-film"><video class="day-film" controls muted playsinline preload="none" poster="assets/photos/pack-on-the-trail.jpg" aria-label="${t('A day with Adine-Sophie')}"><source src="assets/films/a-day-with-adine.mp4" type="video/mp4"></video><div><h2>${t('A day with Adine-Sophie')}</h2><p>${t('From the doorstep to the forest, with Adine-Sophie.')}</p><a href="https://www.instagram.com/reel/DJ2A0xrsF-a/" target="_blank" rel="noreferrer">@bus_destoutous ↗</a></div></section><div class="grid media-grid">${items.map((x,i)=>`<article class="media-item"><img class="media-art ${x[0]==='good-company.jpg'?'company-photo':''}" src="assets/photos/${x[0]}" alt="${t(x[1])}" loading="lazy"><div class="media-copy"><strong>${t(x[1])}</strong><a href="https://www.instagram.com/reel/${x[2]}/" target="_blank" rel="noreferrer">@bus_destoutous ↗</a></div></article>`).join('')}</div><section class="card social-preview" aria-labelledby="social-heading"><div class="section-head"><div><h2 id="social-heading">${t('Social access previews')}</h2><p>${t('Explore what a future connection could share. No account is connected and nothing can be posted.')}</p></div></div><div class="social-platforms">${[['Instagram','Photo and story draft'],['Facebook','Page update draft'],['YouTube','Short video draft']].map(([name,detail])=>`<article><span class="platform-mark" aria-hidden="true">${name[0]}</span><div><strong>${name}</strong><small>${t(detail)} · ${t('local preview only')}</small></div><button class="ghost social-access" type="button" data-platform="${name}" aria-label="${escapeHtml(tf('Preview local {name} access', {name}))}">${t('Preview access')}</button></article>`).join('')}</div><div class="local-boundary"><strong>${t('No social connection')}</strong><span>${t('No credentials are collected, no network request is made, and no content is posted.')}</span></div></section>`; },
   handoff() {
     const key=state.dog,d=dogs[key],summary=handoffSummary(key),audience=t(state.handoffAudience==='owner'?'Owner':'Next carer');
     setHeader('DAILY CARE HANDOFF', `${d.name} · ${audience}`);
     return `<div class="handoff-heading"><div><p class="eyebrow">${t('CARE CONTINUITY · TODAY')}</p><h2>${t('A clear handoff for whoever cares next')}</h2><p>${t('Built from today\'s captured observations. Review before sharing or starting care.')}</p></div><div class="audience-toggle" aria-label="${t('Handoff audience')}"><button class="${state.handoffAudience==='owner'?'active':''}" data-audience="owner">${t('Owner')}</button><button class="${state.handoffAudience==='carer'?'active':''}" data-audience="carer">${t('Next carer')}</button></div></div>
-      <div class="dog-picker handoff-dogs">${Object.entries(dogs).map(([k,x])=>`<button class="dog-pick ${k===key?'active':''}" data-handoff-dog="${k}">${dogAvatar(k)}<div><strong>${x.name}</strong><small>${tf('{count} observations today', {count:todayObservations(k).length})}</small></div></button>`).join('')}</div>
-      <div class="grid handoff-grid"><section class="card handoff-main"><div class="handoff-card-head">${dogAvatar(key)}<div><span class="handoff-label">${tf('Prepared for {audience}', {audience})}</span><h2>${tf("{name}'s care highlights", {name:d.name})}</h2><p>${escapeHtml(tf('{count} captured moments · last update {time}', {count:summary.observations.length, time:summary.observations[0]?.time || t('not yet recorded')}))}</p></div></div>
+      <div class="dog-picker handoff-dogs">${Object.entries(dogs).map(([k,x])=>`<button class="dog-pick ${k===key?'active':''}" data-handoff-dog="${k}">${dogAvatar(k)}<div><strong translate="no">${escapeHtml(x.name)}</strong><small>${tf('{count} observations today', {count:todayObservations(k).length})}</small></div></button>`).join('')}</div>
+      <div class="grid handoff-grid"><section class="card handoff-main"><div class="handoff-card-head">${dogAvatar(key)}<div><span class="handoff-label">${tf('Prepared for {audience}', {audience})}</span><h2>${escapeHtml(tf("{name}'s care highlights", {name:d.name}))}</h2><p>${escapeHtml(tf('{count} captured moments · last update {time}', {count:summary.observations.length, time:summary.observations[0]?.time || t('not yet recorded')}))}</p></div></div>
         <ol class="highlight-list">${summary.highlights.length?summary.highlights.map(item=>`<li>${escapeHtml(item)}</li>`).join(''):`<li>${t('No observations captured today yet. Add a care moment before handoff.')}</li>`}</ol>
         <div class="health-note ${summary.health.length?'watch':''}"><strong>${summary.health.length?t('Health observation — factual, not diagnostic'):t('Health context')}</strong><p>${summary.healthText}</p></div>
       </section><aside class="card next-care"><span class="handoff-label">${t('NEXT CARE')}</span><h2>${t('What to do next')}</h2><ul>${summary.guidance.map(item=>`<li>${escapeHtml(item)}</li>`).join('')}</ul><button class="primary" data-go="capture">${t('＋ Add follow-up observation')}</button></aside></div>
-      <section class="card evidence-panel"><div class="section-head"><div><h2>${t('Evidence for this handoff')}</h2><p>${tf("Open any source observation in {name}'s care timeline.", {name:d.name.split(' ')[0]})}</p></div><div><button class="link-button" data-go="story">${t('Review owner story')}</button><button class="ghost" data-go="gallery">${t('View photo journal')}</button></div></div><div class="evidence-list">${summary.observations.length?summary.observations.map(o=>`<button class="evidence-row" data-evidence-dog="${key}" data-evidence-id="${o.id}"><time>${escapeHtml(o.time)}</time><span><strong>${escapeHtml(t(o.title))}</strong><small>${escapeHtml(t(o.text))}</small></span><b>${t('View source →')}</b></button>`).join(''):`<p class="empty-evidence">${t('No source observations available yet.')}</p>`}</div></section>`;
+      <section class="card evidence-panel"><div class="section-head"><div><h2>${t('Evidence for this handoff')}</h2><p>${escapeHtml(tf("Open any source observation in {name}'s care timeline.", {name:d.name.split(' ')[0]}))}</p></div><div><button class="link-button" data-go="story">${t('Review owner story')}</button><button class="ghost" data-go="gallery">${t('View photo journal')}</button></div></div><div class="evidence-list">${summary.observations.length?summary.observations.map(o=>`<button class="evidence-row" data-evidence-dog="${key}" data-evidence-id="${o.id}"><time>${escapeHtml(o.time)}</time><span><strong>${escapeHtml(t(o.title))}</strong><small>${escapeHtml(t(o.text))}</small></span><b>${t('View source →')}</b></button>`).join(''):`<p class="empty-evidence">${t('No source observations available yet.')}</p>`}</div></section>`;
   },
-  story() { const d=dogs[state.dog], latest=state.observations[state.dog][0]; if(!latest){setHeader('OWNER UPDATE · DRAFT','Daily story');return `<section class="card"><p>${t('No observations captured today yet. Add a care moment before handoff.')}</p><button class="primary" data-go="capture">${t('Capture update')}</button></section>`;} setHeader('OWNER UPDATE · DRAFT','A lovely day, ready to share'); return `<div class="grid page-grid"><div class="story-phone"><div class="story-image">${dogAvatar(state.dog)}${state.dog==='billie'?`<span class="story-photo-note">${t('Profile photograph from the archive')}</span>`:''}</div><div class="story-body"><p class="story-date">${t('Daily story · Sample layout')}</p><h3>${tf('{name}’s day', {name:d.name})}</h3><p class="story-copy">${escapeHtml(t(latest.text))} ${tf('{name} enjoyed plenty of calm attention and is heading home happy and settled.', {name:d.name.split(' ')[0]})}</p><div class="story-stats"><div><strong>${state.dog==='billie'?'42 min':'25 min'}</strong><small>${t('outside')}</small></div><div><strong>${t('All eaten')}</strong><small>${t('meals')}</small></div><div><strong>${t('Calm')}</strong><small>${t('mood')}</small></div></div></div></div><aside><section class="card"><h2 style="font:400 24px Georgia,serif">${t('Owner-ready, not auto-sent')}</h2><p style="font-size:12px;color:var(--muted);line-height:1.6">${t('Review this draft, then share it with the app you choose.')}</p><label class="label">${t('Preview for')}</label><div class="dog-picker">${Object.entries(dogs).map(([k,x])=>`<button class="dog-pick ${k===state.dog?'active':''}" data-story-dog="${k}">${dogAvatar(k)}<div><strong>${x.name}</strong><small>${x.owner}</small></div></button>`).join('')}</div><button class="ghost" data-go="handoff" style="width:100%;margin:20px 0 10px">${t('Review daily handoff')}</button>${shareControls(latest,'story-share')}</section></aside></div>`; },
-  invite() { setHeader('INVITE PREVIEW','Share care context safely'); return `<div class="page-title-row"><div><h2>${t('Prepare an invite')}</h2><p>${t('Build a local pending invite preview for an owner or trusted carer. Nothing is sent.')}</p></div></div><div class="grid page-grid invite-grid"><section class="card invite-card"><div class="form-row"><label class="label">${t('Invite role')}</label><div class="role-choice" role="radiogroup" aria-label="${t('Invite role')}"><label><input type="radio" name="invite-role" value="owner" checked><span><strong>${t('Owner')}</strong><small>${t('Family member who receives updates')}</small></span></label><label><input type="radio" name="invite-role" value="trusted-carer"><span><strong>${t('Trusted carer')}</strong><small>${t('Backup helper with limited context')}</small></span></label></div></div><div class="form-split"><label class="field-label" for="invite-name">${t('Name')}<input id="invite-name" autocomplete="name" placeholder="${t('e.g. Camille Martin')}"></label><label class="field-label" for="invite-email">${t('Email')}<input id="invite-email" type="email" autocomplete="email" placeholder="camille@example.com"></label></div><label class="label">${t('Can preview')}</label><div class="permission-list"><label><input type="checkbox" name="invite-permission" value="stories" checked><span><strong>${t('Daily stories')}</strong><small>${t('Owner-ready recaps and media placeholders')}</small></span></label><label><input type="checkbox" name="invite-permission" value="timeline" checked><span><strong>${t('Care timeline')}</strong><small>${t('Structured observations and handover notes')}</small></span></label><label><input type="checkbox" name="invite-permission" value="health"><span><strong>${t('Health notes')}</strong><small>${t('Factual medication and watch items, never diagnoses')}</small></span></label></div><div class="local-boundary"><strong>${t('Local preview only')}</strong><span>${t('This prototype will not send email, WhatsApp, SMS, or notifications.')}</span></div><div class="composer-actions"><small>${storageCopy('Demo data only · the invite is stored in this browser as pending.', ACCOUNT_INVITE)}</small><button class="primary" id="create-invite">${t('Create pending invite preview →')}</button></div></section><aside><section class="card summary-card"><div class="section-head" style="margin-top:0"><div><h2>${t('Invite-ready summary')}</h2><p>${t('Updates as you choose role and permissions')}</p></div></div><div id="invite-summary" class="invite-summary"></div></section><section class="card" style="margin-top:20px"><div class="section-head" style="margin-top:0"><div><h2>${t('Pending invites')}</h2><p>${t('Local preview queue')}</p></div></div><div id="pending-invites" class="pending-list">${pendingInvitesHtml()}</div></section></aside></div>`; },
-  schedule() { setHeader('SAMPLE SCHEDULE · 12–18 JULY','A week with room to breathe'); const days=[['Sun','12','Billie · 08:00','Charlie · 09:00'],['Mon','13',`Milo · ${t('walk')}`,''],['Tue','14',`Billie · ${t('day care')}`,`Poppy · ${t('walk')}`],['Wed','15',`Charlie · ${t('day care')}`,''],['Thu','16',`Billie · ${t('day care')}`,`Milo · ${t('walk')}`],['Fri','17',`Poppy · ${t('half day')}`,''],['Sat','18',t('Admin morning'),'']]; return `<p class="preview-banner">${t('Sample schedule · bookings are previews.')}</p><div class="page-title-row"><div><h2>${t('Bookings overview')}</h2><p>${t('11 bookings · 76% of this week’s care capacity')}</p></div><button class="primary" id="new-booking">${t('＋ New booking')}</button></div><div class="grid week">${days.map((d,i)=>`<div class="day ${i===0?'today':''}"><div class="day-head">${t(d[0])}<strong>${d[1]}</strong></div>${d[2]?`<div class="event">${d[2]}</div>`:''}${d[3]?`<div class="event peach">${d[3]}</div>`:''}</div>`).join('')}</div><section class="card" style="margin-top:25px"><div class="section-head" style="margin:0"><div><h2>${t('Upcoming handovers')}</h2><p>${t('Everything owners need before the doorbell rings')}</p></div></div><div class="today-list" style="margin-top:15px"><div class="booking"><time>17:30</time><div><h4>Billie Blue · ${t('pickup')}</h4><p>${t('Story draft ready · lead and food tub packed')}</p></div><i class="dot"></i></div><div class="booking"><time>18:00</time><div><h4>Charlie Rose · ${t('pickup')}</h4><p>${t('Add final rest update before handover')}</p></div><i class="dot peach"></i></div></div></section>`; },
-  business() { setHeader('SAMPLE BUSINESS · JULY','A small business, clearly seen'); const bars=[46,58,51,72,63,79,86]; return `<p class="preview-banner">${t('Sample figures · this is a business preview, not your accounts.')}</p><div class="grid metrics"><div class="card metric"><small>${t('REVENUE BOOKED')}</small><strong>€2,840</strong><span class="tag">${t('↑ 13% vs June')}</span></div><div class="card metric"><small>${t('NET AFTER EXPENSES')}</small><strong>€2,196</strong><span class="tag">${t('77% margin')}</span></div><div class="card metric"><small>${t('CARE HOURS')}</small><strong>94h</strong><span class="tag">${t('€30.21 / hour')}</span></div><div class="card metric"><small>${t('REPEAT OWNERS')}</small><strong>82%</strong><span class="tag">${t('Healthy')}</span></div></div><div class="grid page-grid" style="margin-top:22px"><section class="card"><div class="section-head" style="margin-top:0"><div><h2>${t('Revenue rhythm')}</h2><p>${t('Last 7 months · demo data')}</p></div></div><div class="bar-chart">${bars.map((h,i)=>`<div class="bar ${i===6?'current':''}" style="height:${h}%"><span>${t(['Jan','Feb','Mar','Apr','May','Jun','Jul'][i])}</span></div>`).join('')}</div></section><aside class="card"><div class="section-head" style="margin-top:0"><div><h2>${t('Recent expenses')}</h2><p>${t('€644 this month')}</p></div><button class="link-button" id="add-expense">${t('＋ Add')}</button></div><div class="expense-row"><div class="expense-icon">🦴</div><div><strong>${t('Enrichment supplies')}</strong><small>${t('Pet shop · 10 July')}</small></div><strong>€48</strong></div><div class="expense-row"><div class="expense-icon">🚙</div><div><strong>${t('Fuel')}</strong><small>${t('Travel · 8 July')}</small></div><strong>€72</strong></div><div class="expense-row"><div class="expense-icon">🛡</div><div><strong>${t('Business insurance')}</strong><small>${t('Monthly · 1 July')}</small></div><strong>€119</strong></div></aside></div>`; },
-  settings() { setHeader('SETTINGS','Your calm corner'); return `<section class="card empty"><div class="big">⚙️</div><h2>${t('Demo settings')}</h2><p>${t('External integrations are intentionally unavailable in this local prototype.')}</p><button class="ghost" id="reset-demo">${t('Reset demo observations')}</button></section>`; }
+  story() { const d=dogs[state.dog], latest=state.observations[state.dog][0]; if(!latest){setHeader('OWNER UPDATE · DRAFT','Daily story');return `<section class="card"><p>${t('No observations captured today yet. Add a care moment before handoff.')}</p><button class="primary" data-go="capture">${t('Capture update')}</button></section>`;} setHeader('OWNER UPDATE · DRAFT','A lovely day, ready to share'); return `<div class="grid page-grid"><div class="story-phone"><div class="story-image">${dogAvatar(state.dog)}${!window.DogCareAPI && state.dog==='billie'?`<span class="story-photo-note">${t('Profile photograph from the archive')}</span>`:''}</div><div class="story-body"><p class="story-date">${window.DogCareAPI?escapeHtml(observationDateLabel(latest)):t('Daily story · Sample layout')}</p><h3>${escapeHtml(tf('{name}’s day', {name:d.name}))}</h3><p class="story-copy">${escapeHtml(t(latest.text))} ${window.DogCareAPI?'':escapeHtml(tf('{name} enjoyed plenty of calm attention and is heading home happy and settled.', {name:d.name.split(' ')[0]}))}</p>${window.DogCareAPI?'':`<div class="story-stats"><div><strong>${state.dog==='billie'?'42 min':'25 min'}</strong><small>${t('outside')}</small></div><div><strong>${t('All eaten')}</strong><small>${t('meals')}</small></div><div><strong>${t('Calm')}</strong><small>${t('mood')}</small></div></div>`}</div></div><aside><section class="card"><h2 style="font:400 24px Georgia,serif">${t('Owner-ready, not auto-sent')}</h2><p style="font-size:12px;color:var(--muted);line-height:1.6">${t('Review this draft, then share it with the app you choose.')}</p><div class="label">${t('Preview for')}</div><div class="dog-picker">${Object.entries(dogs).map(([k,x])=>`<button class="dog-pick ${k===state.dog?'active':''}" data-story-dog="${k}">${dogAvatar(k)}<div><strong translate="no">${escapeHtml(x.name)}</strong><small translate="no">${escapeHtml(x.owner)}</small></div></button>`).join('')}</div><button class="ghost" data-go="handoff" style="width:100%;margin:20px 0 10px">${t('Review daily handoff')}</button>${shareControls(latest,'story-share')}</section></aside></div>`; },
+  invite() { if(window.DogCareAPI){setHeader('',t('Invite'));return PortalUI.access()+PortalUI.professionalAccess()+(state.invites.length?`<details class="portal-card"><summary>${PortalUI.text('legacyInvites')}</summary><div id="pending-invites">${pendingInvitesHtml()}</div></details>`:'');} setHeader('INVITE PREVIEW','Share care context safely'); return `<div class="page-title-row"><div><h2>${t('Prepare an invite')}</h2><p>${t('Build a local pending invite preview for an owner or trusted carer. Nothing is sent.')}</p></div></div><div class="grid page-grid invite-grid"><section class="card invite-card"><div class="form-row"><div class="label">${t('Invite role')}</div><div class="role-choice" role="radiogroup" aria-label="${t('Invite role')}"><label><input type="radio" name="invite-role" value="owner" checked><span><strong>${t('Owner')}</strong><small>${t('Family member who receives updates')}</small></span></label><label><input type="radio" name="invite-role" value="trusted-carer"><span><strong>${t('Trusted carer')}</strong><small>${t('Backup helper with limited context')}</small></span></label></div></div><div class="form-split"><label class="field-label" for="invite-name">${t('Name')}<input id="invite-name" autocomplete="name" placeholder="${t('e.g. Camille Martin')}"></label><label class="field-label" for="invite-email">${t('Email')}<input id="invite-email" type="email" autocomplete="email" placeholder="camille@example.com"></label></div><div class="label">${t('Can preview')}</div><div class="permission-list"><label><input type="checkbox" name="invite-permission" value="stories" checked><span><strong>${t('Daily stories')}</strong><small>${t('Owner-ready recaps and media placeholders')}</small></span></label><label><input type="checkbox" name="invite-permission" value="timeline" checked><span><strong>${t('Care timeline')}</strong><small>${t('Structured observations and handover notes')}</small></span></label><label><input type="checkbox" name="invite-permission" value="health"><span><strong>${t('Health notes')}</strong><small>${t('Factual medication and watch items, never diagnoses')}</small></span></label></div><div class="local-boundary"><strong>${t('Local preview only')}</strong><span>${t('This prototype will not send email, WhatsApp, SMS, or notifications.')}</span></div><div class="composer-actions"><small>${storageCopy('Demo data only · the invite is stored in this browser as pending.', ACCOUNT_INVITE)}</small><button class="primary" id="create-invite">${t('Create pending invite preview →')}</button></div></section><aside><section class="card summary-card"><div class="section-head" style="margin-top:0"><div><h2>${t('Invite-ready summary')}</h2><p>${t('Updates as you choose role and permissions')}</p></div></div><div id="invite-summary" class="invite-summary"></div></section><section class="card" style="margin-top:20px"><div class="section-head" style="margin-top:0"><div><h2>${t('Pending invites')}</h2><p>${t('Local preview queue')}</p></div></div><div id="pending-invites" class="pending-list">${pendingInvitesHtml()}</div></section></aside></div>`; },
+  health() { setHeader('', KnowledgeUI.text('title')); return KnowledgeUI.view(); },
+  schedule() { setHeader('', t('Schedule')); return DailyUI.schedule(); },
+  business() { setHeader('', FinanceUI.text('title')); return FinanceUI.view(); },
+  settings() { if(window.DogCareAPI){setHeader('',t('Settings'));return PortalUI.settings();} setHeader('SETTINGS','Your calm corner'); return `<section class="card empty"><div class="big">⚙️</div><h2>${t('Demo settings')}</h2><p>${t('External integrations are intentionally unavailable in this local prototype.')}</p><button class="ghost" id="reset-demo">${t('Reset demo observations')}</button></section>`; }
 };
 
 function infer(text) {
@@ -1832,9 +1887,69 @@ function updateInviteSummary() {
   const permissionLabels = formatPermissions(invite.permissions);
   summary.innerHTML = `<div class="summary-person"><span>${invite.role === 'trusted-carer' ? '🤝' : '🏡'}</span><div><strong>${escapeHtml(firstName)}</strong><small>${escapeHtml(invite.email || t('Email needed before preview'))}</small></div></div><div class="summary-line"><b>${t('Role')}</b><span>${inviteRoleLabel(invite.role)}</span></div><div class="summary-line"><b>${t('Shared care context')}</b><span>${permissionLabels.length ? permissionLabels.map(label => escapeHtml(t(label))).join(', ') : t('Choose at least one area')}</span></div><div class="notice compact"><strong>${t('Ready as a pending preview')}</strong>${t('No delivery will happen from this demo. Review the summary with the sitter before copying anything elsewhere.')}</div>`;
 }
-function navigate(page) { if(savePending)return; if(!appReady){document.querySelector('.sidebar').classList.remove('open');return;} if(state.page==='capture'){stopActiveRecording();stopTranscription(true);rememberCaptureDraft();} state.page=page; if(page==='capture')audioDraft=captureDrafts[state.dog]?.audio || null; document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.page===page)); content.innerHTML=views[page](); localizeContent(); bindView(); document.querySelector('.sidebar').classList.remove('open'); window.scrollTo({top:0}); }
+function revealActiveNavigation() {
+  const active = document.querySelector('#main-nav .nav-item.active');
+  if (!active) return;
+  for (const scroller of [active.closest('nav'), active.closest('.sidebar')]) {
+    const bounds = scroller.getBoundingClientRect(), item = active.getBoundingClientRect();
+    const left = bounds.left + scroller.clientLeft, top = bounds.top + scroller.clientTop;
+    scroller.scrollBy({
+      left: scroller.scrollWidth > scroller.clientWidth ? (item.left < left ? Math.floor(item.left - left) : Math.max(0, Math.ceil(item.right - left - scroller.clientWidth))) : 0,
+      top: scroller.scrollHeight > scroller.clientHeight ? (item.top < top ? Math.floor(item.top - top) : Math.max(0, Math.ceil(item.bottom - top - scroller.clientHeight))) : 0,
+      behavior: 'instant'
+    });
+  }
+}
+function navigate(page) {
+  if(savePending || !appReady)return;
+  if(PortalUI.professional())page='shared-care';
+  if(PortalUI.client() && !['dogs','reservations','news','documents'].includes(page))page='dogs';
+  if(!PortalUI.client() && !PortalUI.professional() && !Object.hasOwn(views,page))page='dashboard';
+  if(!PortalUI.owner() && ['business','invite','settings'].includes(page))page='dashboard';
+  if(state.page==='dogs')DailyUI.rememberDogDraft();
+  if(state.page==='business')FinanceUI.rememberDraft();
+  if(state.page==='health')KnowledgeUI.rememberDraft();
+  if(state.page==='capture'){stopActiveRecording();stopTranscription(true);rememberCaptureDraft();}
+  WelcomeUI.hide();
+  document.querySelector('#workspace-tools-dialog').close();
+  state.page=page;
+  if(page==='capture')audioDraft=captureDrafts[state.dog]?.audio || null;
+  document.querySelectorAll('.nav-item').forEach(n=>{const active=n.dataset.page===page;n.classList.toggle('active',active);if(active)n.setAttribute('aria-current','page');else n.removeAttribute('aria-current');});
+  const needsDog=['capture','handoff','story'].includes(page) && !Object.keys(dogs).length;
+  if(needsDog)setHeader('',t('Dogs'),true);
+  window.MediaUI?.prepare();
+  content.innerHTML=PortalUI.professional()?PortalUI.professionalView():PortalUI.client()?PortalUI.render(page):needsDog?DailyUI.dogControls():page==='dashboard'?PortalUI.ownerHome():views[page]();
+  if(PortalUI.owner() && page==='schedule')content.insertAdjacentHTML('beforeend',QuoteUI.bookings());
+  if(!PortalUI.client() && page==='dogs')content.insertAdjacentHTML('beforeend',PortalUI.sharedTools());
+  if(window.DogCareAPI && page==='dogs') {
+    if(PortalUI.client())content.insertAdjacentHTML('beforeend',MediaUI.gallery());
+    else if(state.dog && dogs[state.dog])content.querySelector('.profile-hero')?.insertAdjacentHTML('afterend',MediaUI.album(state.dog,dogs[state.dog].name));
+  }
+  if(window.DogCareAPI && page==='gallery')content.insertAdjacentHTML('afterbegin',MediaUI.gallery());
+  if(window.DogCareAPI && PortalUI.owner() && page==='settings')content.insertAdjacentHTML('beforeend',MediaUI.settings());
+  localizeContent();bindView();PortalUI.bind();window.MediaUI?.bind();window.scrollTo({top:0});revealActiveNavigation();
+}
+function configureWorkspace() {
+  const client=PortalUI.client(),professional=PortalUI.professional(),owner=PortalUI.owner();
+  if(professional)document.querySelector('#main-nav').innerHTML=`<button class="nav-item" data-page="shared-care">${escapeHtml(PortalUI.text('sharedCare'))}</button>`;
+  if(client)document.querySelector('#main-nav').innerHTML=['dogs','reservations','news','documents'].map(page=>`<button class="nav-item" data-page="${page}">${escapeHtml(PortalUI.text(page))}</button>`).join('');
+  document.querySelector('#workspace-tools').hidden=client||professional;
+  document.querySelector('.top-actions [data-go="capture"]').hidden=client||professional;
+  document.querySelectorAll('#workspace-tools-dialog [data-page]').forEach(b=>{b.hidden=client || professional || (!owner && ['business','invite','settings'].includes(b.dataset.page));});
+  document.querySelectorAll('.nav-item[data-page]').forEach(b=>b.onclick=()=>navigate(b.dataset.page));
+  document.querySelector('#public-home').textContent=PortalUI.text('public');
+  document.querySelector('#workspace-tools').textContent=PortalUI.text('tools')+' +';
+  document.querySelector('#tools-heading').textContent=PortalUI.text('tools');
+  document.querySelector('.workspace-close').setAttribute('aria-label',PortalUI.text('close'));
+  document.querySelector('#account-logout').hidden=!window.DogCareAPI;
+  document.querySelector('#account-logout').textContent=PortalUI.text('logout');
+}
+
 function bindView() {
-  document.querySelectorAll('[data-go]').forEach(el=>el.onclick=()=>navigate(el.dataset.go));
+  DailyUI.bind();
+  if(state.page==='health')KnowledgeUI.bind();
+  if(state.page==='business')FinanceUI.bind();
+  document.querySelectorAll('[data-go]').forEach(el=>el.onclick=()=>{if(el.hasAttribute('data-finance-rates'))FinanceUI.showRates();navigate(el.dataset.go);});
   document.querySelectorAll('[data-assistant-action]').forEach(el=>el.onclick=()=>navigate(el.dataset.assistantAction));
   document.querySelectorAll('[data-assistant-prompt]').forEach(el=>el.onclick=()=>{const prompt=el.textContent.trim(),response=addAssistantExchange(prompt,el.dataset.assistantPrompt);appendAssistantExchange(prompt,response);document.querySelector('#assistant-question').focus();});
   const assistantForm=document.querySelector('#assistant-form');
@@ -1892,13 +2007,14 @@ function bindView() {
     };
   }
   const preview=document.querySelector('#whatsapp-preview'); if(preview)preview.onclick=()=>showToast(t('WhatsApp preview only — nothing was sent'));
-  const vetCall=document.querySelector('#vet-call'); if(vetCall)vetCall.onclick=()=>showToast(t('Clinic call preview — verify contact details before calling'));
-  const vetVideo=document.querySelector('#vet-video'); if(vetVideo)vetVideo.onclick=()=>showToast(t('Video consult preview — no appointment or video call was created'));
   document.querySelectorAll('.social-access').forEach(button=>button.onclick=()=>showToast(tf('{platform} access preview — no account connected or content posted', {platform:button.dataset.platform})));
-  const booking=document.querySelector('#new-booking'); if(booking)booking.onclick=()=>showToast(t('Booking creation is a demo preview'));
-  const expense=document.querySelector('#add-expense'); if(expense)expense.onclick=()=>showToast(t('Expense entry is a demo preview'));
   const reset=document.querySelector('#reset-demo'); if(reset)reset.onclick=async()=>{
-    const observations=structuredClone(baseObservations);
+    const observations={...state.observations};
+    for(const key of Object.keys(dogs)){
+      const retained=(state.observations[key] || []).filter(observation=>!isSampleObservation(key,observation));
+      const occupied=new Set(retained.map(observation=>observation.id));
+      observations[key]=[...retained,...structuredClone(sampleObservations(key).filter(sample=>!occupied.has(sample.id)))];
+    }
     if(!await persistChange(()=>saveObservations(observations),reset))return;
     state.observations=observations;
     showToast(t('Demo observations reset'));
@@ -1908,9 +2024,23 @@ function bindView() {
 }
 document.querySelectorAll('.nav-item[data-page]').forEach(el=>el.onclick=()=>navigate(el.dataset.page));
 document.querySelectorAll('[data-route]').forEach(el=>el.onclick=e=>{e.preventDefault();navigate(el.dataset.route)});
-document.querySelector('#mobile-menu').onclick=()=>document.querySelector('.sidebar').classList.toggle('open');
 const languagePicker=document.querySelector('#language-picker');
+let accountUnavailable=false;
+function renderAccountRecovery() {
+  setHeader('ACCOUNT', 'Your account is not ready');
+  content.innerHTML = `<section class="card"><p role="alert">${escapeHtml(t(window.DogCareAPI.getLoadError()))}</p><button class="primary" id="retry-account">${t('Reload account')}</button></section>`;
+  document.querySelector('#retry-account').onclick = () => location.reload();
+  languagePicker.value = state.language;
+  languagePicker.disabled = false;
+  localizeContent();
+}
 languagePicker.onchange=async()=>{
+  if(accountUnavailable){
+    // Recovery language is temporary: no account or browser settings are written.
+    state.language=languagePicker.value;
+    renderAccountRecovery();
+    return;
+  }
   if(!appReady)return;
   const language=languagePicker.value;
   if (window.DogCareAPI) {
@@ -1920,23 +2050,32 @@ languagePicker.onchange=async()=>{
     }
   } else localStorage.setItem('dogcare-language',language);
   state.language=language;
+  configureWorkspace();
   navigate(state.page);
 };
-function boot() {
+async function boot() {
   if (window.DogCareAPI) {
     state.language = window.DogCareAPI.getLanguage() || 'fr';
     const obs = window.DogCareAPI.getObservations();
-    state.observations = {billie:[],charlie:[], ...obs};
+    state.observations = obs || {};
     state.invites = window.DogCareAPI.getInvites() || [];
   } else {
     state.language = localStorage.getItem('dogcare-language') || 'fr';
     state.observations = loadObservations();
     state.invites = loadInvites();
   }
+  DailyUI.load();
+  if(PortalUI.staff()) {
+    KnowledgeUI.load();
+    if(PortalUI.owner())await FinanceStore.load();
+  }
   languagePicker.value = state.language;
   languagePicker.disabled = false;
   appReady = true;
-  navigate('dashboard');
+  configureWorkspace();
+  const requestedService=new URLSearchParams(location.search).get('service');
+  if(['day','night','walk'].includes(requestedService)){try{sessionStorage.setItem('dogcare-request-service',requestedService);}catch{}}
+  navigate(PortalUI.client()?(requestedService?'reservations':'dogs'):'dashboard');
   content.dataset.ready = 'true';
 }
 if (window.DogCareAPI) {
@@ -1944,8 +2083,25 @@ if (window.DogCareAPI) {
   setHeader('ACCOUNT', 'Loading your care records…');
   window.DogCareAPI.ready.then(ready => {
     if (ready) { boot(); return; }
-    setHeader('ACCOUNT', 'Your account is not ready');
-    content.innerHTML = `<section class="card"><p role="alert">${escapeHtml(window.DogCareAPI.getLoadError())}</p><button class="primary" id="retry-account">Reload account</button></section>`;
-    document.querySelector('#retry-account').onclick = () => location.reload();
+    if (window.DogCareAPI.isAnonymous()) {
+      WelcomeUI.show(state.language, () => boot());
+      content.dataset.ready = "true";
+      return;
+    }
+    accountUnavailable=true;
+    renderAccountRecovery();
   });
 } else boot();
+
+document.querySelector('#workspace-tools').onclick=()=>document.querySelector('#workspace-tools-dialog').showModal();
+document.querySelector('.workspace-close').onclick=()=>document.querySelector('#workspace-tools-dialog').close();
+document.querySelector('#public-home').onclick=()=>{
+  if(savePending)return;
+  navigate(PortalUI.client()?'dogs':'dashboard');
+  WelcomeUI.show(state.language,()=>navigate(PortalUI.client()?'reservations':'schedule'));
+};
+document.querySelector('#account-logout').onclick=async()=>{
+  if(savePending)return;
+  stopActiveRecording();stopTranscription(true);
+  await window.DogCareAPI.logout();
+};

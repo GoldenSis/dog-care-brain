@@ -77,6 +77,7 @@ class ApiServerTestCase(unittest.TestCase):
             "DC_OUTBOX": str(cls.tmp / "outbox"),
             "DC_BLOBS": str(cls.tmp / "blobs"),
             "DC_ROOT": str(ROOT),
+            "DC_AUTH_MODE": "development", "DC_ALLOW_DEMO_SIGNUP": "1", "DC_HOST":"127.0.0.1", "DC_PUBLIC_BUSINESS":"",
         })
         environment.start()
         cls.addClassCleanup(environment.stop)
