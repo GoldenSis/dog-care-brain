@@ -46,8 +46,71 @@ MIME = {
     ".jpeg": "image/jpeg",
     ".webp": "image/webp",
     ".webm": "audio/webm",
-    ".md": "text/plain; charset=utf-8",
+    ".woff2": "font/woff2",
+    ".mp4": "video/mp4",
+    ".gz": "application/gzip",
 }
+
+# Only files intentionally published by the frontend, not repository contents.
+STATIC_FILES = frozenset((
+    'api.js',
+    'app.js',
+    'assets/films/a-day-with-adine.mp4',
+    'assets/fonts/barlow-600-5bc49d41.woff2',
+    'assets/fonts/barlow-700-e3e520cb.woff2',
+    'assets/fonts/barlow-800-89eec21b.woff2',
+    'assets/fonts/dm-sans-468d56b6.woff2',
+    'assets/fonts/jetbrains-mono-2c32b9b3.woff2',
+    'assets/photos/adine-and-dog.jpg',
+    'assets/photos/adine-woodland.jpg',
+    'assets/photos/billie-pines.jpg',
+    'assets/photos/care-at-home.jpg',
+    'assets/photos/good-company.jpg',
+    'assets/photos/pack-in-the-sun.jpg',
+    'assets/photos/pack-on-the-trail.jpg',
+    'assets/photos/the-bus.jpg',
+    'assets/vendor/finance/fflate/index.js',
+    'assets/vendor/finance/pdfjs-dist/pdf.mjs',
+    'assets/vendor/finance/pdfjs-dist/pdf.worker.mjs',
+    'assets/vendor/finance/tessdata/deu.traineddata.gz',
+    'assets/vendor/finance/tessdata/eng.traineddata.gz',
+    'assets/vendor/finance/tessdata/fra.traineddata.gz',
+    'assets/vendor/finance/tessdata/ita.traineddata.gz',
+    'assets/vendor/finance/tessdata/spa.traineddata.gz',
+    'assets/vendor/finance/tesseract.js-core/tesseract-core-lstm.wasm.js',
+    'assets/vendor/finance/tesseract.js-core/tesseract-core-simd-lstm.wasm.js',
+    'assets/vendor/finance/tesseract.js-core/tesseract-core-simd.wasm.js',
+    'assets/vendor/finance/tesseract.js-core/tesseract-core.wasm.js',
+    'assets/vendor/finance/tesseract.js/tesseract.min.js',
+    'assets/vendor/finance/tesseract.js/worker.min.js',
+    'daily-copy.js',
+    'daily-model.js',
+    'daily-ui.js',
+    'daily.css',
+    'finance-copy.js',
+    'finance-documents.js',
+    'finance-export.js',
+    'finance-model.js',
+    'finance-store.js',
+    'finance-ui.js',
+    'finance.css',
+    'index.html',
+    'knowledge-content.js',
+    'knowledge-copy.js',
+    'knowledge-model.js',
+    'knowledge-ui.js',
+    'knowledge.css',
+    'media.css',
+    'muse.css',
+    'portal-copy.js',
+    'portal-ui.js',
+    'public.html',
+    'quote-ui.js',
+    'styles.css',
+    'welcome.css',
+    'welcome.js',
+    'workspace.css',
+))
 
 _lock = threading.Lock()
 
@@ -972,11 +1035,14 @@ class Handler(BaseHTTPRequestHandler):
         rel = unquote(path)
         if rel == "/":
             rel = "/index.html"
-        if ".." in rel.split("/"):
+        if "\x00" in rel or ".." in rel.split("/"):
             self.send_error(404)
             return
         full = os.path.realpath(os.path.join(root, rel.lstrip("/")))
         if not full.startswith(root + os.sep) and full != root:
+            self.send_error(404)
+            return
+        if os.path.relpath(full, root).replace(os.sep, "/") not in STATIC_FILES:
             self.send_error(404)
             return
         if full in (os.path.join(root, "index.html"), os.path.join(root, "app.js")):

@@ -6,6 +6,8 @@ This is a reviewable release procedure, not an executed deployment. The API, not
 
 Use one reviewed, clean commit containing the welcome, client portal and SMTP adapter. Record its full SHA, validation result, archive SHA-256 and previous release in the operator's release record. Export with `git archive --format=tar --output=<private-release.tar> <sha>`. Never copy a working tree, local database, outbox, test evidence or credentials into the release. The deployment templates are in [deploy](../deploy/); they have not been validated against the live host by this code change.
 
+The API publishes only its explicit frontend file allowlist (`api/server.py:STATIC_FILES`). Repository docs, dotfiles, deployment files, tests, scripts and asset provenance metadata are not served, even to signed-in users. Add new intended frontend assets to that list deliberately and run `tests.test_static_boundary`. Protected record downloads remain separate authorized API routes. The development-only plain static server does not provide this boundary and is not the beta server.
+
 The standard layout is:
 
 - `/opt/dogcare/releases/<sha>`: root-owned, read-only application release.
