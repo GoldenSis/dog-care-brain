@@ -2,6 +2,7 @@
 import base64
 import copy
 import http.client
+import json
 import os
 from unittest.mock import patch
 
@@ -18,13 +19,13 @@ class DailyApiTest(ApiServerTestCase):
         return body
 
     def daily(self):
-        return {"version": 1, "clients": [{"id": "c1", "name": "Fixture client"}],
-                "dogs": [{"id": "d1", "name": "Fixture dog", "clientId": "c1"}],
+        return {"version": 2, "clients": [{"id": "c1", "name": "Fixture client"}],
+                "dogs": [{"id": "d1", "name": "Fixture dog", "clientId": "c1", "walkTariff": None}],
                 "bookings": [{"id": "b1", "dogId": "d1", "service": "night",
                               "start": "2026-10-30", "end": "2026-11-02",
                               "unitMinor": 2500, "currency": "CHF"}],
                 "rates": {"currency": "CHF", "walk": None, "day": None, "night": 2500},
-                "documents": []}
+                "documents": [], "walks": []}
 
     def save(self, cookie, value, expected=200, headers=None):
         status, body, _ = _http(self.port, "PUT", "/api/daily", {"daily": value}, cookie, headers)
@@ -57,7 +58,7 @@ class DailyApiTest(ApiServerTestCase):
 
     def test_ownerless_registration_preserves_business_scope_and_revision(self):
         cookie=self.account();other=self.account('other');before=self.state(cookie);other_before=self.state(other)
-        value=before['daily'];value['dogs'].append({'id':'registered-only','name':' Today ','clientId':None})
+        value=before['daily'];value['dogs'].append({'id':'registered-only','name':' Today ','clientId':None,'walkTariff':None})
         self.save(other,value,expected=409,headers=self.headers(before))
         self.assertEqual(self.state(other),other_before)
         saved=self.save(cookie,value,headers=self.headers(before))
@@ -65,7 +66,7 @@ class DailyApiTest(ApiServerTestCase):
         self.assertEqual(saved['daily']['clients'],[])
         self.assertEqual(saved['observations'],before['observations'])
         self.assertEqual(saved['finance'],before['finance'])
-        retry=copy.deepcopy(value);retry['dogs'].append({'id':'second','name':' Today ','clientId':None})
+        retry=copy.deepcopy(value);retry['dogs'].append({'id':'second','name':' Today ','clientId':None,'walkTariff':None})
         self.save(cookie,retry,expected=409,headers=self.headers(before))
         self.assertEqual(self.state(cookie),saved)
         self.assertEqual(self.state(other),other_before)
@@ -108,7 +109,7 @@ class DailyApiTest(ApiServerTestCase):
                 self.assertEqual(self.state(cookie), before)
         for path, bad in (("clients", [{"id": "c1", "name": "x"}] * 2),
                           ("clients", [{"id": "c1", "name": "x" * 121}]),
-                          ("dogs", [{"id": "d1", "name": "x", "clientId": []}]),
+                          ("dogs", [{"id": "d1", "name": "x", "clientId": [], "walkTariff": None}]),
                           ("version", True), ("rates", {})):
             daily = self.daily()
             daily[path] = bad
@@ -232,7 +233,7 @@ class DailyApiTest(ApiServerTestCase):
                                    {"slug": "Dog_1", "name": "Registered dog"}, cookie)
         self.assertEqual(status, 200, created)
         self.assertEqual(created["dog"]["slug"], "Dog_1")
-        value["dogs"] = [{"id": key, "name": key, "clientId": "c1"} for key in identifiers]
+        value["dogs"] = [{"id": key, "name": key, "clientId": "c1", "walkTariff": None} for key in identifiers]
         value["bookings"][0]["dogId"] = identifiers[0]
         self.save(cookie, value)
         saved = self.upload(cookie, self.document(dogId=identifiers[0]))
@@ -345,3 +346,70 @@ class DailyApiTest(ApiServerTestCase):
         value["bookings"][0]["unitMinor"] = 6000
         self.save(cookie, value, expected=400)
         self.assertEqual(self.state(cookie), saved)
+
+    def walk(self, ident, day, tariff, dog="d1"):
+        return {"id": ident, "dogId": dog, "date": day, "tariff": tariff}
+
+    def test_stored_version_one_records_migrate_and_version_one_writers_keep_walks(self):
+        cookie = self.account()
+        bid = self.state(cookie)["business_id"]
+        legacy = {"version": 1, "clients": [{"id": "c1", "name": "Fixture client"}],
+                  "dogs": [{"id": "d1", "name": "Fixture dog", "clientId": "c1"},
+                           {"id": "d2", "name": "Ownerless dog", "clientId": None}],
+                  "bookings": [{"id": "b1", "dogId": "d1", "service": "walk", "start": "2026-10-01",
+                                "end": "2026-10-02", "unitMinor": 1500, "currency": "CHF", "status": "cancelled"}],
+                  "rates": {"currency": "EUR", "walk": 1500, "day": None, "night": None},
+                  "documents": [{"id": "a" * 32, "dogId": "d2", "label": "Legacy file", "renewal": "",
+                                 "type": "application/pdf", "name": "legacy.pdf", "href": "/api/documents/" + "a" * 32}]}
+        with self.server_mod.connection() as c:
+            c.execute("INSERT INTO business_daily(business_id,snapshot) VALUES(?,?)", (bid, json.dumps(legacy)))
+        migrated = self.state(cookie)["daily"]
+        self.assertEqual(migrated, {**legacy, "version": 2, "walks": [],
+                                    "dogs": [{**dog, "walkTariff": None} for dog in legacy["dogs"]]})
+        priced = copy.deepcopy(migrated)
+        priced["dogs"][0]["walkTariff"] = {"unitMinor": 2500, "currency": "CHF"}
+        priced["walks"] = [self.walk("w1", "2026-10-05", {"unitMinor": 2500, "currency": "CHF"})]
+        saved = self.save(cookie, priced)["daily"]
+        self.assertEqual(saved, priced)
+        # A version-1 writer cannot express walks or tariffs; it never erases them.
+        renamed = copy.deepcopy(legacy)
+        renamed["clients"][0]["name"] = "Renamed client"
+        after = self.save(cookie, renamed)["daily"]
+        self.assertEqual(after["walks"], priced["walks"])
+        self.assertEqual(after["dogs"][0]["walkTariff"], priced["dogs"][0]["walkTariff"])
+        self.assertEqual(after["clients"][0]["name"], "Renamed client")
+
+    def test_walks_keep_the_tariff_in_force_and_cannot_be_repriced(self):
+        cookie = self.account()
+        value = self.daily()
+        chf = lambda minor: {"unitMinor": minor, "currency": "CHF"}
+        value["walks"] = [self.walk("w0", "2026-10-01", None)]
+        value = self.save(cookie, value)["daily"]
+        value["dogs"][0]["walkTariff"] = chf(2500)
+        value["walks"].append(self.walk("w1", "2026-10-02", chf(2500)))
+        value = self.save(cookie, value)["daily"]
+        value["dogs"][0]["walkTariff"] = chf(3000)
+        value = self.save(cookie, value)["daily"]
+        self.assertEqual(value["walks"][1]["tariff"], chf(2500))
+        before = self.state(cookie)
+        rejected = []
+        for change in (lambda v: v["walks"][1].update(tariff=chf(3000)),
+                       lambda v: v["walks"][1].update(date="2026-10-03"),
+                       lambda v: v["walks"].append(self.walk("w2", "2026-10-03", chf(2500))),
+                       lambda v: v["walks"].append(self.walk("w2", "2026-10-03", None)),
+                       lambda v: v["walks"].append(self.walk("w2", "2026-10-02", chf(3000))),
+                       lambda v: v["walks"][0].update(tariff=chf(9999)),
+                       lambda v: v["dogs"].pop()):
+            invalid = copy.deepcopy(value)
+            change(invalid)
+            rejected.append(self.save(cookie, invalid, expected=400)["error"])
+            self.assertEqual(self.state(cookie), before)
+        self.assertIn("recorded walks keep their date and tariff", rejected)
+        # An unpriced walk may explicitly receive the current tariff; removing a
+        # tick removes that attendance record.
+        value["walks"][0]["tariff"] = chf(3000)
+        value["walks"].append(self.walk("w2", "2026-10-03", chf(3000)))
+        value = self.save(cookie, value)["daily"]
+        self.assertEqual([w["tariff"]["unitMinor"] for w in value["walks"]], [3000, 2500, 3000])
+        value["walks"].pop(1)
+        self.assertEqual([w["id"] for w in self.save(cookie, value)["daily"]["walks"]], ["w0", "w2"])

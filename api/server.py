@@ -801,7 +801,7 @@ class Handler(BaseHTTPRequestHandler):
                     current["documents"].append(document)
                 else:
                     previous = current
-                    current = daily.validate(payload.get("daily"), previous)
+                    current = daily.validate(daily.upgrade(payload.get("daily"), previous), previous)
                     old = {b['id']: b for b in previous['bookings']}
                     reserved = {row[0] for row in c.execute(
                         'SELECT id FROM booking_request WHERE business_id=?', (user['business_id'],))}
@@ -813,6 +813,12 @@ class Handler(BaseHTTPRequestHandler):
                             b['currency'] != (old[b['id']]['currency'] if b['id'] in old else current['rates']['currency']) or
                             (b['id'] in old and any(b[key] != old[b['id']][key] for key in ('dogId', 'service')))
                             for b in current['bookings']):
+                            raise ValueError('only the owner can set prices')
+                        old_dogs = {d['id']: d for d in previous['dogs']}
+                        old_walks = {w['id']: w for w in previous['walks']}
+                        if any(d['walkTariff'] != (old_dogs[d['id']]['walkTariff'] if d['id'] in old_dogs else None)
+                               for d in current['dogs']) or any(
+                               w['id'] in old_walks and w != old_walks[w['id']] for w in current['walks']):
                             raise ValueError('only the owner can set prices')
                         for booking in current['bookings']:
                             if booking['id'] not in old:

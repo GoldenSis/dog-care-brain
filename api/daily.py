@@ -12,14 +12,30 @@ MAX_RECORDS = 5000
 
 
 def empty():
-    return {"version": 1, "clients": [], "dogs": [], "bookings": [],
+    return {"version": 2, "clients": [], "dogs": [], "bookings": [],
             "rates": {"currency": "CHF", "walk": None, "day": None, "night": None},
-            "documents": []}
+            "documents": [], "walks": []}
+
+
+def upgrade(value, previous=None):
+    """Read version-1 records as version 2.
+
+    Version 1 predates walk tariffs and walk attendance. A stored version-1
+    snapshot has neither; a version-1 replacement cannot express them, so it
+    keeps the saved tariffs and walks of ``previous``."""
+    if (not isinstance(value, dict) or type(value.get("version")) is not int or value["version"] != 1 or "walks" in value
+            or not isinstance(value.get("dogs"), list)):
+        return value
+    prior = previous or empty()
+    tariffs = {dog["id"]: dog["walkTariff"] for dog in prior["dogs"]}
+    dogs = [{**dog, "walkTariff": tariffs.get(dog.get("id"))}
+            if isinstance(dog, dict) and "walkTariff" not in dog else dog for dog in value["dogs"]]
+    return {**value, "version": 2, "dogs": dogs, "walks": prior["walks"]}
 
 
 def load(c, bid):
     row = c.execute("SELECT snapshot FROM business_daily WHERE business_id=?", (bid,)).fetchone()
-    return json.loads(row[0]) if row else empty()
+    return upgrade(json.loads(row[0])) if row else empty()
 
 
 def bind_clients(c, bid, value):
@@ -56,6 +72,15 @@ def identifier(value):
 def amount(value):
     if value is not None and (type(value) is not int or not 0 <= value <= 100000000):
         raise ValueError("bad amount")
+    return value
+
+
+def tariff(value):
+    if value is not None:
+        fields(value, "unitMinor currency")
+        if amount(value["unitMinor"]) is None:
+            raise ValueError("bad tariff")
+        currency(value["currency"])
     return value
 
 
@@ -96,8 +121,8 @@ def collection(value):
 
 
 def validate(value, previous, cancelling=False):
-    fields(value, "version clients dogs bookings rates documents")
-    if type(value["version"]) is not int or value["version"] != 1:
+    fields(value, "version clients dogs bookings rates documents walks")
+    if type(value["version"]) is not int or value["version"] != 2:
         raise ValueError("bad version")
     clients = collection(value["clients"])
     dogs = collection(value["dogs"])
@@ -105,12 +130,14 @@ def validate(value, previous, cancelling=False):
     if not {item['id'] for item in previous['bookings']} <= bookings:
         raise ValueError('saved bookings must be retained')
     collection(value["documents"])
+    collection(value["walks"])
     for client in value["clients"]:
         fields(client, "id name")
         text(client["name"], "client name")
     for dog in value["dogs"]:
-        fields(dog, "id name clientId")
+        fields(dog, "id name clientId walkTariff")
         text(dog["name"], "dog name")
+        tariff(dog["walkTariff"])
         if dog["clientId"] is not None:
             identifier(dog["clientId"])
         if dog["clientId"] is not None and dog["clientId"] not in clients:
@@ -161,6 +188,26 @@ def validate(value, previous, cancelling=False):
             raise ValueError("unknown dog")
         text(document["label"], "document label")
         calendar(document["renewal"], optional=True)
+    walk_tariffs = {dog["id"]: dog["walkTariff"] for dog in value["dogs"]}
+    old_walks = {item["id"]: item for item in previous["walks"]}
+    walked = set()
+    for walk in value["walks"]:
+        fields(walk, "id dogId date tariff")
+        if walk["dogId"] not in dogs:
+            raise ValueError("unknown dog")
+        calendar(walk["date"])
+        tariff(walk["tariff"])
+        if (walk["dogId"], walk["date"]) in walked:
+            raise ValueError("a dog has one recorded walk per day")
+        walked.add((walk["dogId"], walk["date"]))
+        # A walk keeps the tariff in force when it was recorded. Only an
+        # unpriced walk may later receive the dog's current tariff.
+        old = old_walks.get(walk["id"])
+        if old and (any(old[key] != walk[key] for key in ("dogId", "date")) or
+                    old["tariff"] is not None and walk["tariff"] != old["tariff"]):
+            raise ValueError("recorded walks keep their date and tariff")
+        if (not old or old["tariff"] != walk["tariff"]) and walk["tariff"] != walk_tariffs[walk["dogId"]]:
+            raise ValueError("a walk records the dog's tariff in force")
     return value
 
 

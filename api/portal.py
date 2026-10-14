@@ -79,7 +79,7 @@ def project(c, user, state):
         booked = {r[0] for r in c.execute("SELECT id FROM booking_client WHERE business_id=? AND client_id=?",(user["business_id"],cid))}
         state["daily"] = {**daily.empty(),
                           "clients": [x for x in current["clients"] if x["id"] == cid],
-                          "dogs": [x for x in current["dogs"] if x["id"] in allowed],
+                          "dogs": [{**x, "walkTariff": None} for x in current["dogs"] if x["id"] in allowed],
                           "bookings": [x for x in current["bookings"] if x["dogId"] in allowed and x["id"] in booked]}
     elif user["role"] != "owner":
         state.update(invites=[], finance=None)

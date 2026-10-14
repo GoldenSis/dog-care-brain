@@ -164,7 +164,7 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
 
     async def test_document_upload_preserves_explicitly_unknown_registered_owner(self):
         seeded = await self.page.evaluate('DailyModel.empty()')
-        seeded['dogs'] = [{'id': 'billie', 'name': '  Known dog  ', 'clientId': None}]
+        seeded['dogs'] = [{'id': 'billie', 'name': '  Known dog  ', 'clientId': None, 'walkTariff': None}]
         await self.seed_daily(seeded)
         await self.prepare_document()
         self.assertEqual(await self.page.locator('#document-form [name="clientId"]').count(), 0)
@@ -180,7 +180,7 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
         seeded['clients'] = [{'id': 'first', 'name': 'Shared owner'},
                              {'id': 'second', 'name': 'Shared owner'},
                              {'id': 'padded', 'name': '  Padded owner  '}]
-        seeded['dogs'] = [{'id': 'ownerless', 'name': '  Registered dog  ', 'clientId': None}]
+        seeded['dogs'] = [{'id': 'ownerless', 'name': '  Registered dog  ', 'clientId': None, 'walkTariff': None}]
         await self.seed_daily(seeded)
         for dog_id, client_id in [('ownerless', 'second'), (':new', 'padded')]:
             await self.new_booking(service='day', start='2026-10-05', end='2026-10-05')
@@ -436,8 +436,8 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
         daily = await self.page.evaluate('DailyModel.empty()')
         daily['clients'] = [{'id': 'client-first', 'name': 'Fixture Client'},
                             {'id': 'client-second', 'name': 'Fixture Client'}]
-        daily['dogs'] = [{'id': 'dog-first', 'name': 'First Pup', 'clientId': 'client-first'},
-                         {'id': 'dog-second', 'name': 'Second Pup', 'clientId': 'client-second'}]
+        daily['dogs'] = [{'id': 'dog-first', 'name': 'First Pup', 'clientId': 'client-first', 'walkTariff': None},
+                         {'id': 'dog-second', 'name': 'Second Pup', 'clientId': 'client-second', 'walkTariff': None}]
         daily['bookings'] = [{'id': 'first-booking', 'dogId': 'dog-first', 'service': 'day',
                               'start': '2026-10-30', 'end': '2026-10-30',
                               'unitMinor': 1800, 'currency': 'CHF'}]
@@ -447,7 +447,7 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
     async def test_saved_locales_keep_daily_and_knowledge_views_readable(self):
         daily = await self.page.evaluate('DailyModel.empty()')
         daily['clients'] = [{'id': 'locale-client', 'name': 'Fixture Client'}]
-        daily['dogs'] = [{'id': 'billie', 'name': 'Fixture Pup', 'clientId': 'locale-client'}]
+        daily['dogs'] = [{'id': 'billie', 'name': 'Fixture Pup', 'clientId': 'locale-client', 'walkTariff': None}]
         daily['rates']['day'] = 1250
         daily['bookings'] = [{'id': 'locale-booking', 'dogId': 'billie', 'service': 'day',
                               'start': '2026-10-05', 'end': '2026-10-06',
@@ -530,7 +530,7 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
     async def test_invalid_registration_name_does_not_block_existing_dog_booking(self):
         daily = await self.page.evaluate('DailyModel.empty()')
         daily['clients'] = [{'id': 'existing-client', 'name': 'Fixture Client'}]
-        daily['dogs'] = [{'id': 'new', 'name': 'Existing Pup', 'clientId': 'existing-client'}]
+        daily['dogs'] = [{'id': 'new', 'name': 'Existing Pup', 'clientId': 'existing-client', 'walkTariff': None}]
         await self.seed_daily(daily)
         await self.new_booking(new_dog=True)
         name = self.page.locator('#booking-form [name="dogName"]')
@@ -643,7 +643,7 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
         pdf = b'%PDF-1.7\nUnicode boundary fixture'
         daily = await self.page.evaluate('DailyModel.empty()')
         daily['clients'] = [{'id': 'unicode-client', 'name': client_name}]
-        daily['dogs'] = [{'id': 'unicode-dog', 'name': dog_name, 'clientId': 'unicode-client'}]
+        daily['dogs'] = [{'id': 'unicode-dog', 'name': dog_name, 'clientId': 'unicode-client', 'walkTariff': None}]
         daily['bookings'] = [{'id': 'unicode-booking', 'dogId': 'unicode-dog', 'service': 'night',
                               'start': '2026-10-30', 'end': '2026-11-02',
                               'unitMinor': 1250, 'currency': 'CHF'}]
@@ -712,7 +712,7 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
         seeded = await self.page.evaluate('DailyModel.empty()')
         seeded['rates'] = {'currency': 'JPY', 'walk': None, 'day': 0, 'night': 1250}
         seeded['clients'] = [{'id': 'currency-client', 'name': 'Existing Client'}]
-        seeded['dogs'] = [{'id': 'currency-dog', 'name': 'Existing Pup', 'clientId': 'currency-client'}]
+        seeded['dogs'] = [{'id': 'currency-dog', 'name': 'Existing Pup', 'clientId': 'currency-client', 'walkTariff': None}]
         seeded['bookings'] = [{'id': 'kwd-booking', 'dogId': 'currency-dog', 'service': 'day',
                                'start': '2026-10-30', 'end': '2026-10-30',
                                'unitMinor': 1250, 'currency': 'KWD'}]
@@ -831,7 +831,7 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
         seeded = await self.page.evaluate('DailyModel.empty()')
         seeded['rates'] = {'currency': 'CAD', 'walk': None, 'day': 0, 'night': 2500}
         seeded['clients'] = [{'id': 'currency-client', 'name': 'Existing Client'}]
-        seeded['dogs'] = [{'id': 'currency-dog', 'name': 'Existing Pup', 'clientId': 'currency-client'}]
+        seeded['dogs'] = [{'id': 'currency-dog', 'name': 'Existing Pup', 'clientId': 'currency-client', 'walkTariff': None}]
         seeded['bookings'] = [{'id': 'currency-booking', 'dogId': 'currency-dog', 'service': 'night',
                                'start': '2026-10-30', 'end': '2026-11-02',
                                'unitMinor': 1800, 'currency': 'CHF'}]
@@ -934,7 +934,7 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
         self.assertEqual(self.console_errors, [])
 
     async def test_literal_new_dog_id_preserves_booking_and_note_relationships(self):
-        dog = {'id': 'new', 'name': 'Existing Pup', 'clientId': 'existing-client'}
+        dog = {'id': 'new', 'name': 'Existing Pup', 'clientId': 'existing-client', 'walkTariff': None}
         client = {'id': 'existing-client', 'name': 'Fixture Client'}
         if self.api_mode:
             status, _, _ = _http(self.port, 'POST', '/api/dogs',
@@ -988,7 +988,7 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
             const daily = DailyModel.empty();
             daily.clients.push({id: 'client', name: 'Client'});
             daily.dogs.push({id: document.querySelector('[name="dogId"]').value,
-                name: 'Dog', clientId: 'client'});
+                name: 'Dog', clientId: 'client', walkTariff: null});
             try { DailyModel.validateDaily(daily); return false; } catch { return true; }
         }'''))
         await self.page.select_option('#booking-form [name="clientId"]', first['clients'][0]['id'])
@@ -1188,6 +1188,99 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
         await self.page.click('[data-dog="billie"]')
         self.assertIn('Sample', await self.page.locator('.timeline').inner_text())
         self.assertNotIn('Consent on file', await self.page.locator('.profile-hero').inner_text())
+
+    async def plain(self, selector):
+        return (await self.page.inner_text(selector)).replace('\xa0', ' ').replace('\u202f', ' ')
+
+    async def add_dog(self, name, tariff=None):
+        await self.route('dogs')
+        await self.page.click('#new-dog')
+        await self.page.fill('#dog-form [name="dogName"]', name)
+        await self.page.click('#dog-form [type="submit"]')
+        await self.page.wait_for_selector('#dog-form', state='detached')
+        await self.page.wait_for_function('!savePending')
+        if tariff is not None:
+            await self.set_tariff(tariff)
+        return next(d['id'] for d in (await self.snapshot())['dogs'] if d['name'] == name)
+
+    async def set_tariff(self, value):
+        await self.page.fill('#tariff-form [name="tariff"]', value)
+        await self.page.click('#tariff-form [type="submit"]')
+        await self.page.wait_for_function("document.querySelector('#tariff-saved')?.textContent.length > 0 && !savePending")
+
+    async def tick_walks(self, day, dog_ids):
+        await self.route('schedule')
+        await self.page.fill('#walk-date', day)
+        await self.page.locator('#walk-date').dispatch_event('change')
+        for box in await self.page.locator('#walk-form [name="walked"]').all():
+            await box.set_checked(await box.get_attribute('value') in dog_ids)
+        await self.page.click('#walk-form [type="submit"]')
+        await self.page.wait_for_function('!savePending')
+
+    async def test_daily_walk_checklist_and_month_totals_keep_tariff_in_force(self):
+        await self.page.select_option('#language-picker', 'fr')
+        await self.page.wait_for_function('!savePending')
+        rex = await self.add_dog('Fixture Rex', '25')
+        plume = await self.add_dog('Fixture Plume')
+        await self.page.click('#dog-list-toggle')
+        self.assertIn('25,00 CHF par promenade', await self.plain(f'[data-select-profile="{rex}"]'))
+        self.assertIn('Pas de tarif', await self.plain(f'[data-select-profile="{plume}"]'))
+        await self.tick_walks('2026-10-05', {rex, plume})
+        await self.page.reload()
+        await self.wait_ready()
+        await self.route('schedule')
+        await self.page.fill('#walk-date', '2026-10-05')
+        await self.page.locator('#walk-date').dispatch_event('change')
+        self.assertEqual(await self.page.locator('#walk-form [name="walked"]:checked').count(), 2)
+        self.assertIn('2 chien(s) coché(s)', await self.plain('#walk-count'))
+        saved = await self.snapshot()
+        self.assertEqual(saved['bookings'], [])
+        self.assertEqual({(w['dogId'], w['date']): w['tariff'] for w in saved['walks']},
+                         {(rex, '2026-10-05'): {'unitMinor': 2500, 'currency': 'CHF'}, (plume, '2026-10-05'): None})
+        for width in (390, 1440):
+            await self.page.set_viewport_size({'width': width, 'height': 900})
+            self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+        await self.page.set_viewport_size({'width': 390, 'height': 844})
+        await self.page.evaluate('document.activeElement.blur()')
+        await self.capture_evidence(f'walk-checklist-390-{self.api_mode}.png')
+        # A mid-month tariff change applies to later walks only.
+        await self.route('dogs')
+        await self.page.click('#dog-list-toggle')
+        await self.page.click(f'[data-select-profile="{rex}"]')
+        await self.set_tariff('30,50')
+        await self.tick_walks('2026-10-06', {rex})
+        self.assertEqual(await self.page.locator('#walk-form [name="walked"]:checked').count(), 1)
+        await self.page.click('[data-finance-walks]')
+        await self.page.wait_for_function('!savePending')
+        await self.page.fill('#daily-month', '2026-10')
+        await self.page.locator('#daily-month').dispatch_event('change')
+        rex_row = await self.plain(f'[data-walk-dog="{rex}"]')
+        for expected in ('2 promenade(s)', '1 × 25,00 CHF = 25,00 CHF', '1 × 30,50 CHF = 30,50 CHF', '55,50 CHF'):
+            self.assertIn(expected, rex_row)
+        self.assertIn('1 sans tarif', await self.plain(f'[data-walk-dog="{plume}"]'))
+        self.assertIn('55,50 CHF', await self.plain('#walk-month .daily-total'))
+        self.assertIn('aucune facture', await self.plain('#walk-month'))
+        self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+        await self.page.evaluate('document.activeElement.blur()')
+        await self.capture_evidence(f'walk-month-390-{self.api_mode}.png')
+        # Applying the current tariff to unpriced walks is explicit and leaves priced walks unchanged.
+        await self.route('dogs')
+        await self.page.click('#dog-list-toggle')
+        await self.page.click(f'[data-select-profile="{plume}"]')
+        await self.set_tariff('10')
+        await self.open_route('business')
+        await self.page.wait_for_function('!savePending')
+        self.page.once('dialog', lambda dialog: dialog.accept())
+        await self.page.click(f'[data-apply-tariff="{plume}"]')
+        await self.page.wait_for_function('!savePending')
+        walks = {(w['dogId'], w['date']): w['tariff']['unitMinor'] for w in (await self.snapshot())['walks']}
+        self.assertEqual(walks, {(rex, '2026-10-05'): 2500, (plume, '2026-10-05'): 1000, (rex, '2026-10-06'): 3050})
+        self.assertIn('65,50 CHF', await self.plain('#walk-month .daily-total'))
+        # Unticking removes only that day's attendance record.
+        await self.tick_walks('2026-10-05', {rex})
+        self.assertEqual(sorted((w['dogId'], w['date']) for w in (await self.snapshot())['walks']),
+                         sorted([(rex, '2026-10-05'), (rex, '2026-10-06')]))
+        self.assertEqual(self.console_errors, [])
 
     async def test_additional_dogs_fit_care_pickers_at_all_sizes(self):
         for index in range(3):

@@ -79,7 +79,25 @@
   }
 
   function empty() {
-    return { version: 1, clients: [], dogs: [], bookings: [], rates: { currency: 'CHF', walk: null, day: null, night: null }, documents: [] };
+    return { version: 2, clients: [], dogs: [], bookings: [], rates: { currency: 'CHF', walk: null, day: null, night: null }, documents: [], walks: [] };
+  }
+
+  // Version 1 predates walk tariffs and walk attendance: it reads as dogs
+  // without a tariff and no recorded walk. Other values are returned unchanged.
+  function upgrade(daily) {
+    if (!object(daily) || daily.version !== 1 || Object.hasOwn(daily, 'walks') || !Array.isArray(daily.dogs)) return daily;
+    const dogs = daily.dogs.map(dog => object(dog) && !Object.hasOwn(dog, 'walkTariff') ? { ...dog, walkTariff: null } : dog);
+    return { ...daily, version: 2, dogs, walks: [] };
+  }
+
+  function validTariff(tariff) {
+    return tariff === null || (object(tariff) && Object.keys(tariff).sort().join(' ') === 'currency unitMinor' &&
+      Number.isSafeInteger(tariff.unitMinor) && tariff.unitMinor >= 0 && tariff.unitMinor <= 100000000 &&
+      typeof tariff.currency === 'string' && CURRENCY.test(tariff.currency));
+  }
+
+  function sameTariff(a, b) {
+    return a === null || b === null ? a === b : a.unitMinor === b.unitMinor && a.currency === b.currency;
   }
 
   function records(value, kind) {
@@ -117,19 +135,21 @@
   }
 
   function validateDaily(daily) {
-    fields(daily, 'version clients dogs bookings rates documents');
-    requireValue(object(daily) && daily.version === 1, 'Unsupported daily records format');
+    fields(daily, 'version clients dogs bookings rates documents walks');
+    requireValue(object(daily) && daily.version === 2, 'Unsupported daily records format');
     const clients = records(daily.clients, 'client');
     const dogs = records(daily.dogs, 'dog');
     records(daily.bookings, 'booking');
     records(daily.documents, 'document');
+    records(daily.walks, 'walk');
     for (const client of daily.clients) {
       fields(client, 'id name');
       requireValue(text(client.name, 120), 'Invalid client name');
     }
     for (const dog of daily.dogs) {
-      fields(dog, 'id name clientId');
+      fields(dog, 'id name clientId walkTariff');
       requireValue(text(dog.name, 120) && (dog.clientId === null || clients.has(dog.clientId)), 'Invalid dog name or client');
+      requireValue(validTariff(dog.walkTariff), 'Invalid walk tariff');
     }
     fields(daily.rates, 'currency walk day night');
     requireValue(object(daily.rates) && typeof daily.rates.currency === 'string' && CURRENCY.test(daily.rates.currency), 'Invalid rate currency');
@@ -148,6 +168,16 @@
     for (const document of daily.documents) {
       validateDocument(document);
       requireValue(dogs.has(document.dogId), 'Document references an unknown dog');
+    }
+    const walked = new Set();
+    for (const walk of daily.walks) {
+      fields(walk, 'id dogId date tariff');
+      requireValue(dogs.has(walk.dogId), 'Walk references an unknown dog');
+      requireValue(validDate(walk.date), 'Invalid walk date');
+      requireValue(validTariff(walk.tariff), 'Invalid walk tariff');
+      const key = JSON.stringify([walk.dogId, walk.date]);
+      requireValue(!walked.has(key), 'A dog has one recorded walk per day');
+      walked.add(key);
     }
     return true;
   }
@@ -179,6 +209,42 @@
     return Array.from(rows.values());
   }
 
+  // A walk records attendance, never a booking, invoice or payment. It keeps
+  // the dog's tariff in force when it was recorded; later tariff changes do
+  // not reprice it.
+  function recordWalk(dog, date, walkId) {
+    requireValue(object(dog) && validTariff(dog.walkTariff) && validDate(date), 'Invalid walk');
+    return { id: walkId, dogId: dog.id, date, tariff: dog.walkTariff === null ? null : { ...dog.walkTariff } };
+  }
+
+  // Month-end information per dog: walk count and the amounts of the tariffs
+  // recorded on those walks. Unpriced walks are counted, never valued; currencies
+  // are never combined.
+  function walkSummary(daily, month) {
+    validateDaily(daily);
+    requireValue(typeof month === 'string' && /^\d{4}-\d{2}$/.test(month) && validDate(month + '-01'), 'Invalid summary month');
+    const rows = new Map();
+    const totals = {};
+    let count = 0, unpriced = 0;
+    for (const walk of [...daily.walks].sort((a, b) => a.date.localeCompare(b.date))) {
+      if (walk.date.slice(0, 7) !== month) continue;
+      if (!rows.has(walk.dogId)) {
+        const dog = daily.dogs.find(d => d.id === walk.dogId);
+        rows.set(walk.dogId, { dogId: walk.dogId, dogName: dog.name, count: 0, unpriced: 0, lines: [], totals: {} });
+      }
+      const row = rows.get(walk.dogId);
+      row.count++; count++;
+      if (walk.tariff === null) { row.unpriced++; unpriced++; continue; }
+      let line = row.lines.find(l => sameTariff(l.tariff, walk.tariff));
+      if (!line) row.lines.push(line = { tariff: { ...walk.tariff }, count: 0, totalMinor: 0 });
+      line.count++;
+      line.totalMinor = checkedMinor(line.totalMinor + walk.tariff.unitMinor);
+      row.totals[walk.tariff.currency] = checkedMinor((row.totals[walk.tariff.currency] || 0) + walk.tariff.unitMinor);
+      totals[walk.tariff.currency] = checkedMinor((totals[walk.tariff.currency] || 0) + walk.tariff.unitMinor);
+    }
+    return { rows: Array.from(rows.values()), count, unpriced, totals };
+  }
+
   function extension(booking, end) {
     const previousUnits = units(booking);
     const previousAmount = amount(booking);
@@ -197,5 +263,5 @@
     return renewal <= current + 30 ? 'due' : 'later';
   }
 
-  return { empty, validDate, serviceDates, units, activeBooking, amount, parseMinor, bookingClientId, monthlySummary, extension, documentStatus, validateDaily, validateDocument };
+  return { empty, upgrade, validTariff, sameTariff, recordWalk, walkSummary, validDate, serviceDates, units, activeBooking, amount, parseMinor, bookingClientId, monthlySummary, extension, documentStatus, validateDaily, validateDocument };
 }));

@@ -51,3 +51,18 @@
 .dog-directory small {display:block;margin-top:4px}
 #dog-editor .card {margin-bottom:20px}
 #dog-form input, #dog-form select {min-height:44px;min-width:0}
+
+.walk-list {border:0;margin:0 0 4px;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:8px;min-width:0}
+.walk-dog {display:flex;align-items:center;gap:12px;min-height:44px;padding:10px 12px;background:var(--paper);border:1px solid var(--line);border-radius:4px;cursor:pointer;min-width:0;overflow-wrap:anywhere}
+.walk-dog:has(input:checked) {border-color:var(--text-orange);background:var(--orange-surface)}
+.walk-dog:has(input:checked) small {color:var(--ink)}
+.walk-dog input {width:22px;height:22px;flex-shrink:0;margin:0;accent-color:var(--text-orange)}
+.walk-dog span {min-width:0}
+.walk-dog strong {display:block;font-size:15px}
+.walk-dog small {display:block;font-size:12px;color:var(--muted)}
+.daily-walk-month h2 {font:700 30px/1.12 var(--display);margin:0 0 4px}
+.daily-walk-month .daily-record small {line-height:1.6}
+.walk-amount {flex-shrink:0;font-size:16px;text-align:right}
+#app-content .daily-record .daily-actions {margin-top:10px}
+#app-content .daily-record .daily-actions button {white-space:normal;text-align:left}
+@media(max-width:700px){.daily-walk-month .daily-record{align-items:flex-start}.daily-walk-month h2{font-size:28px}}

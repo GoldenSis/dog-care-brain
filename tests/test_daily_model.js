@@ -4,7 +4,7 @@ const model = require('../daily-model.js');
 
 const booking = (changes = {}) => ({ id: 'booking-1', dogId: 'dog-1', service: 'day', start: '2026-01-31', end: '2026-02-02', unitMinor: 1234, currency: 'CHF', ...changes });
 function records(bookings = [booking()]) {
-  return { ...model.empty(), clients: [{ id: 'client-1', name: 'Client fixture' }], dogs: [{ id: 'dog-1', name: 'Dog fixture', clientId: 'client-1' }], bookings };
+  return { ...model.empty(), clients: [{ id: 'client-1', name: 'Client fixture' }], dogs: [{ id: 'dog-1', name: 'Dog fixture', clientId: 'client-1', walkTariff: null }], bookings };
 }
 const document = (changes = {}) => ({ id: 'document-1', dogId: 'dog-1', label: 'Proof fixture', renewal: '', type: 'application/pdf', name: 'proof.pdf', data: Buffer.from('%PDF-1.4\nfixture').toString('base64'), ...changes });
 
@@ -40,7 +40,7 @@ for (const [collection, field, limit] of [['clients', 'name', 120], ['dogs', 'na
 
 test('new records contain no invented clients, bookings, documents or prices', () => {
   const value = model.empty();
-  assert.deepEqual(value, { version: 1, clients: [], dogs: [], bookings: [], rates: { currency: 'CHF', walk: null, day: null, night: null }, documents: [] });
+  assert.deepEqual(value, { version: 2, clients: [], dogs: [], bookings: [], rates: { currency: 'CHF', walk: null, day: null, night: null }, documents: [], walks: [] });
   assert.equal(model.validateDaily(value), true);
   value.rates.day = 100;
   assert.equal(model.empty().rates.day, null);
@@ -117,7 +117,7 @@ test('monthly rows separate client, service and currency; unknown amounts stay e
     booking({ id: 'other-client', dogId: 'dog-2' }),
   ]);
   value.clients.push({ id: 'client-2', name: 'Second fixture' });
-  value.dogs.push({ id: 'dog-2', name: 'Second dog', clientId: 'client-2' });
+  value.dogs.push({ id: 'dog-2', name: 'Second dog', clientId: 'client-2', walkTariff: null });
   const rows = model.monthlySummary(value, '2026-02');
   assert.equal(rows.length, 4);
   assert.deepEqual(rows[0], { clientId: 'client-1', clientName: 'Client fixture', service: 'day', currency: 'CHF', bookingCount: 3, units: 6, knownMinor: 2468, unknownUnits: 2 });
@@ -161,7 +161,7 @@ test('document follow-up uses recorded dates and a 30-calendar-day display windo
 
 test('corrupt snapshots fail validation without modifying or replacing data', () => {
   const corruptions = [
-    value => { value.version = 2; }, value => { value.clients = {}; },
+    value => { value.version = 1; }, value => { value.version = 3; }, value => { value.clients = {}; },
     value => { value.clients.push({ ...value.clients[0] }); },
     value => { value.dogs[0].clientId = 'missing'; }, value => { value.bookings[0].dogId = 'missing'; },
     value => { value.bookings[0].currency = 'chf'; }, value => { value.bookings[0].unitMinor = '1234'; },
@@ -205,7 +205,7 @@ test('document size boundary is measured in decoded bytes', () => {
 
 test('registration permits an unknown owner without inventing a client, while bookings require a recorded client', () => {
   const daily = model.empty();
-  daily.dogs.push({id:'new-dog',name:' Today ',clientId:null});
+  daily.dogs.push({id:'new-dog',name:' Today ',clientId:null,walkTariff:null});
   assert.equal(model.validateDaily(daily), true);
   assert.deepEqual(model.monthlySummary(daily,'2026-10'), []);
   daily.bookings.push(booking({dogId:'new-dog'}));
@@ -214,4 +214,71 @@ test('registration permits an unknown owner without inventing a client, while bo
   daily.dogs[0].clientId='owner';
   assert.equal(model.validateDaily(daily), true);
   assert.equal(daily.dogs[0].name,' Today ');
+});
+
+const tariff = (unitMinor, currency = 'CHF') => ({ unitMinor, currency });
+
+test('version 1 records read as version 2 without walks, tariffs or changed history', () => {
+  const v1 = { version: 1, clients: [{ id: 'client-1', name: 'Client fixture' }], dogs: [{ id: 'dog-1', name: 'Dog fixture', clientId: 'client-1' }, { id: 'dog-2', name: 'Ownerless', clientId: null }],
+    bookings: [booking(), booking({ id: 'booking-2', status: 'cancelled' })], rates: { currency: 'EUR', walk: 1500, day: null, night: null }, documents: [document()] };
+  const before = JSON.stringify(v1);
+  const upgraded = model.upgrade(v1);
+  assert.equal(JSON.stringify(v1), before);
+  assert.equal(model.validateDaily(upgraded), true);
+  assert.deepEqual(upgraded, { ...v1, version: 2, dogs: v1.dogs.map(dog => ({ ...dog, walkTariff: null })), walks: [] });
+  const current = model.empty();
+  assert.equal(model.upgrade(current), current);
+  for (const value of [null, [], 'records', { version: 1, dogs: {} }]) assert.equal(model.upgrade(value), value);
+});
+
+test('walks are attendance records, distinct from bookings', () => {
+  const value = records([booking({ service: 'walk', start: '2026-02-01', end: '2026-02-03' })]);
+  assert.deepEqual(model.walkSummary(value, '2026-02'), { rows: [], count: 0, unpriced: 0, totals: {} });
+  const planned = model.monthlySummary(value, '2026-02');
+  value.walks.push(model.recordWalk(value.dogs[0], '2026-02-02', 'walk-1'));
+  assert.equal(model.validateDaily(value), true);
+  assert.deepEqual(model.monthlySummary(value, '2026-02'), planned);
+  assert.equal(model.walkSummary(value, '2026-02').count, 1);
+  assert.equal(value.bookings.length, 1);
+});
+
+test('monthly walk totals count each dog and keep the tariff in force on each walk', () => {
+  const value = records([]);
+  value.dogs.push({ id: 'dog-2', name: 'Second dog', clientId: null, walkTariff: null });
+  const [first, second] = value.dogs;
+  first.walkTariff = tariff(2500);
+  value.walks.push(model.recordWalk(first, '2026-03-02', 'w1'), model.recordWalk(first, '2026-03-03', 'w2'), model.recordWalk(second, '2026-03-03', 'w3'));
+  first.walkTariff = tariff(3050);
+  value.walks.push(model.recordWalk(first, '2026-03-31', 'w4'), model.recordWalk(first, '2026-04-01', 'w5'));
+  second.walkTariff = tariff(1000, 'EUR');
+  value.walks.push(model.recordWalk(second, '2026-03-04', 'w6'));
+  assert.equal(model.validateDaily(value), true);
+  assert.deepEqual(model.walkSummary(value, '2026-03'), {
+    rows: [
+      { dogId: 'dog-1', dogName: 'Dog fixture', count: 3, unpriced: 0, totals: { CHF: 8050 },
+        lines: [{ tariff: tariff(2500), count: 2, totalMinor: 5000 }, { tariff: tariff(3050), count: 1, totalMinor: 3050 }] },
+      { dogId: 'dog-2', dogName: 'Second dog', count: 2, unpriced: 1, totals: { EUR: 1000 }, lines: [{ tariff: tariff(1000, 'EUR'), count: 1, totalMinor: 1000 }] },
+    ], count: 5, unpriced: 1, totals: { CHF: 8050, EUR: 1000 } });
+  assert.deepEqual(model.walkSummary(value, '2026-04').totals, { CHF: 3050 });
+  first.walkTariff = null;
+  assert.deepEqual(value.walks.find(walk => walk.id === 'w1').tariff, tariff(2500));
+});
+
+test('walk records reject duplicates per day, unknown dogs and invalid tariffs', () => {
+  const corruptions = [
+    value => { value.walks.push({ ...value.walks[0], id: 'other' }); },
+    value => { value.walks[0].dogId = 'missing'; }, value => { value.walks[0].date = '2026-02-30'; },
+    value => { value.walks[0].tariff = tariff(-1); }, value => { value.walks[0].tariff = tariff(1.5); },
+    value => { value.walks[0].tariff = { unitMinor: 100 }; }, value => { value.dogs[0].walkTariff = tariff(1, 'chf'); },
+    value => { delete value.dogs[0].walkTariff; }, value => { delete value.walks; }, value => { value.walks[0].paid = true; },
+  ];
+  for (const corrupt of corruptions) {
+    const value = records([]);
+    value.walks.push(model.recordWalk(value.dogs[0], '2026-02-02', 'walk-1'));
+    assert.equal(model.validateDaily(value), true);
+    corrupt(value);
+    assert.throws(() => model.validateDaily(value));
+  }
+  assert.equal(model.validTariff(tariff(0)), true);
+  assert.equal(model.validTariff(tariff(100000001)), false);
 });
