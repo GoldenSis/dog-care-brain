@@ -1177,12 +1177,20 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
         await self.wait_ready()
         await self.route('dogs')
         await self.page.click(f'[data-dog="{dog_id}"]')
+        # No page shows an arrival or consent badge (an element whose whole
+        # text is the label) that was never recorded.
+        badges = '''(labels) => [...document.querySelectorAll('#app-content *')]
+            .filter(el => !el.children.length && labels.includes(el.textContent.trim().toLowerCase()))
+            .map(el => el.outerHTML)'''
         for locale in ('en', 'fr', 'it', 'de', 'es'):
             await self.page.select_option('#language-picker', locale)
             await self.page.wait_for_function('!savePending')
-            hero = await self.page.locator('.profile-hero').inner_text()
-            for label in ('Checked in', 'Consent on file'):
-                self.assertNotIn((await self.page.evaluate('(label) => t(label)', label)).lower(), hero.lower())
+            labels = [(await self.page.evaluate('(label) => t(label)', label)).lower() for label in ('Checked in', 'Consent on file')]
+            for route in ('dogs', 'dashboard', 'schedule', 'handoff', 'story', 'capture'):
+                await self.page.evaluate('(dog) => { state.dog = dog; }', dog_id)
+                await self.route(route)
+                self.assertEqual(await self.page.evaluate(badges, labels), [], (locale, route))
+            await self.route('dogs')
         await self.page.select_option('#language-picker', 'en')
         await self.page.wait_for_function('!savePending')
         await self.page.click('[data-dog="billie"]')
