@@ -1,5 +1,7 @@
 # Register a dog directly from Chiens
 
+Historical review of dog registration, before [per-dog tariffs and daily attendance](../../daily-workflows.md#daily-walks-and-per-dog-tariffs) were added. The screenshots and scope below describe that earlier change.
+
 Before, Chiens opened the selected profile without a registration action. Creating a dog required a booking. Now **＋ Ajouter un chien** and **Tous les chiens** are available above the profile and for an empty directory.
 
 | Before: phone profile | After: phone registration |
