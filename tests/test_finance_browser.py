@@ -8,7 +8,6 @@ from pathlib import Path
 import threading
 import zipfile
 from functools import partial
-from http.server import ThreadingHTTPServer
 from xml.etree import ElementTree as ET
 
 from tests.test_browser_acceptance import BrowserFixture, QuietStaticHandler, ROOT
@@ -1323,7 +1322,7 @@ class StaticFinanceBrowserTest(FinanceBrowserTest):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.static_server = ThreadingHTTPServer(('127.0.0.1', 0), partial(QuietStaticHandler, directory=str(ROOT)))
+        cls.static_server = cls.server_mod.Server(('127.0.0.1', 0), partial(QuietStaticHandler, directory=str(ROOT)))
         cls.static_thread = threading.Thread(target=cls.static_server.serve_forever, daemon=True)
         cls.static_thread.start()
         cls.url = f'http://127.0.0.1:{cls.static_server.server_port}'

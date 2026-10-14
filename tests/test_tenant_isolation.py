@@ -9,7 +9,6 @@ import sys
 import tempfile
 import threading
 import unittest
-from http.server import ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 from unittest.mock import patch
@@ -88,7 +87,7 @@ class ApiServerTestCase(unittest.TestCase):
         import server  # noqa: E402
         cls.server_mod = server
         server.init()
-        cls.httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.Handler)
+        cls.httpd = server.Server(("127.0.0.1", 0), server.Handler)
         cls.thread = threading.Thread(target=cls.httpd.serve_forever, daemon=True)
         cls.thread.start()
         cls.port = cls.httpd.server_address[1]

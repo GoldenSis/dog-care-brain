@@ -611,6 +611,12 @@ def state_of(user, c=None):
             "finance": finance.load(c, user["business_id"]) if user["role"] == "owner" else None})
 
 
+class Server(ThreadingHTTPServer):
+    # The stdlib backlog of 5 resets connections when a browser or proxy opens
+    # several at once (page assets, concurrent sign-ins).
+    request_queue_size = 128
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
@@ -1287,7 +1293,7 @@ def main():
     init()
     host = cfg("DC_HOST", "127.0.0.1")
     port = int(cfg("DC_PORT", "8787"))
-    httpd = ThreadingHTTPServer((host, port), Handler)
+    httpd = Server((host, port), Handler)
     print(f"dog-care-brain api on http://{host}:{port}  db={db_path()}  outbox={outbox_dir()}",
           flush=True)
     try:

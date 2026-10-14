@@ -1,7 +1,6 @@
 """Sourced education and real private drafts in disposable API/static browsers."""
 import threading
 from functools import partial
-from http.server import ThreadingHTTPServer
 
 from tests.test_browser_acceptance import BrowserFixture, QuietStaticHandler, ROOT
 
@@ -377,7 +376,7 @@ class StaticKnowledgeBrowserTest(KnowledgeBrowserTest):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.static_httpd = ThreadingHTTPServer(('127.0.0.1', 0), partial(QuietStaticHandler, directory=str(ROOT)))
+        cls.static_httpd = cls.server_mod.Server(('127.0.0.1', 0), partial(QuietStaticHandler, directory=str(ROOT)))
         cls.static_thread = threading.Thread(target=cls.static_httpd.serve_forever, daemon=True)
         cls.static_thread.start()
         cls.url = f'http://127.0.0.1:{cls.static_httpd.server_address[1]}'

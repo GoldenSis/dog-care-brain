@@ -3,7 +3,6 @@ import base64
 import threading
 from datetime import date, timedelta
 from functools import partial
-from http.server import ThreadingHTTPServer
 from pathlib import Path
 
 from tests.test_browser_acceptance import BrowserFixture, QuietStaticHandler, ROOT
@@ -1771,7 +1770,7 @@ class StaticDailyBrowserAcceptanceTest(DailyBrowserAcceptanceTest):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.static_httpd = ThreadingHTTPServer(('127.0.0.1', 0), partial(QuietStaticHandler, directory=str(ROOT)))
+        cls.static_httpd = cls.server_mod.Server(('127.0.0.1', 0), partial(QuietStaticHandler, directory=str(ROOT)))
         cls.static_thread = threading.Thread(target=cls.static_httpd.serve_forever, daemon=True)
         cls.static_thread.start()
         cls.url = f'http://127.0.0.1:{cls.static_httpd.server_address[1]}'
