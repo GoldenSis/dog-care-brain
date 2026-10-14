@@ -209,6 +209,14 @@
     return Array.from(rows.values());
   }
 
+  // Walk tariffs use the currency already used in Comptabilité: that of the
+  // most recently dated entry with a currency, or euros when there is none.
+  function accountingCurrency(entries) {
+    const used = (Array.isArray(entries) ? entries : []).filter(e => object(e) && typeof e.currency === 'string' && CURRENCY.test(e.currency));
+    used.sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+    return used.length ? used[used.length - 1].currency : 'EUR';
+  }
+
   // A walk records attendance, never a booking, invoice or payment. It keeps
   // the dog's tariff in force when it was recorded; later tariff changes do
   // not reprice it.
@@ -263,5 +271,5 @@
     return renewal <= current + 30 ? 'due' : 'later';
   }
 
-  return { empty, upgrade, validTariff, sameTariff, recordWalk, walkSummary, validDate, serviceDates, units, activeBooking, amount, parseMinor, bookingClientId, monthlySummary, extension, documentStatus, validateDaily, validateDocument };
+  return { empty, upgrade, validTariff, sameTariff, accountingCurrency, recordWalk, walkSummary, validDate, serviceDates, units, activeBooking, amount, parseMinor, bookingClientId, monthlySummary, extension, documentStatus, validateDaily, validateDocument };
 }));

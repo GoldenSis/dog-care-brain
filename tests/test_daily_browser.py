@@ -1231,8 +1231,9 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
         rex = await self.add_dog('Fixture Rex', '25')
         plume = await self.add_dog('Fixture Plume')
         await self.page.click('#dog-list-toggle')
-        self.assertIn('25,00 CHF par promenade', await self.plain(f'[data-select-profile="{rex}"]'))
+        self.assertIn('25,00 EUR par promenade', await self.plain(f'[data-select-profile="{rex}"]'))
         self.assertIn('Pas de tarif', await self.plain(f'[data-select-profile="{plume}"]'))
+        self.assertIn('(EUR)', await self.plain('#tariff-form'))
         await self.tick_walks('2026-10-05', {rex, plume})
         await self.page.reload()
         await self.wait_ready()
@@ -1244,7 +1245,7 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
         saved = await self.snapshot()
         self.assertEqual(saved['bookings'], [])
         self.assertEqual({(w['dogId'], w['date']): w['tariff'] for w in saved['walks']},
-                         {(rex, '2026-10-05'): {'unitMinor': 2500, 'currency': 'CHF'}, (plume, '2026-10-05'): None})
+                         {(rex, '2026-10-05'): {'unitMinor': 2500, 'currency': 'EUR'}, (plume, '2026-10-05'): None})
         for width in (390, 1440):
             await self.page.set_viewport_size({'width': width, 'height': 900})
             self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
@@ -1263,10 +1264,10 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
         await self.page.fill('#daily-month', '2026-10')
         await self.page.locator('#daily-month').dispatch_event('change')
         rex_row = await self.plain(f'[data-walk-dog="{rex}"]')
-        for expected in ('2 promenade(s)', '1 × 25,00 CHF = 25,00 CHF', '1 × 30,50 CHF = 30,50 CHF', '55,50 CHF'):
+        for expected in ('2 promenade(s)', '1 × 25,00 EUR = 25,00 EUR', '1 × 30,50 EUR = 30,50 EUR', '55,50 EUR'):
             self.assertIn(expected, rex_row)
         self.assertIn('1 sans tarif', await self.plain(f'[data-walk-dog="{plume}"]'))
-        self.assertIn('55,50 CHF', await self.plain('#walk-month .daily-total'))
+        self.assertIn('55,50 EUR', await self.plain('#walk-month .daily-total'))
         self.assertIn('aucune facture', await self.plain('#walk-month'))
         self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
         await self.page.evaluate('document.activeElement.blur()')
@@ -1283,7 +1284,7 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
         await self.page.wait_for_function('!savePending')
         walks = {(w['dogId'], w['date']): w['tariff']['unitMinor'] for w in (await self.snapshot())['walks']}
         self.assertEqual(walks, {(rex, '2026-10-05'): 2500, (plume, '2026-10-05'): 1000, (rex, '2026-10-06'): 3050})
-        self.assertIn('65,50 CHF', await self.plain('#walk-month .daily-total'))
+        self.assertIn('65,50 EUR', await self.plain('#walk-month .daily-total'))
         # Unticking removes only that day's attendance record.
         await self.tick_walks('2026-10-05', {rex})
         self.assertEqual(sorted((w['dogId'], w['date']) for w in (await self.snapshot())['walks']),

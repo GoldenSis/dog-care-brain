@@ -282,3 +282,10 @@ test('walk records reject duplicates per day, unknown dogs and invalid tariffs',
   assert.equal(model.validTariff(tariff(0)), true);
   assert.equal(model.validTariff(tariff(100000001)), false);
 });
+
+test('walk tariffs use the Comptabilité currency, or euros without one', () => {
+  assert.equal(model.accountingCurrency([]), 'EUR');
+  assert.equal(model.accountingCurrency(undefined), 'EUR');
+  assert.equal(model.accountingCurrency([{ date: '2026-01-02', currency: '' }]), 'EUR');
+  assert.equal(model.accountingCurrency([{ date: '2026-03-01', currency: 'CHF' }, { date: '2026-01-02', currency: 'EUR' }, { date: '', currency: 'GBP' }]), 'CHF');
+});

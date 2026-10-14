@@ -15,7 +15,7 @@
   const carer = () => w.DogCareAPI?.getUser()?.role === 'trusted-carer';
   const fill = (key, values) => text(key).replace(/\{(\w+)\}/g, (_, name) => values[name]);
   const tariffText = tariff => tariff ? `${money(tariff.unitMinor,tariff.currency)} ${text('perWalk')}` : text('noTariff');
-  const currencyChoices = selected => { const list=['CHF','EUR','GBP','USD']; if(!list.includes(selected))list.push(selected); return list.map(c=>`<option value="${esc(c)}" ${c===selected?'selected':''}>${esc(c)}</option>`).join(''); };
+  const walkCurrency = () => M.accountingCurrency(w.FinanceStore?.snapshot().entries);
   const label = (key, input) => `<label class="daily-field">${esc(text(key))}${input}</label>`;
   const input = (name, type='text', value='', extra='') => `<input name="${name}" type="${type}" value="${esc(value)}" ${extra}>`;
   const errorBox = () => `<p class="daily-error" role="alert" hidden></p>`;
@@ -121,7 +121,8 @@
   function tariff(dogId) {
     if(!w.PortalUI.owner())return '';
     const current=daily.dogs.find(d=>d.id===dogId)?.walkTariff ?? null;
-    return `<form id="tariff-form" class="card daily-form" ${loadError?'inert':''}><h2>${esc(text('walkTariff'))}</h2><p class="daily-help">${esc(text('walkTariffHelp'))}</p><div class="daily-fields">${label('walkTariff',input('tariff','text',current?(current.unitMinor/100).toFixed(2):'','inputmode="decimal" maxlength="12" placeholder="—" autocomplete="off"'))}${label('currency',`<select name="currency">${currencyChoices(current?.currency || daily.rates.currency)}</select>`)}</div>${errorBox()}<div class="daily-actions"><button class="primary" type="submit">${esc(text('saveTariff'))}</button></div><p role="status" id="tariff-saved"></p></form>`;
+    const currency=walkCurrency();
+    return `<form id="tariff-form" class="card daily-form" ${loadError?'inert':''}><h2>${esc(text('walkTariff'))}</h2><p class="daily-help">${esc(text('walkTariffHelp'))}</p><div class="daily-fields"><label class="daily-field">${esc(text('walkTariff'))} (${esc(currency)})${input('tariff','text',current?(current.unitMinor/100).toFixed(2):'','inputmode="decimal" maxlength="12" placeholder="—" autocomplete="off"')}</label></div><p class="daily-help">${esc(fill('walkCurrency',{currency}))}</p>${errorBox()}<div class="daily-actions"><button class="primary" type="submit">${esc(text('saveTariff'))}</button></div><p role="status" id="tariff-saved"></p></form>`;
   }
   function walkChecklist() {
     const done=new Set(daily.walks.filter(x=>x.date===walkDate).map(x=>x.dogId));
@@ -174,7 +175,7 @@
         let unitMinor;
         try{unitMinor=M.parseMinor(prices.elements.tariff.value);}catch{setError(prices,'invalidTariff');return;}
         const next=structuredClone(daily);
-        registeredDog(next,dogId).walkTariff=unitMinor===null?null:{unitMinor,currency:prices.elements.currency.value};
+        registeredDog(next,dogId).walkTariff=unitMinor===null?null:{unitMinor,currency:walkCurrency()};
         if(!await save(next,prices.querySelector('[type="submit"]'))){setError(prices);return;}
         prices.querySelector('.daily-error').hidden=true;saved.textContent=text('saved');
       };

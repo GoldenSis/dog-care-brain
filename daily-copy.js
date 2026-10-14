@@ -1,6 +1,7 @@
 /* Daily workflow labels. No prices or clinical renewal schedules are assumed. */
 window.DailyCopy = {
   en: {
+    walkCurrency: "Prices use the Comptabilité currency: {currency}.",
     walkChecklist: "Today’s walks",
     walkChecklistHelp: "Tick the dogs that actually went for a walk that day. This is a record of walks done, separate from planned bookings. Nothing is invoiced or charged.",
     walkDate: "Walk date",
@@ -87,6 +88,7 @@ window.DailyCopy = {
     energyToComplete: 'Confirm with the owner', movementToComplete: 'Set a daily movement target', enrichmentToComplete: 'Add favourite activities', sensitivitiesToComplete: 'Add sensitivities and rest needs',
   },
   fr: {
+    walkCurrency: "Les tarifs suivent la devise de la comptabilité : {currency}.",
     walkChecklist: "Promenades du jour",
     walkChecklistHelp: "Cochez les chiens réellement promenés ce jour-là. Ce relevé des promenades faites est distinct des réservations prévues. Rien n’est facturé ni encaissé.",
     walkDate: "Date de la promenade",
@@ -173,6 +175,7 @@ window.DailyCopy = {
     energyToComplete: 'À confirmer avec le propriétaire', movementToComplete: 'Précisez l’activité quotidienne', enrichmentToComplete: 'Ajoutez les activités préférées', sensitivitiesToComplete: 'Ajoutez les sensibilités et les besoins de repos',
   },
   it: {
+    walkCurrency: "I prezzi usano la valuta della contabilità: {currency}.",
     walkChecklist: "Passeggiate del giorno",
     walkChecklistHelp: "Spunta i cani portati davvero a passeggio quel giorno. È un registro delle passeggiate fatte, separato dalle prenotazioni. Nulla viene fatturato o incassato.",
     walkDate: "Data della passeggiata",
@@ -259,6 +262,7 @@ window.DailyCopy = {
     energyToComplete: 'Da confermare con il proprietario', movementToComplete: 'Indica l’attività quotidiana', enrichmentToComplete: 'Aggiungi le attività preferite', sensitivitiesToComplete: 'Aggiungi sensibilità ed esigenze di riposo',
   },
   de: {
+    walkCurrency: "Preise verwenden die Währung der Buchhaltung: {currency}.",
     walkChecklist: "Spaziergänge des Tages",
     walkChecklistHelp: "Hake die Hunde ab, die an diesem Tag wirklich spazieren waren. Das ist eine Liste erledigter Spaziergänge, getrennt von geplanten Buchungen. Nichts wird berechnet oder kassiert.",
     walkDate: "Datum des Spaziergangs",
@@ -345,6 +349,7 @@ window.DailyCopy = {
     energyToComplete: 'Mit dem Halter klären', movementToComplete: 'Tägliche Bewegung festlegen', enrichmentToComplete: 'Lieblingsbeschäftigungen ergänzen', sensitivitiesToComplete: 'Empfindlichkeiten und Ruhebedarf ergänzen',
   },
   es: {
+    walkCurrency: "Los precios usan la moneda de la contabilidad: {currency}.",
     walkChecklist: "Paseos del día",
     walkChecklistHelp: "Marca los perros que realmente salieron a pasear ese día. Es un registro de paseos hechos, separado de las reservas previstas. No se factura ni se cobra nada.",
     walkDate: "Fecha del paseo",
