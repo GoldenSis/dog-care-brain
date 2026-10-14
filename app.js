@@ -1949,7 +1949,6 @@ function bindView() {
   DailyUI.bind();
   if(state.page==='health')KnowledgeUI.bind();
   if(state.page==='business')FinanceUI.bind();
-  document.querySelectorAll('[data-go]').forEach(el=>el.onclick=()=>{if(el.hasAttribute('data-finance-rates'))FinanceUI.showRates();if(el.hasAttribute('data-finance-walks'))FinanceUI.showWalks();navigate(el.dataset.go);});
   document.querySelectorAll('[data-assistant-action]').forEach(el=>el.onclick=()=>navigate(el.dataset.assistantAction));
   document.querySelectorAll('[data-assistant-prompt]').forEach(el=>el.onclick=()=>{const prompt=el.textContent.trim(),response=addAssistantExchange(prompt,el.dataset.assistantPrompt);appendAssistantExchange(prompt,response);document.querySelector('#assistant-question').focus();});
   const assistantForm=document.querySelector('#assistant-form');
@@ -2022,6 +2021,13 @@ function bindView() {
   };
   bindShareControls();
 }
+document.addEventListener('click',event=>{
+  const el=event.target.closest('[data-go]');
+  if(!el || el.matches(':disabled') || el.closest('[inert]'))return;
+  if(el.hasAttribute('data-finance-rates'))FinanceUI.showRates();
+  if(el.hasAttribute('data-finance-walks'))FinanceUI.showWalks();
+  navigate(el.dataset.go);
+});
 document.querySelectorAll('.nav-item[data-page]').forEach(el=>el.onclick=()=>navigate(el.dataset.page));
 document.querySelectorAll('[data-route]').forEach(el=>el.onclick=e=>{e.preventDefault();navigate(el.dataset.route)});
 const languagePicker=document.querySelector('#language-picker');

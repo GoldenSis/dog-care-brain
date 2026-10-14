@@ -350,6 +350,31 @@ class DailyApiTest(ApiServerTestCase):
     def walk(self, ident, day, tariff, dog="d1"):
         return {"id": ident, "dogId": dog, "date": day, "tariff": tariff}
 
+    def test_malformed_walk_and_legacy_dog_identifiers_return_400_without_writes(self):
+        cookie = self.account()
+        value = self.daily()
+        value['dogs'][0]['walkTariff'] = {'unitMinor': 2500, 'currency': 'CHF'}
+        value['walks'] = [self.walk('w1', '2026-10-05', value['dogs'][0]['walkTariff'])]
+        before = self.save(cookie, value)
+        for bad_id in ([], {}, None, 7, True, '', '../dog'):
+            for field in ('id', 'dogId'):
+                with self.subTest(collection='walks', field=field, value=bad_id):
+                    invalid = copy.deepcopy(value)
+                    invalid['walks'][0][field] = bad_id
+                    self.save(cookie, invalid, expected=400)
+                    self.assertEqual(self.state(cookie), before)
+            for version in (1, 2):
+                with self.subTest(collection='dogs', version=version, value=bad_id):
+                    invalid = copy.deepcopy(value)
+                    invalid['dogs'][0]['id'] = bad_id
+                    if version == 1:
+                        invalid['version'] = 1
+                        invalid.pop('walks')
+                        for dog in invalid['dogs']:
+                            dog.pop('walkTariff')
+                    self.save(cookie, invalid, expected=400)
+                    self.assertEqual(self.state(cookie), before)
+
     def test_stored_version_one_records_migrate_and_version_one_writers_keep_walks(self):
         cookie = self.account()
         bid = self.state(cookie)["business_id"]

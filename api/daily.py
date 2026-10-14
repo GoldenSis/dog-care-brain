@@ -28,7 +28,7 @@ def upgrade(value, previous=None):
         return value
     prior = previous or empty()
     tariffs = {dog["id"]: dog["walkTariff"] for dog in prior["dogs"]}
-    dogs = [{**dog, "walkTariff": tariffs.get(dog.get("id"))}
+    dogs = [{**dog, "walkTariff": tariffs.get(identifier(dog.get("id")))}
             if isinstance(dog, dict) and "walkTariff" not in dog else dog for dog in value["dogs"]]
     return {**value, "version": 2, "dogs": dogs, "walks": prior["walks"]}
 
@@ -193,6 +193,7 @@ def validate(value, previous, cancelling=False):
     walked = set()
     for walk in value["walks"]:
         fields(walk, "id dogId date tariff")
+        identifier(walk["dogId"])
         if walk["dogId"] not in dogs:
             raise ValueError("unknown dog")
         calendar(walk["date"])

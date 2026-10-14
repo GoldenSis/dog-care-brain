@@ -2,6 +2,8 @@
 window.DailyCopy = {
   en: {
     walkCurrency: "Prices use the Comptabilité currency: {currency}.",
+    walkCurrencyChange: "Tariff recorded in {recorded}. Saving it will switch it to {currency}, the Comptabilité currency. Recorded walks keep their currency.",
+    walkCurrencyUnavailable: "The Comptabilité currency cannot be read. Reload accounting before saving a tariff.",
     walkChecklist: "Today’s walks",
     walkChecklistHelp: "Tick the dogs that actually went for a walk that day. This is a record of walks done, separate from planned bookings. Nothing is invoiced or charged.",
     walkDate: "Walk date",
@@ -89,6 +91,8 @@ window.DailyCopy = {
   },
   fr: {
     walkCurrency: "Les tarifs suivent la devise de la comptabilité : {currency}.",
+    walkCurrencyChange: "Tarif enregistré en {recorded}. L’enregistrer le passera en {currency}, la devise de la comptabilité. Les promenades déjà enregistrées gardent leur devise.",
+    walkCurrencyUnavailable: "Impossible de lire la devise de la comptabilité. Rechargez la comptabilité avant d’enregistrer un tarif.",
     walkChecklist: "Promenades du jour",
     walkChecklistHelp: "Cochez les chiens réellement promenés ce jour-là. Ce relevé des promenades faites est distinct des réservations prévues. Rien n’est facturé ni encaissé.",
     walkDate: "Date de la promenade",
@@ -176,6 +180,8 @@ window.DailyCopy = {
   },
   it: {
     walkCurrency: "I prezzi usano la valuta della contabilità: {currency}.",
+    walkCurrencyChange: "Tariffa registrata in {recorded}. Salvandola passerà a {currency}, la valuta della contabilità. Le passeggiate già registrate mantengono la loro valuta.",
+    walkCurrencyUnavailable: "Impossibile leggere la valuta della contabilità. Ricarica la contabilità prima di salvare una tariffa.",
     walkChecklist: "Passeggiate del giorno",
     walkChecklistHelp: "Spunta i cani portati davvero a passeggio quel giorno. È un registro delle passeggiate fatte, separato dalle prenotazioni. Nulla viene fatturato o incassato.",
     walkDate: "Data della passeggiata",
@@ -263,6 +269,8 @@ window.DailyCopy = {
   },
   de: {
     walkCurrency: "Preise verwenden die Währung der Buchhaltung: {currency}.",
+    walkCurrencyChange: "Tarif in {recorded} gespeichert. Beim Speichern wird er auf {currency}, die Währung der Buchhaltung, umgestellt. Bereits erfasste Spaziergänge behalten ihre Währung.",
+    walkCurrencyUnavailable: "Die Währung der Buchhaltung kann nicht gelesen werden. Lade die Buchhaltung neu, bevor du einen Tarif speicherst.",
     walkChecklist: "Spaziergänge des Tages",
     walkChecklistHelp: "Hake die Hunde ab, die an diesem Tag wirklich spazieren waren. Das ist eine Liste erledigter Spaziergänge, getrennt von geplanten Buchungen. Nichts wird berechnet oder kassiert.",
     walkDate: "Datum des Spaziergangs",
@@ -350,6 +358,8 @@ window.DailyCopy = {
   },
   es: {
     walkCurrency: "Los precios usan la moneda de la contabilidad: {currency}.",
+    walkCurrencyChange: "Tarifa guardada en {recorded}. Al guardarla pasará a {currency}, la moneda de la contabilidad. Los paseos ya registrados conservan su moneda.",
+    walkCurrencyUnavailable: "No se puede leer la moneda de la contabilidad. Vuelve a cargar la contabilidad antes de guardar una tarifa.",
     walkChecklist: "Paseos del día",
     walkChecklistHelp: "Marca los perros que realmente salieron a pasear ese día. Es un registro de paseos hechos, separado de las reservas previstas. No se factura ni se cobra nada.",
     walkDate: "Fecha del paseo",
