@@ -1,21 +1,31 @@
 #!/usr/bin/env python3
-"""Dog-Care-Brain API — stdlib ThreadingHTTPServer + sqlite3, zero deps.
+"""Dog-Care-Brain API — stdlib ThreadingHTTPServer + sqlite3, no Python dependencies.
 
-One process, one SQLite file, magic-link auth. Slice 1 mailer writes local
-outbox JSON (no SMTP, no keys); all runtime storage must be outside DC_ROOT.
+One process, one SQLite file, closed-membership magic-link auth. Delivery is
+explicitly configured; all runtime storage must be outside DC_ROOT.
 See README.md for configuration defaults, endpoints, and the snapshot contract.
+Login/public configuration is documented in docs/client-portal.md; external media
+converters and the production startup gate are in docs/private-beta-release.md.
 
 Run:  python3 api/server.py
-Env:  DC_HOST, DC_PORT, DC_DATA_DIR, DC_DB, DC_ROOT, DC_OUTBOX, DC_BLOBS, DC_INSECURE_COOKIE
 """
 from __future__ import annotations
 
-import base64, hashlib, json, math, os, re, secrets, sqlite3, tempfile, threading, time
-from contextlib import contextmanager
+import base64, hashlib, ipaddress, json, logging, math, os, re, secrets, sqlite3, tempfile, threading, time
+from contextlib import closing, contextmanager
 from email.utils import formatdate
 from http import cookies as httpcookies
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlparse
+
+import daily
+import knowledge
+import finance
+import portal
+import quotes
+import login_delivery
+import media
+import professional
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT_DEFAULT = os.path.dirname(HERE)
@@ -24,11 +34,13 @@ MAGIC_TTL = 15 * 60
 SESSION_TTL = 90 * 24 * 3600
 MAX_BODY = 32 * 1024 * 1024
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,80}$")
+SLUG_RE = daily.ID
 BLOB_RE = re.compile(r"^[a-f0-9]{32}\.(webm|ogg|m4a|wav|mp3)$")
 MIME = {
     ".html": "text/html; charset=utf-8",
     ".js": "text/javascript; charset=utf-8",
+    ".mjs": "text/javascript; charset=utf-8",
+    ".wasm": "application/wasm",
     ".css": "text/css; charset=utf-8",
     ".json": "application/json",
     ".svg": "image/svg+xml",
@@ -37,8 +49,73 @@ MIME = {
     ".jpeg": "image/jpeg",
     ".webp": "image/webp",
     ".webm": "audio/webm",
-    ".md": "text/plain; charset=utf-8",
+    ".woff2": "font/woff2",
+    ".mp4": "video/mp4",
+    ".gz": "application/gzip",
 }
+
+# Only files intentionally published by the frontend, not repository contents.
+STATIC_FILES = frozenset((
+    'api.js',
+    'app.js',
+    'assets/films/a-day-with-adine.mp4',
+    'assets/fonts/barlow-600-5bc49d41.woff2',
+    'assets/fonts/barlow-700-e3e520cb.woff2',
+    'assets/fonts/barlow-800-89eec21b.woff2',
+    'assets/fonts/dm-sans-468d56b6.woff2',
+    'assets/fonts/jetbrains-mono-2c32b9b3.woff2',
+    'assets/photos/adine-and-dog.jpg',
+    'assets/photos/adine-woodland.jpg',
+    'assets/photos/billie-pines.jpg',
+    'assets/photos/care-at-home.jpg',
+    'assets/photos/good-company.jpg',
+    'assets/photos/pack-in-the-sun.jpg',
+    'assets/photos/pack-on-the-trail.jpg',
+    'assets/photos/the-bus.jpg',
+    'assets/vendor/finance/fflate/index.js',
+    'assets/vendor/finance/pdfjs-dist/pdf.mjs',
+    'assets/vendor/finance/pdfjs-dist/pdf.worker.mjs',
+    'assets/vendor/finance/tessdata/deu.traineddata.gz',
+    'assets/vendor/finance/tessdata/eng.traineddata.gz',
+    'assets/vendor/finance/tessdata/fra.traineddata.gz',
+    'assets/vendor/finance/tessdata/ita.traineddata.gz',
+    'assets/vendor/finance/tessdata/spa.traineddata.gz',
+    'assets/vendor/finance/tesseract.js-core/tesseract-core-lstm.wasm.js',
+    'assets/vendor/finance/tesseract.js-core/tesseract-core-simd-lstm.wasm.js',
+    'assets/vendor/finance/tesseract.js-core/tesseract-core-simd.wasm.js',
+    'assets/vendor/finance/tesseract.js-core/tesseract-core.wasm.js',
+    'assets/vendor/finance/tesseract.js/tesseract.min.js',
+    'assets/vendor/finance/tesseract.js/worker.min.js',
+    'daily-copy.js',
+    'daily-model.js',
+    'daily-ui.js',
+    'daily.css',
+    'finance-copy.js',
+    'finance-documents.js',
+    'finance-export.js',
+    'finance-model.js',
+    'finance-store.js',
+    'finance-ui.js',
+    'finance.css',
+    'index.html',
+    'knowledge-content.js',
+    'knowledge-copy.js',
+    'knowledge-model.js',
+    'knowledge-ui.js',
+    'knowledge.css',
+    'media.css',
+    'media-copy.js',
+    'media-ui.js',
+    'muse.css',
+    'portal-copy.js',
+    'portal-ui.js',
+    'public.html',
+    'quote-ui.js',
+    'styles.css',
+    'welcome.css',
+    'welcome.js',
+    'workspace.css',
+))
 
 _lock = threading.Lock()
 
@@ -50,9 +127,9 @@ SEED_OBS = {
         {"id": 2, "time": "10:10", "date": "Today", "title": "Woodland walk",
          "text": "A calm 42-minute sniff walk. Good recall around two dogs and no stiffness noticed.",
          "tags": ["Exercise · 42 min", "Behaviour · calm"]},
-        {"id": 3, "time": "18:40", "date": "Yesterday", "title": "Evening medication",
-         "text": "Joint supplement given with dinner. Coat and paws checked after rain.",
-         "tags": ["Medication", "Health check"]},
+        {"id": 3, "time": "18:40", "date": "Yesterday", "title": "Evening rest",
+         "text": "Settled comfortably after the afternoon walk.",
+         "tags": ["Rest", "Mood · settled"]},
     ],
     "charlie": [
         {"id": 4, "time": "09:15", "date": "Today", "title": "Settled into day care",
@@ -130,6 +207,11 @@ def init():
         schema = f.read()
     with connection() as c:
         c.executescript(schema)
+        for table in ('client_update','client_document','booking_request'):
+            if 'client_id' not in {r[1] for r in c.execute('PRAGMA table_info('+table+')')}:
+                c.execute('ALTER TABLE '+table+' ADD COLUMN client_id TEXT')
+        for row in c.execute('SELECT business_id,snapshot FROM business_daily').fetchall():
+            daily.bind_clients(c,row['business_id'],json.loads(row['snapshot']))
         cols = [r[1] for r in c.execute("PRAGMA table_info(business)")]
         if "imported" not in cols:
             c.execute("ALTER TABLE business ADD COLUMN imported INTEGER NOT NULL DEFAULT 0")
@@ -157,7 +239,8 @@ def write_outbox(email, link):
         "link": link,
         "date": formatdate(localtime=True),
     }
-    with open(path, "w", encoding="utf-8") as f:
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2)
         f.write("\n")
     return path
@@ -171,7 +254,7 @@ def cookie_header(sid, clear=False):
     return "; ".join(bits)
 
 
-def user_of(handler):
+def user_of(handler, c=None):
     raw = handler.headers.get("Cookie")
     if not raw:
         return None
@@ -181,13 +264,17 @@ def user_of(handler):
         return None
     if not sid or not sid.value:
         return None
-    c = db()
-    row = c.execute(
-        "SELECT u.id, u.email, u.role, u.business_id FROM session s "
-        "JOIN user u ON u.id=s.user_id WHERE s.sh=? AND s.expires > ?",
-        (_h(sid.value), int(time.time())),
-    ).fetchone()
-    c.close()
+    owned = c is None
+    c = db() if owned else c
+    try:
+        row = c.execute(
+            "SELECT u.id, u.email, u.role, u.business_id FROM session s "
+            "JOIN user u ON u.id=s.user_id WHERE s.sh=? AND s.expires > ?",
+            (_h(sid.value), int(time.time())),
+        ).fetchone()
+    finally:
+        if owned:
+            c.close()
     if not row:
         return None
     return {"id": row["id"], "email": row["email"], "role": row["role"],
@@ -195,7 +282,7 @@ def user_of(handler):
 
 
 def ensure_account(c, email):
-    """Reuse an email's account or create its own business, owner, and demo care data."""
+    """Explicit owner bootstrap; public login can only reuse known memberships."""
     now = int(time.time())
     row = c.execute("SELECT id, business_id FROM user WHERE email=?", (email,)).fetchone()
     if row:
@@ -211,8 +298,9 @@ def ensure_account(c, email):
         (email, "owner", bid, now, now),
     )
     uid = c.execute("SELECT last_insert_rowid()").fetchone()[0]
-    c.execute("INSERT INTO pref(user_id, language) VALUES(?, 'en')", (uid,))
-    seed_business(c, bid, uid)
+    c.execute("INSERT INTO pref(user_id, language) VALUES(?, ?)", (uid, "en" if login_delivery.demo_signup_enabled() else "fr"))
+    if login_delivery.demo_signup_enabled():
+        seed_business(c, bid, uid)
     return uid, bid
 
 
@@ -310,8 +398,8 @@ def replace_observations(c, bid, uid, observations, dog_ids=None):
         dog_ids = {r["slug"]: r["id"] for r in
                    c.execute("SELECT id, slug FROM dog WHERE business_id=?", (bid,))}
     for slug in observations or {}:
-        if slug not in dog_ids:
-            if not SLUG_RE.match(slug):
+        if slug not in dog_ids and observations[slug]:
+            if not SLUG_RE.fullmatch(slug):
                 continue
             c.execute(
                 "INSERT INTO dog(business_id, slug, name, created) VALUES(?,?,?,?)",
@@ -404,19 +492,74 @@ def replace_invites(c, bid, invites):
         )
 
 
-def do_auth_request(payload, host):
-    email = str(payload.get("email") or "").strip().lower()[:255]
-    if not EMAIL_RE.match(email):
+def deliver_login(delivery, email, service, database):
+    token = None
+    try:
+        with _lock, closing(sqlite3.connect(database)) as c, c:
+            known = c.execute('SELECT role FROM user WHERE email=?', (email,)).fetchone()
+            if not known or known[0] not in portal.ROLES:
+                return
+            token = secrets.token_urlsafe(32)
+            now = int(time.time())
+            c.execute('INSERT INTO magic(th,email,created,expires,used) VALUES(?,?,?,?,1)',
+                      (_h(token), email, now, now + MAGIC_TTL))
+        link = f"{delivery['origin']}/api/auth/verify?t={token}"
+        if service in ('day', 'night', 'walk'):
+            link += '&service=' + service
+        login_delivery.send(delivery, email, link)
+        with _lock, closing(sqlite3.connect(database)) as c, c:
+            c.execute('UPDATE magic SET used=0 WHERE th=?', (_h(token),))
+    except (login_delivery.DeliveryUnavailable, OSError, sqlite3.Error):
+        logging.getLogger(__name__).error('Login delivery failed')
+        if token:
+            try:
+                with _lock, closing(sqlite3.connect(database)) as c, c:
+                    c.execute('DELETE FROM magic WHERE th=?', (_h(token),))
+            except sqlite3.Error:
+                logging.getLogger(__name__).error('Pending login token cleanup failed')
+
+
+def do_auth_request(payload, host, ip="", allow_demo=False):
+    email = str(payload.get("email") or "").strip().lower()
+    if len(email) > 255 or not EMAIL_RE.fullmatch(email):
         return {"ok": False, "error": "invalid email"}, 400
-    tok = secrets.token_urlsafe(32)
+    try:
+        delivery = login_delivery.configuration()
+    except login_delivery.DeliveryUnavailable:
+        return {"ok": False, "error": "login delivery unavailable"}, 503
     now = int(time.time())
     with _lock, connection() as c:
-        c.execute("INSERT INTO magic(th, email, created, expires) VALUES(?,?,?,?)",
-                  (_h(tok), email, now, now + MAGIC_TTL))
-    proto = "http" if cfg("DC_INSECURE_COOKIE", "1") == "1" else "https"
-    link = f"{proto}://{host}/api/auth/verify?t={tok}"
-    write_outbox(email, link)
-    return {"ok": True, "mailed": False}, 200
+        if delivery['mode'] == 'smtp':
+            # Bound mail abuse even for unknown addresses; never reveal membership.
+            c.execute('DELETE FROM login_attempt WHERE started < ?', (now-3600,))
+            limits = ((_h('email:'+email),5),(_h('ip:'+ip),50))
+            for key,limit in limits:
+                row = c.execute('SELECT count FROM login_attempt WHERE key=?', (key,)).fetchone()
+                if row and row[0] >= limit:
+                    return {"ok":False,"error":"try again later"},429
+            for key,_ in limits:
+                c.execute('INSERT INTO login_attempt(key,started,count) VALUES(?,?,1) ON CONFLICT(key) DO UPDATE SET count=count+1', (key,now))
+    if delivery['mode'] == 'smtp':
+        login_delivery.enqueue(deliver_login, delivery, email, payload.get('service'), db_path())
+        return {"ok": True, "mailed": True}, 200
+    with _lock, connection() as c:
+        known = c.execute("SELECT role FROM user WHERE email=?", (email,)).fetchone()
+        if (not known or known['role'] not in portal.ROLES) and not (allow_demo and login_delivery.demo_signup_enabled() and not known):
+            return {"ok": True, "mailed": delivery['mode']=='smtp'}, 200
+        tok = secrets.token_urlsafe(32)
+        c.execute("INSERT INTO magic(th,email,created,expires) VALUES(?,?,?,?)", (_h(tok),email,now,now+MAGIC_TTL))
+    proto="http" if cfg("DC_INSECURE_COOKIE","1")=="1" else "https"
+    origin=f"{proto}://{host}"
+    link=f"{origin}/api/auth/verify?t={tok}"
+    if payload.get('service') in ('day','night','walk'):
+        link+='&service='+payload['service']
+    try:
+        write_outbox(email,link)
+    except (login_delivery.DeliveryUnavailable,OSError):
+        with _lock,connection() as c:
+            c.execute('DELETE FROM magic WHERE th=?',(_h(tok),))
+        return {"ok":False,"error":"login delivery unavailable"},503
+    return {"ok":True,"mailed":delivery['mode']=='smtp'},200
 
 
 def do_auth_verify(query):
@@ -428,6 +571,9 @@ def do_auth_verify(query):
         c.execute("BEGIN IMMEDIATE")
         row = c.execute("SELECT email, expires, used FROM magic WHERE th=?", (_h(tok),)).fetchone()
         if not row or row["used"] or row["expires"] < now:
+            return None, "expired"
+        member = c.execute('SELECT id,role FROM user WHERE email=?',(row['email'],)).fetchone()
+        if (member and member['role'] not in portal.ROLES) or (not member and not login_delivery.demo_signup_enabled()):
             return None, "expired"
         uid, _bid = ensure_account(c, row["email"])
         c.execute("UPDATE magic SET used=1 WHERE th=?", (_h(tok),))
@@ -453,17 +599,37 @@ def state_of(user, c=None):
             for r in c.execute("SELECT id, slug, name FROM dog WHERE business_id=? ORDER BY id",
                                (user["business_id"],))]
     business = c.execute("SELECT imported, revision FROM business WHERE id=?", (user["business_id"],)).fetchone()
-    obs = observations_map(c, user["business_id"])
-    inv = invites_list(c, user["business_id"])
-    return {"ok": True, "business_id": user["business_id"], "imported": bool(business["imported"]),
+    obs = observations_map(c, user["business_id"]) if user["role"] in portal.STAFF else {}
+    inv = invites_list(c, user["business_id"]) if user["role"] == "owner" else []
+    return portal.project(c, user, {"ok": True, "business_id": user["business_id"], "imported": bool(business["imported"]),
             "revision": business["revision"],
             "email": user["email"], "role": user["role"],
-            "language": lang, "dogs": dogs, "observations": obs, "invites": inv}
+            "language": lang, "dogs": dogs, "observations": obs, "invites": inv,
+            "daily": daily.load(c, user["business_id"]),
+            "knowledge": knowledge.load(c, user["business_id"]) if user["role"] in portal.STAFF else None,
+            "media": media.snapshot(c, user),
+            "finance": finance.load(c, user["business_id"]) if user["role"] == "owner" else None})
 
 
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
+
+    def _login_ip(self):
+        peer = self.client_address[0]
+        if (cfg("DC_TRUSTED_PROXY", "") != "127.0.0.1" or peer != "127.0.0.1" or
+                self.server.server_address[0] != "127.0.0.1"):
+            return peer
+        values = self.headers.get_all("X-DogCare-Client-IP", [])
+        if len(values) != 1 or "%" in values[0]:
+            return peer
+        try:
+            address = ipaddress.ip_address(values[0].strip())
+        except ValueError:
+            return peer
+        if isinstance(address, ipaddress.IPv6Address) and address.ipv4_mapped:
+            address = address.ipv4_mapped
+        return str(address)
 
     def _send(self, obj, code=200, extra=None):
         body = json.dumps(obj).encode()
@@ -476,10 +642,13 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def _need_user(self):
-        u = user_of(self)
+    def _need_user(self, c=None):
+        u = user_of(self, c)
         if not u:
             self._send({"ok": False, "error": "not signed in"}, 401)
+        elif u["role"] not in portal.ROLES:
+            self._send({"ok": False, "error": "access denied"}, 403)
+            return None
         return u
 
     def _read_json(self):
@@ -503,21 +672,30 @@ class Handler(BaseHTTPRequestHandler):
             return None
         return payload
 
-    def _check_browser_write(self):
+    def _check_browser_write(self, binary=False):
         origin = self.headers.get("Origin")
         scheme = "http" if cfg("DC_INSECURE_COOKIE", "1") == "1" else "https"
         if origin is not None and origin != f"{scheme}://{self.headers.get('Host')}":
             self._send({"ok": False, "error": "cross-origin write rejected"}, 403)
             return False
         content_type = self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
-        if content_type != "application/json":
+        if not binary and content_type != "application/json":
             self._send({"ok": False, "error": "application/json required"}, 415)
             return False
         return True
 
-    def _need_mutation_user(self):
-        user = self._need_user()
+    def _need_mutation_user(self, c=None):
+        user = self._need_user(c)
         if not user:
+            return None
+        path = urlparse(self.path).path
+        client_paths = ("/api/prefs", "/api/auth/logout", "/api/portal/requests", "/api/media/upload", "/api/media/cover", "/api/media/delete", "/api/media/branding")
+        owner_paths = ("/api/finance", "/api/invites", "/api/import", "/api/portal/members", "/api/portal/professionals", "/api/portal/revoke", "/api/portal/extras", "/api/portal/extra-remove", "/api/portal/quote")
+        if ((user["role"] == "client" and path not in client_paths) or
+                (user['role'] == 'professional' and path not in ('/api/prefs', '/api/auth/logout')) or
+                (path in owner_paths and user["role"] != "owner") or
+                (path == "/api/portal/requests" and user["role"] != "client")):
+            self._send({"ok": False, "error": "access denied"}, 403)
             return None
         business = self.headers.get("X-DogCare-Business")
         if business != str(user["business_id"]):
@@ -525,6 +703,12 @@ class Handler(BaseHTTPRequestHandler):
                         "reload_required": True}, 428 if business is None else 409)
             return None
         return user
+
+    @contextmanager
+    def _mutation_transaction(self):
+        with _lock, connection() as c:
+            c.execute("BEGIN IMMEDIATE")
+            yield c, self._need_mutation_user(c)
 
     def _advance_revision(self, c, user):
         revision = c.execute("SELECT revision FROM business WHERE id=?",
@@ -538,12 +722,13 @@ class Handler(BaseHTTPRequestHandler):
                   (user["business_id"],))
         return revision + 1
 
-    def _write_care(self, user, payload, importing=False):
+    def _write_care(self, payload, importing=False):
         """Apply supplied collections atomically; repeat imports return current state."""
         try:
             validate_care(payload)
-            with _lock, connection() as c:
-                c.execute("BEGIN IMMEDIATE")
+            with self._mutation_transaction() as (c, user):
+                if not user:
+                    return
                 done = c.execute("SELECT imported FROM business WHERE id=?",
                                  (user["business_id"],)).fetchone()[0]
                 skipped = importing and bool(done)
@@ -562,15 +747,225 @@ class Handler(BaseHTTPRequestHandler):
             out["skipped"] = skipped
         return self._send(out)
 
+    def _write_knowledge(self, payload):
+        try:
+            with self._mutation_transaction() as (c, user):
+                if not user:
+                    return
+                if self._advance_revision(c, user) is None:
+                    return
+                value = knowledge.validate(payload.get("knowledge"))
+                knowledge.save(c, user["business_id"], value)
+                out = state_of(user, c)
+        except ValueError as error:
+            return self._send({"ok": False, "error": str(error)}, 400)
+        except sqlite3.Error:
+            return self._send({"ok": False, "error": "experience could not be saved"}, 500)
+        return self._send(out)
+
+    def _write_finance(self, payload):
+        try:
+            daily.fields(payload, 'finance uploads')
+            with self._mutation_transaction() as (c, user):
+                if not user:
+                    return
+                if self._advance_revision(c, user) is None:
+                    return
+                finance.save(c, user["business_id"], payload['finance'], payload['uploads'])
+                out = state_of(user, c)
+        except ValueError as error:
+            return self._send({"ok": False, "error": str(error)}, 400)
+        except sqlite3.Error:
+            return self._send({"ok": False, "error": "accounting records could not be saved"}, 500)
+        return self._send(out)
+
+    def _write_daily(self, payload, uploading=False):
+        try:
+            with self._mutation_transaction() as (c, user):
+                if not user:
+                    return
+                if self._advance_revision(c, user) is None:
+                    return
+                current = daily.load(c, user["business_id"])
+                if uploading:
+                    blob = daily.upload(payload, current)
+                    ident = secrets.token_hex(16)
+                    document = {key: payload[key] for key in ("dogId", "label", "renewal", "type", "name")}
+                    document.update(id=ident, href="/api/documents/" + ident)
+                    current["documents"].append(document)
+                else:
+                    previous = current
+                    current = daily.validate(payload.get("daily"), previous)
+                    old = {b['id']: b for b in previous['bookings']}
+                    reserved = {row[0] for row in c.execute(
+                        'SELECT id FROM booking_request WHERE business_id=?', (user['business_id'],))}
+                    if any(b['id'] not in old and b['id'] in reserved for b in current['bookings']):
+                        raise ValueError('use the request decision to create its booking')
+                    if user['role'] != 'owner':
+                        if current['rates'] != previous['rates'] or any(
+                            b['unitMinor'] != (old[b['id']]['unitMinor'] if b['id'] in old else None) or
+                            b['currency'] != (old[b['id']]['currency'] if b['id'] in old else current['rates']['currency']) or
+                            (b['id'] in old and any(b[key] != old[b['id']][key] for key in ('dogId', 'service')))
+                            for b in current['bookings']):
+                            raise ValueError('only the owner can set prices')
+                        for booking in current['bookings']:
+                            if booking['id'] not in old:
+                                booking['unitMinor'] = previous['rates'][booking['service']]
+                                booking['currency'] = previous['rates']['currency']
+                if uploading:
+                    c.execute("INSERT INTO daily_document(business_id,id,mime,contents) VALUES(?,?,?,?)",
+                              (user["business_id"], ident, payload["type"], blob))
+                daily.save(c, user["business_id"], current)
+                out = state_of(user, c)
+        except ValueError as error:
+            return self._send({"ok": False, "error": str(error)}, 400)
+        except sqlite3.Error:
+            return self._send({"ok": False, "error": "daily records could not be saved"}, 500)
+        return self._send(out)
+
+    def _write_media(self, path):
+        uploading = path == '/api/media/upload'
+        if not self._check_browser_write(binary=uploading):
+            return
+        user = self._need_mutation_user()
+        if not user:
+            return
+        try:
+            if uploading:
+                query = parse_qs(urlparse(self.path).query)
+                dog_id = (query.get('dogId') or [''])[0]
+                purpose = (query.get('purpose') or ['dog'])[0]
+                mime = self.headers.get('Content-Type', '').split(';', 1)[0].lower().strip()
+                length = int(self.headers.get('Content-Length') or 0)
+                if self.headers.get('Transfer-Encoding') or length <= 0:
+                    raise ValueError('Taille du fichier manquante ou invalide.')
+                if length > (media.IMAGE_LIMIT if mime.startswith('image/') else media.VIDEO_LIMIT):
+                    return self._send({'ok': False, 'error': 'Fichier trop volumineux : photo 12 Mio, vidéo 80 Mio maximum.'}, 413)
+                if mime not in media.TYPES:
+                    raise ValueError(media.INVALID)
+                with connection() as c:
+                    c.execute('BEGIN')
+                    user = self._need_mutation_user(c)
+                    if not user:
+                        return
+                    media.upload_scope(c, user, dog_id, purpose)
+                with tempfile.TemporaryFile(dir=os.path.dirname(db_path())) as stream:
+                    remaining = length
+                    self.connection.settimeout(30)
+                    try:
+                        while remaining:
+                            chunk = self.rfile.read(min(64 * 1024, remaining))
+                            if not chunk:
+                                raise ValueError('Envoi interrompu. Aucun média enregistré.')
+                            stream.write(chunk)
+                            remaining -= len(chunk)
+                    finally:
+                        self.connection.settimeout(None)
+                    name = unquote(self.headers.get('X-DogCare-Filename', 'media'))
+                    with media.normalize_upload(stream, mime, length, name, os.path.dirname(db_path())) as normalized:
+                        content, content_type, content_size, content_name = normalized
+                        with self._mutation_transaction() as (c, user):
+                            if not user:
+                                return
+                            uploaded_id = media.store(c, user, content, content_type, content_size, content_name, dog_id, purpose)
+                            out = media.snapshot(c, user)
+            else:
+                payload = self._read_json()
+                if payload is None:
+                    return
+                with self._mutation_transaction() as (c, user):
+                    if not user:
+                        return
+                    media.mutate(c, user, path.rsplit('/', 1)[-1], payload)
+                    out = media.snapshot(c, user)
+            return self._send({'ok': True, 'business_id': user['business_id'], 'media': out,
+                               **({'uploadedId': uploaded_id} if uploading else {})})
+        except PermissionError as error:
+            return self._send({'ok': False, 'error': str(error)}, 403)
+        except LookupError as error:
+            return self._send({'ok': False, 'error': str(error)}, 404)
+        except (ValueError, TypeError) as error:
+            return self._send({'ok': False, 'error': str(error)}, 400)
+        except (OSError, sqlite3.Error):
+            return self._send({'ok': False, 'error': 'Envoi interrompu ou stockage indisponible. Réessayez.'}, 503)
+
+    def _media_content(self, path):
+        public = path.startswith('/api/public/media/')
+        ident = path.rsplit('/', 1)[-1]
+        with connection() as c:
+            c.execute('BEGIN')
+            user = None if public else self._need_user(c)
+            if not public and not user:
+                return
+            bid = cfg('DC_PUBLIC_BUSINESS', '')
+            row = media.public_asset(c, bid, ident) if public and bid.isdigit() else media.asset(c, user, ident) if user else None
+            if not row:
+                return self._send({'ok': False, 'error': 'Média introuvable.'}, 404)
+            size, start, end, status = row['size'], 0, row['size'] - 1, 200
+            value = self.headers.get('Range')
+            if value:
+                match = re.fullmatch(r'bytes=(\d*)-(\d*)', value) if len(value) < 128 else None
+                if match and any(match.groups()):
+                    first, last = match.groups()
+                    if first:
+                        start, end = int(first), min(int(last), end) if last else end
+                    else:
+                        start = max(0, size - int(last))
+                else:
+                    start = size
+                if start > end or start >= size:
+                    return self._send({'ok': False, 'error': 'Plage invalide.'}, 416, [('Content-Range', f'bytes */{size}')])
+                status = 206
+            self.send_response(status)
+            self.send_header('Content-Type', row['mime'])
+            self.send_header('Content-Length', str(end - start + 1))
+            self.send_header('Cache-Control', 'no-store')
+            self.send_header('X-Content-Type-Options', 'nosniff')
+            self.send_header('Content-Security-Policy', "sandbox; default-src 'none'")
+            self.send_header('Cross-Origin-Resource-Policy', 'same-origin')
+            self.send_header('Accept-Ranges', 'bytes')
+            if status == 206:
+                self.send_header('Content-Range', f'bytes {start}-{end}/{size}')
+            self.end_headers()
+            try:
+                with c.blobopen('media_asset', 'contents', row['rowid'], readonly=True) as stream:
+                    stream.seek(start)
+                    remaining = end - start + 1
+                    while remaining:
+                        chunk = stream.read(min(64 * 1024, remaining))
+                        self.wfile.write(chunk)
+                        remaining -= len(chunk)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+
     def do_GET(self):
         parsed = urlparse(self.path)
         path = parsed.path
         query = parse_qs(parsed.query)
         if path == "/api/health":
             return self._send({"ok": True, "ts": int(time.time())})
+        if path == '/api/public/branding':
+            public_id = cfg('DC_PUBLIC_BUSINESS', '')
+            with connection() as c:
+                return self._send({'ok': True, 'branding': media.public_branding(c, public_id) if public_id.isdigit() else {'hero': None, 'services': {}}})
+        if path.startswith(('/api/media/content/', '/api/public/media/')):
+            return self._media_content(path)
+        if path == '/api/media':
+            with connection() as c:
+                c.execute('BEGIN')
+                user = self._need_user(c)
+                if user:
+                    expected = self.headers.get('X-DogCare-Business')
+                    if expected is not None and expected != str(user['business_id']):
+                        return self._send({'ok': False, 'error': 'Compte modifié. Rechargez votre espace.'}, 409)
+                    return self._send({'ok': True, 'business_id': user['business_id'], 'media': media.snapshot(c, user)})
+            return
         if path == "/api/auth/verify":
             sid, err = do_auth_verify(query)
             dest = "/?signin=ok" if sid else f"/?signin={err or 'bad'}"
+            service = (query.get("service") or [""])[0]
+            if service in ("day", "night", "walk"):
+                dest += "&service=" + service
             self.send_response(302)
             self.send_header("Location", dest)
             self.send_header("Cache-Control", "no-store")
@@ -579,62 +974,125 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", "0")
             self.end_headers()
             return
+        if path == "/api/public/services":
+            # Explicit deployment binding only: never infer a public business from
+            # the first account or expose a visitor's private account snapshot.
+            public_id = cfg("DC_PUBLIC_BUSINESS", "")
+            with connection() as c:
+                exists = c.execute("SELECT id FROM business WHERE id=?", (public_id,)).fetchone() if public_id.isdigit() else None
+                rates = daily.load(c, exists[0])["rates"] if exists else None
+            return self._send({"ok": True, "rates": rates})
         if path == "/api/auth/me":
             u = user_of(self)
             if not u:
                 return self._send({"ok": False}, 200)
             return self._send({"ok": True, "email": u["email"], "role": u["role"]})
-        if path == "/api/state":
-            u = self._need_user()
-            if not u:
-                return
-            return self._send(state_of(u))
-        if path == "/api/dogs":
-            u = self._need_user()
-            if not u:
-                return
-            return self._send({"ok": True, "dogs": state_of(u)["dogs"]})
-        if path.startswith("/api/dogs/"):
-            u = self._need_user()
-            if not u:
-                return
+        if path in ("/api/finance", "/api/knowledge", "/api/daily"):
+            with connection() as c:
+                c.execute('BEGIN')
+                u = self._need_user(c)
+                if not u:
+                    return
+                if u["role"] in ("client", "professional") or path == "/api/finance" and u["role"] != "owner":
+                    return self._send({"ok": False, "error": "access denied"}, 403)
+            return self._send({"ok": False, "error": "not found"}, 404)
+        if path == "/api/portal/estimate":
             try:
-                did = int(path.rsplit("/", 1)[-1])
-            except ValueError:
-                return self._send({"ok": False, "error": "not found"}, 404)
-            c = db()
-            row = c.execute(
-                "SELECT id, slug, name FROM dog WHERE id=? AND business_id=?",
-                (did, u["business_id"]),
-            ).fetchone()
-            c.close()
+                with connection() as c:
+                    c.execute("BEGIN")
+                    u = self._need_user(c)
+                    if not u:
+                        return
+                    current = daily.load(c, u['business_id'])
+                    if u['role'] != 'client' or (query.get('dogId') or [''])[0] not in portal.allowed_dogs(c, u, current):
+                        return self._send({'ok': False, 'error': 'access denied'}, 403)
+                    item = {key: (query.get(key) or [''])[0] for key in ('service', 'start', 'end')}
+                    result = quotes.estimate(current, item)
+                return self._send({'ok': True, 'quote': result})
+            except (ValueError, KeyError):
+                return self._send({'ok': False, 'error': 'invalid service dates'}, 400)
+        if path in ("/api/state", "/api/dogs", "/api/observations", "/api/invites"):
+            with connection() as c:
+                c.execute('BEGIN')
+                u = self._need_user(c)
+                if not u:
+                    return
+                if path == "/api/invites" and u["role"] != "owner":
+                    return self._send({"ok": False, "error": "access denied"}, 403)
+                state = state_of(u, c)
+                key = path.rsplit('/', 1)[-1]
+                return self._send(state if key == 'state' else {"ok": True, key: state[key]})
+        if path.startswith("/api/dogs/"):
+            with connection() as c:
+                c.execute('BEGIN')
+                u = self._need_user(c)
+                if not u:
+                    return
+                try:
+                    did = int(path.rsplit("/", 1)[-1])
+                except ValueError:
+                    return self._send({"ok": False, "error": "not found"}, 404)
+                row = c.execute(
+                    "SELECT id, slug, name FROM dog WHERE id=? AND business_id=?",
+                    (did, u["business_id"]),
+                ).fetchone()
+                if row and u["role"] == "client" and row["slug"] not in portal.allowed_dogs(c, u):
+                    row = None
+                if row and u['role'] == 'professional' and row['slug'] not in professional.dogs(c, u):
+                    row = None
             if not row:
                 return self._send({"ok": False, "error": "not found"}, 404)
             return self._send({"ok": True, "dog": {"id": row["id"], "slug": row["slug"],
                                                    "name": row["name"]}})
-        if path == "/api/observations":
-            u = self._need_user()
-            if not u:
-                return
-            return self._send({"ok": True, "observations": state_of(u)["observations"]})
-        if path == "/api/invites":
-            u = self._need_user()
-            if not u:
-                return
-            return self._send({"ok": True, "invites": state_of(u)["invites"]})
+        if path.startswith(("/api/documents/", "/api/finance-documents/", "/api/client-documents/")):
+            with connection() as c:
+                c.execute('BEGIN')
+                u = self._need_user(c)
+                if not u:
+                    return
+                ident = path.rsplit("/", 1)[1]
+                table = "client_document" if path.startswith("/api/client-documents/") else "finance_document" if path.startswith("/api/finance-documents/") else "daily_document"
+                if (table == "finance_document" and u["role"] != "owner") or (table == "daily_document" and u["role"] == "client"):
+                    return self._send({"ok": False, "error": "access denied"}, 403)
+                if u['role'] == 'professional' and not professional.permits(
+                        c, u, 'client-document' if table == 'client_document' else 'document', ident):
+                    return self._send({'ok': False, 'error': 'access denied'}, 403)
+                if not daily.ID.fullmatch(ident):
+                    return self._send({"ok": False, "error": "not found"}, 404)
+                row = c.execute(f"SELECT * FROM {table} WHERE business_id=? AND id=?",
+                                (u["business_id"], ident)).fetchone()
+                if row and table == "client_document" and u["role"] == "client" and (row["dog_id"] not in portal.allowed_dogs(c, u) or row["client_id"] != portal.client_id(c,u)):
+                    row = None
+            if not row:
+                return self._send({"ok": False, "error": "not found"}, 404)
+            extension = {"application/pdf": "pdf", "image/jpeg": "jpg", "image/png": "png"}[row["mime"]]
+            self.send_response(200)
+            self.send_header("Content-Type", row["mime"])
+            self.send_header("Content-Length", str(len(row["contents"])))
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Content-Security-Policy", "sandbox; default-src 'none'")
+            self.send_header("Content-Disposition", f'attachment; filename="document-{ident}.{extension}"')
+            self.end_headers()
+            self.wfile.write(row["contents"])
+            return
         if path.startswith("/api/blobs/"):
-            u = self._need_user()
-            if not u:
-                return
-            name = path[len("/api/blobs/"):]
-            if not BLOB_RE.match(name):
-                return self._send({"ok": False, "error": "not found"}, 404)
-            full = os.path.realpath(os.path.join(blobs_dir(), str(u["business_id"]), name))
-            root = os.path.realpath(os.path.join(blobs_dir(), str(u["business_id"])))
-            if not full.startswith(root + os.sep) or not os.path.isfile(full):
-                return self._send({"ok": False, "error": "not found"}, 404)
-            with open(full, "rb") as f:
-                blob = f.read()
+            with connection() as c:
+                c.execute('BEGIN')
+                u = self._need_user(c)
+                if not u:
+                    return
+                if u["role"] in ("client", "professional"):
+                    return self._send({"ok": False, "error": "access denied"}, 403)
+                name = path[len("/api/blobs/"):]
+                if not BLOB_RE.match(name):
+                    return self._send({"ok": False, "error": "not found"}, 404)
+                full = os.path.realpath(os.path.join(blobs_dir(), str(u["business_id"]), name))
+                root = os.path.realpath(os.path.join(blobs_dir(), str(u["business_id"])))
+                if not full.startswith(root + os.sep) or not os.path.isfile(full):
+                    return self._send({"ok": False, "error": "not found"}, 404)
+                with open(full, "rb") as f:
+                    blob = f.read()
             ext = name.rsplit(".", 1)[-1]
             mime = {"webm": "audio/webm", "ogg": "audio/ogg", "m4a": "audio/mp4",
                     "wav": "audio/wav", "mp3": "audio/mpeg"}.get(ext, "application/octet-stream")
@@ -651,44 +1109,59 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urlparse(self.path).path
+        if path.startswith('/api/media/'):
+            return self._write_media(path)
         if not self._check_browser_write():
             return
         if path == "/api/auth/logout":
             if not self._need_mutation_user():
                 return
-            raw = self.headers.get("Cookie")
-            if raw:
-                try:
-                    sid = httpcookies.SimpleCookie(raw).get(COOKIE)
-                    if sid and sid.value:
-                        with _lock:
-                            c = db()
-                            c.execute("DELETE FROM session WHERE sh=?", (_h(sid.value),))
-                            c.commit()
-                            c.close()
-                except httpcookies.CookieError:
-                    pass
+            with self._mutation_transaction() as (c, u):
+                if not u:
+                    return
+                sid = httpcookies.SimpleCookie(self.headers.get("Cookie")).get(COOKIE)
+                c.execute("DELETE FROM session WHERE sh=?", (_h(sid.value),))
             return self._send({"ok": True}, 200, [("Set-Cookie", cookie_header("", clear=True))])
         payload = self._read_json()
         if payload is None:
             return
-        if path == "/api/auth/request":
+        if path in ("/api/auth/access", "/api/auth/request"):
             host = (self.headers.get("Host") or "127.0.0.1").split(",")[0].strip()
-            obj, code = do_auth_request(payload, host)
+            obj, code = do_auth_request(payload, host, self._login_ip(), allow_demo=path=="/api/auth/request")
             return self._send(obj, code)
         u = self._need_mutation_user()
         if not u:
             return
+        if path.startswith("/api/portal/"):
+            route = path[len("/api/portal/"):]
+            if route in ("members", "professionals") and not EMAIL_RE.fullmatch(str(payload.get("email", "")).strip()):
+                return self._send({"ok": False, "error": "invalid email"}, 400)
+            try:
+                with self._mutation_transaction() as (c, u):
+                    if not u:
+                        return
+                    if self._advance_revision(c, u) is None:
+                        return
+                    portal.mutate(c, u, route, payload)
+                    result = state_of(u, c)
+            except PermissionError as error:
+                return self._send({"ok": False, "error": str(error)}, 403)
+            except (ValueError, TypeError, KeyError) as error:
+                return self._send({"ok": False, "error": str(error)}, 400)
+            return self._send(result)
+        if path == "/api/documents":
+            return self._write_daily(payload, uploading=True)
         if path == "/api/import":
-            return self._write_care(u, payload, importing=True)
+            return self._write_care(payload, importing=True)
         if path == "/api/dogs":
-            slug = str(payload.get("slug") or "").strip().lower()
+            slug = str(payload.get("slug") or "").strip()
             name = str(payload.get("name") or slug).strip()[:80]
-            if not SLUG_RE.match(slug):
+            if not SLUG_RE.fullmatch(slug):
                 return self._send({"ok": False, "error": "bad slug"}, 400)
             try:
-                with _lock, connection() as c:
-                    c.execute("BEGIN IMMEDIATE")
+                with self._mutation_transaction() as (c, u):
+                    if not u:
+                        return
                     revision = self._advance_revision(c, u)
                     if revision is None:
                         return
@@ -720,19 +1193,22 @@ class Handler(BaseHTTPRequestHandler):
             elif "mpeg" in typ or "mp3" in typ:
                 ext = "mp3"
             name = hashlib.sha256(blob).hexdigest()[:32] + "." + ext
-            dest_dir = os.path.join(blobs_dir(), str(u["business_id"]))
-            os.makedirs(dest_dir, exist_ok=True)
-            dest = os.path.join(dest_dir, name)
-            if not os.path.isfile(dest):
-                staged = None
-                try:
-                    with tempfile.NamedTemporaryFile(dir=dest_dir, delete=False) as f:
-                        staged = f.name
-                        f.write(blob)
-                    os.replace(staged, dest)
-                finally:
-                    if staged and os.path.exists(staged):
-                        os.unlink(staged)
+            with self._mutation_transaction() as (c, u):
+                if not u:
+                    return
+                dest_dir = os.path.join(blobs_dir(), str(u["business_id"]))
+                os.makedirs(dest_dir, exist_ok=True)
+                dest = os.path.join(dest_dir, name)
+                if not os.path.isfile(dest):
+                    staged = None
+                    try:
+                        with tempfile.NamedTemporaryFile(dir=dest_dir, delete=False) as f:
+                            staged = f.name
+                            f.write(blob)
+                        os.replace(staged, dest)
+                    finally:
+                        if staged and os.path.exists(staged):
+                            os.unlink(staged)
             return self._send({"ok": True, "ref": name})
         return self._send({"ok": False, "error": "not found"}, 404)
 
@@ -746,24 +1222,43 @@ class Handler(BaseHTTPRequestHandler):
         u = self._need_mutation_user()
         if not u:
             return
+        if path == "/api/finance":
+            return self._write_finance(payload)
+        if path == "/api/knowledge":
+            return self._write_knowledge(payload)
+        if path == "/api/daily":
+            return self._write_daily(payload)
         key = {"/api/observations": "observations", "/api/invites": "invites",
                "/api/prefs": "language"}.get(path)
         if not key:
             return self._send({"ok": False, "error": "not found"}, 404)
         if key not in payload:
             return self._send({"ok": False, "error": "missing " + key}, 400)
-        return self._write_care(u, {key: payload[key]})
+        return self._write_care({key: payload[key]})
 
     def _serve_static(self, path):
         root = static_root()
         rel = unquote(path)
         if rel == "/":
             rel = "/index.html"
-        if ".." in rel.split("/"):
+        if "\x00" in rel or ".." in rel.split("/"):
             self.send_error(404)
             return
         full = os.path.realpath(os.path.join(root, rel.lstrip("/")))
+        if full in (os.path.join(root, "index.html"), os.path.join(root, "app.js")):
+            user = user_of(self)
+            authenticated = user and user['role'] in portal.ROLES
+            if not authenticated:
+                if full == os.path.join(root, "app.js"):
+                    return self._send({"ok": False, "error": "sign in required"}, 401)
+                full = os.path.realpath(os.path.join(root, "public.html"))
+                if full in (os.path.join(root, "index.html"), os.path.join(root, "app.js")):
+                    self.send_error(404)
+                    return
         if not full.startswith(root + os.sep) and full != root:
+            self.send_error(404)
+            return
+        if os.path.relpath(full, root).replace(os.sep, "/") not in STATIC_FILES:
             self.send_error(404)
             return
         banned = ("/.git/", "/.dev-outbox/", "/api/blobs/", "/api/dogcare.db")

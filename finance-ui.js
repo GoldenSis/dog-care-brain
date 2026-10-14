@@ -1,0 +1,181 @@
+/* One accounting workspace; form and import drafts survive in-app navigation. */
+(function(w){
+  'use strict';
+  const M=w.FinanceModel,S=w.FinanceStore;
+  let tab='journal',editing=null,inputs=null,query='',month='',intake=[],notice='',isImport=false,showEditor=false,dirty=false,auxiliary={};
+  let previewObserver=null,previewGeneration=0,previewJobs=Promise.resolve(),exporting=false;
+  const previewCanvases=new Set();
+  const t=k=>(w.FinanceCopy[state.language]||w.FinanceCopy.en)[k];
+  const esc=v=>String(v??'').replace(/[&<>"'\r]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','\r':'&#13;'}[c]));
+  const id=()=>crypto.randomUUID();
+  const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
+  const money=(v,c)=>v===null||!c?t('unknown'):new Intl.NumberFormat(formatLocale(Intl.NumberFormat),{style:'currency',currency:c,minimumFractionDigits:2,maximumFractionDigits:2}).format(v/100);
+  const decimal=v=>v===null?'':(v/100).toFixed(2);
+  const status=e=>t(e.kind==='sale'&&e.status==='confirmed'?'issued':e.status);
+  const val=(name,value)=>inputs&&Object.hasOwn(inputs,name)?inputs[name]:value;
+  const field=(key,body)=>`<label class="daily-field">${esc(t(key))}${body}</label>`;
+  const input=(name,value,type='text',extra='')=>`<input name="${name}" type="${type}" value="${esc(val(name,value))}" ${extra}>`;
+  const area=(name,value)=>`<textarea name="${name}" rows="2">${esc(val(name,value))}</textarea>`;
+  const options=(keys,value,disabled=()=>false)=>keys.map(k=>`<option value="${k}" ${disabled(k)?'disabled':''} ${k===value?'selected':''}>${esc(t(k))}</option>`).join('');
+  const action=(attr,label,primary=false)=>`<button type="button" ${attr} class="${primary?'primary':'ghost'}">${esc(t(label))}</button>`;
+  const error=()=>'<p class="daily-error" id="finance-error" role="alert" hidden></p>';
+  function showError(key='error'){const p=document.querySelector('#finance-error');if(p){p.textContent=t(key);p.hidden=false;p.focus();}else showToast(t(key));}
+  function rememberDraft(){
+    stopPreviews();
+    const form=document.querySelector('#finance-form');if(form)inputs=Object.fromEntries(new FormData(form));
+    for(const key of ['payment','cancel']){const form=document.querySelector('#finance-'+key);if(form)auxiliary[key]=Object.fromEntries(new FormData(form));}
+  }
+  function leaveEditor(){rememberDraft();showEditor=false;isImport=false;}
+  const hasPending=()=>dirty||Object.values(auxiliary).some(f=>f.amount||f.note||f.reason);
+  function replaceEditor(){rememberDraft();if(hasPending()){showEditor=false;isImport=false;draw('#finance-resume');return false;}inputs=null;auxiliary={};return true;}
+  function draftNotice(){return editing&&!showEditor?`<div class="card daily-form"><p>${esc(t(hasPending()?'pendingDraft':'resumeHelp'))}</p><div class="daily-actions">${action('id="finance-resume"','resume')}${action('id="finance-discard"','discard')}</div></div>`:'';}
+
+  function draw(focus){stopPreviews();content.innerHTML=view();localizeContent();bindView();if(focus)document.querySelector(focus)?.focus();}
+  const daily=()=>DailyUI.snapshot();
+  function summaries(entries){
+    const totals=new Map();for(const e of entries.filter(x=>x.status==='confirmed')){const row=totals.get(e.currency)||{income:0,costs:0,received:0,spent:0};const incoming=M.incoming(e.kind);row[incoming?'income':'costs']+=M.total(e);row[incoming?'received':'spent']+=M.paid(e);totals.set(e.currency,row);}
+    return `<p class="daily-help">${esc(t('summaryHelp'))}</p>${[...totals].map(([c,v])=>`<div class="finance-totals">${Object.entries(v).map(([key,n])=>`<div><span>${esc(t(key))}</span><strong>${esc(money(n,c))}</strong></div>`).join('')}</div>`).join('')}`;
+  }
+  function ledger(data){
+    const filtered=data.entries.filter(e=>(tab!=='invoices'||e.kind==='sale')&&(tab!=='expenses'||['purchase','expense','extra'].includes(e.kind))&&(tab!=='review'||e.status==='draft')&&(!month||e.date.startsWith(month))&&(!query||[e.party,e.number,e.note,...e.lines.map(l=>l.description)].join(' ').toLocaleLowerCase().includes(query.toLocaleLowerCase())));
+    return `<details class="finance-filter-panel"><summary>${esc(t('search'))}</summary><div class="finance-filters">${field('search',input('query',query,'search','id="finance-query"'))}${field('month',input('month',month,'month','id="finance-month"'))}</div></details>${summaries(filtered)}<div class="finance-table-wrap" role="region" aria-label="${esc(t('journal'))}" tabindex="0"><table class="finance-table"><thead><tr>${['date','kind','party','number','category','amount','status','outstanding','edit'].map(k=>`<th scope="col">${esc(t(k))}</th>`).join('')}</tr></thead><tbody>${filtered.map(e=>`<tr data-finance-entry="${esc(e.id)}"><td>${esc(e.date||t('unknown'))}</td><td>${esc(t(e.kind))}</td><td>${esc(e.party||t('unknown'))}</td><td>${esc(e.number)}</td><td>${esc(t(e.category))}</td><td>${esc(money(M.total(e),e.currency))}</td><td><span class="finance-status">${esc(status(e))}</span></td><td>${esc(e.status==='confirmed'?money(M.total(e)-M.paid(e),e.currency):'—')}</td><td><button class="ghost" data-finance-edit="${esc(e.id)}" aria-label="${esc(t('edit')+' '+(e.number||e.party))}">${esc(t('edit'))}</button></td></tr>`).join('')||`<tr><td colspan="9">${esc(t('empty'))}</td></tr>`}</tbody></table></div>`;
+  }
+  function form(){
+    const e=editing,locked=e.kind==='sale'&&e.status!=='draft',bookingsAvailable=!!daily();
+    return `${action('id="finance-back"','back')}<form id="finance-form" class="card daily-form"><h2 tabindex="-1">${esc(t(e.kind))} · ${esc(status(e))}</h2><p class="daily-help">${esc(t('unsaved'))}</p>${!bookingsAvailable?`<p id="finance-bookings-unavailable" role="status">${esc(t('bookingsUnavailable'))}</p>`:''}${e.sourceId?`${action('id="finance-source"','source')}<details><summary>${esc(t('raw'))}</summary><pre class="finance-raw">${esc(e.raw)}</pre></details>`:''}<fieldset ${locked||e.status==='cancelled'?'disabled':''}><div class="daily-fields">${field('kind',`<select name="kind">${options(M.kinds,val('kind',e.kind),kind=>e.payments.length&&M.incoming(kind)!==M.incoming(e.kind))}</select>`)}${field('number',input('number',e.number))}${field('date',input('date',e.date,'date'))}${field('due',input('due',e.due,'date'))}${field('party',input('party',e.party))}${field('currency',input('currency',e.currency,'text',`pattern="[A-Z]{3}" maxlength="3" placeholder="CHF" ${e.payments.length?'disabled':''}`))}${field('category',`<select name="category">${options(M.categories,val('category',e.category))}</select>`)}</div>${e.kind==='sale'?`<div class="daily-fields">${field('address',area('address',e.address))}${field('issuer',input('issuer',e.issuer))}${field('issuerAddress',area('issuerAddress',e.issuerAddress))}${field('taxId',input('taxId',e.taxId))}</div><label class="finance-check"><input type="checkbox" name="keepProfile" ${val('keepProfile','')?'checked':''}>${esc(t('keepProfile'))}</label>`:''}<div class="finance-lines">${e.lines.map((l,i)=>`<div class="finance-line">${field('description',input(`description-${i}`,l.description))}${field('quantity',input(`quantity-${i}`,l.quantity,'number','min="1" max="10000" step="1" required'))}${field('unit',input(`unit-${i}`,decimal(l.unitMinor),'text','inputmode="decimal"'))}${e.lines.length>1?action(`data-finance-remove="${i}"`,'remove'):''}</div>`).join('')}</div><div class="daily-actions">${action('id="finance-add-line"','addLine')}${e.kind==='sale'?action(`id="finance-booking" ${bookingsAvailable?'':'disabled'}`,'booking'):''}</div>${field('vat',input('vatMinor',decimal(e.vatMinor),'text','inputmode="decimal"'))}${field('note',area('note',e.note))}</fieldset><p class="daily-total">${esc(t('amount'))}: <strong id="finance-total">${esc(t('unknown'))}</strong></p>${error()}${e.status!=='cancelled'&&!locked?`<p class="daily-help">${esc(t(e.kind==='sale'?'issueHelp':'ocrHelp'))}</p><div class="daily-actions">${e.status==='draft'&&!e.payments.length?`<button type="submit" name="intent" value="draft" class="ghost">${esc(t('save'))}</button>`:''}<button type="submit" name="intent" value="confirmed" class="primary">${esc(t(e.kind==='sale'?'issue':'confirm'))}</button></div>`:''}</form>${e.status==='confirmed'?`<section class="card daily-form"><h2>${esc(t('payments'))}</h2><p>${esc(t('paid'))}: ${esc(money(M.paid(e),e.currency))} · ${esc(t('outstanding'))}: ${esc(money(M.total(e)-M.paid(e),e.currency))}</p>${e.payments.map(p=>`<p>${esc(p.date)} · ${esc(money(p.amountMinor,e.currency))} · ${esc(p.note)}</p>`).join('')}<form id="finance-payment" class="daily-form"><p id="finance-payment-context" ${dirty?'':'hidden'}>${esc(t('saveEditsFirst'))}</p><p class="daily-help">${esc(t('paymentHelp'))}</p><div class="daily-fields">${field('date',`<input name="date" type="date" value="${today()}" required>`)}${field('amount','<input name="amount" inputmode="decimal" required>')}${field('note','<input name="note">')}</div><button class="primary" ${dirty?'disabled':''}>${esc(t('savePayment'))}</button></form></section>`:''}${e.kind==='sale'&&e.status!=='draft'?action('id="finance-print"','print'):''}${e.status!=='cancelled'&&!e.payments.length?`<details class="card"><summary>${esc(t('cancel'))}</summary><form id="finance-cancel" class="daily-form">${field('reason','<input name="reason" required>')}<button class="ghost">${esc(t('cancel'))}</button></form></details>`:''}`;
+  }
+  function importView(){
+    return `${action('id="finance-back"','back')}<section class="card daily-form"><h2 tabindex="-1">${esc(t('import'))}</h2><p>${esc(t('importHelp'))}</p><div class="daily-fields">${field('files','<input id="finance-files" type="file" accept="image/jpeg,image/png,application/pdf" multiple>')}${field('camera','<input id="finance-camera" type="file" accept="image/jpeg,image/png" capture="environment">')}</div>${error()}${intake.length?action('id="finance-discard-intake"','discardImport'):''}<p id="finance-progress" role="status">${esc(notice)}</p>${intake.length?`<p>${esc(t('cropHelp'))}</p><div id="finance-pages">${intake.map((item,i)=>`<article class="finance-page"><h3>${esc(item.meta.name)}${item.width?` · ${esc(t('page'))} ${item.page}`:''}</h3>${item.width?`${item.previewError?`<p role="status">${esc(t('previewFailed'))}</p>`:`<canvas data-finance-canvas="${i}" width="0" height="0" style="aspect-ratio:${item.width}/${item.height}" aria-label="${esc(item.meta.name)}"></canvas>`}<details class="finance-regions"><summary>${esc(t('adjustAreas'))}</summary>${item.regions.map((r,j)=>`<fieldset class="finance-region"><legend>${esc(t('area'))} ${j+1}</legend>${['x','y','width','height'].map(k=>field(k,`<input type="number" min="0" max="100" step="0.1" value="${+(r[k]*100).toFixed(1)}" data-region="${i},${j},${k}">`)).join('')}${action(`data-remove-region="${i},${j}"`,'remove')}</fieldset>`).join('')}</details>${action(`data-add-region="${i}"`,'addArea')}`:`<p role="status">${esc(t('previewFailed'))}</p>`}</article>`).join('')}</div><p>${esc(t('ocrHelp'))}</p><div class="daily-actions">${action(`id="finance-recognize" ${intake.some(item=>!item.width||item.previewError)?'disabled':''}`,'recognize',true)}${action('id="finance-manual-import"','manualImport')}</div>`:''}</section>`;
+  }
+  function view(){
+    const data=S.snapshot(),blocked=S.unavailable(),disabled=blocked?'disabled':'';
+    return `<div class="finance-view" translate="no"><p class="daily-help">${esc(t(w.DogCareAPI?'account':'local'))}</p>${blocked?`<p role="alert">${esc(t('unavailable'))}</p>${action('id="finance-retry"','retry')}`:''}<div class="finance-actions">${action(`id="finance-new-sale" ${disabled}`,'newInvoice',true)}${action(`id="finance-new-expense" ${disabled}`,'newExpense')}${action(`id="finance-import" ${disabled}`,'import')}${action(`id="finance-export" ${disabled}`,'export')}</div><nav class="finance-tabs" aria-label="${esc(t('title'))}">${['journal','invoices','expenses','review','rates'].map(k=>`<button class="ghost" data-finance-tab="${k}" ${tab===k?'aria-current="page"':''}>${esc(t(k))}${k==='review'&&!blocked?` (${data.entries.filter(e=>e.status==='draft').length})`:''}</button>`).join('')}</nav>${draftNotice()}${intake.length&&!isImport?action('id="finance-resume-intake"','resumeImport'):''}${tab==='rates'&&!showEditor&&!isImport?DailyUI.business():blocked?'':isImport?importView():showEditor&&editing?form():ledger(data)}<p class="daily-help">${esc(t('exportHelp'))} ${esc(t('allExport'))}</p></div>`;
+  }
+  function newEntry(kind){if(S.unavailable()||!replaceEditor())return;const data=S.snapshot();editing=M.draft(id(),kind);editing.date=today();editing.currency=daily()?.rates.currency||'';editing.issuer=data.profile.name;editing.issuerAddress=data.profile.address;editing.taxId=data.profile.taxId;inputs=null;isImport=false;showEditor=true;dirty=true;draw('#finance-form h2');}
+  function readForm(){
+    rememberDraft();const e=structuredClone(editing);if(e.kind==='sale'&&e.status!=='draft'||e.status==='cancelled')return e;
+    const f=inputs||{}, retain=(key,value)=>{
+      const normalized=['address','issuerAddress','note'].includes(key)?value.replace(/\r\n?/g,'\n'):value.replace(/[\r\n]/g,'');
+      return f[key]===normalized?value:f[key];
+    };
+    for(const key of ['kind','number','date','due','party','currency','category','address','issuer','issuerAddress','taxId','note'])if(Object.hasOwn(f,key))e[key]=retain(key,e[key]);
+    e.vatMinor=M.parseMinor(f.vatMinor||'');e.lines=e.lines.map((l,i)=>({...l,description:retain(`description-${i}`,l.description),quantity:Number(f[`quantity-${i}`]),unitMinor:M.parseMinor(f[`unit-${i}`]||'')}));return e;
+  }
+  function updateTotal(form){
+    const output=form.querySelector('#finance-total');
+    try{const e=readForm(),valid=[...form.querySelectorAll('[name="currency"],[name^="quantity-"]')].every(el=>el.validity.valid);output.textContent=valid?money(M.total(e),e.currency):t('unknown');}catch{output.textContent=t('unknown');}
+  }
+  async function storeEntry(entry,button,part='entry'){
+    if(S.unavailable()){showError();return false;}
+    const next=S.snapshot(),index=next.entries.findIndex(e=>e.id===entry.id);if(index<0)next.entries.push(entry);else next.entries[index]=entry;
+    if(inputs?.keepProfile&&entry.kind==='sale')next.profile={name:entry.issuer,address:entry.issuerAddress,taxId:entry.taxId};
+    let ok=false;try{ok=await persistChange(()=>S.save(next),button);}catch{}if(!ok){showError();return false;}if(part==='payment'){editing.payments=structuredClone(entry.payments);delete auxiliary.payment;}else{editing=structuredClone(entry);inputs=null;dirty=false;if(part==='cancel')auxiliary={};}showEditor=true;isImport=false;showToast(t('saved'));draw('#finance-form h2');return true;
+  }
+  async function prepare(files){
+    notice='';if(!files.length||S.unavailable())return;if(intake.length){showError('pendingImport');return;}if(files.length>10||files.reduce((n,f)=>n+f.size,0)>20*1024*1024){showError('fileError');return;}
+    const ready=[];let problem='fileError';const ok=await persistChange(async()=>{try{const known=new Set(S.snapshot().documents.map(d=>d.id));for(const file of files){const meta=await FinanceDocuments.inspect(file);if(known.has(meta.id)){problem='duplicate';return false;}known.add(meta.id);for(const page of await FinanceDocuments.pages(file,meta))ready.push({...page,file,meta});}return true;}catch{return false;}});
+    if(!ok){showError(problem);return;}intake=ready;draw('#finance-recognize');
+  }
+  async function importEntries(recognize,button){
+    const items=intake.flatMap(page=>page.regions.map(region=>({...page,region})));if(S.unavailable())return;if(!items.length){showError('fileError');return;}
+    stopPreviews();const next=S.snapshot(),files=new Map();let texts=items.map(()=>''),problem='error';
+    const ok=await persistChange(async()=>{
+      if(recognize&&items.some(item=>!item.width||item.previewError)){problem='previewFailed';return false;}
+      if(recognize){try{texts=await FinanceDocuments.recognize(items,state.language,p=>{const el=document.querySelector('#finance-progress');if(el)el.textContent=t('reading')+' '+Math.round(p*100)+'%';});}catch{problem='ocrFailed';return false;}}
+      items.forEach((item,i)=>{if(!files.has(item.meta.id)){files.set(item.meta.id,item.file);next.documents.push(item.meta);}const proposed=M.propose(texts[i]),e=M.draft(id());e.date=proposed.date;e.party=proposed.party;e.number=proposed.number;e.currency=proposed.currency;e.category=proposed.category;e.sourceId=item.meta.id;e.region=item.region;e.raw=texts[i];e.lines[0].description=item.meta.name;e.lines[0].unitMinor=proposed.amount;next.entries.push(e);});
+      return S.save(next,files);
+    },button);
+    if(!ok){bindPreviews();showError(problem);return;}intake=[];isImport=false;tab='review';notice='';draw();showToast(t('saved'));
+  }
+  async function source(){const d=S.snapshot().documents.find(d=>d.id===editing.sourceId);const blob=await S.document(d.id);if(!blob){showError();return;}FinanceExport.download(blob,d.name);}
+  function printInvoice(){
+    const e=editing,frame=document.createElement('iframe');frame.className='finance-print-frame';frame.title=t('print');frame.setAttribute('sandbox','allow-same-origin allow-modals');
+    frame.srcdoc=`<!doctype html><html lang="${esc(state.language)}"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><title>${esc(t('sale')+' '+e.number)}</title><style>body{font:15px sans-serif;padding:30px;color:#222}h1{font-size:24px}p{white-space:pre-wrap}table{width:100%;border-collapse:collapse}td,th{padding:10px;text-align:left;border-bottom:1px solid #bbb}</style></head><body><h1>${esc(t('sale'))} ${esc(e.number)}</h1><p>${esc(status(e))}</p><p>${esc(e.issuer)}\n${esc(e.issuerAddress)}\n${esc(e.taxId)}</p><p>${esc(e.party)}\n${esc(e.address)}</p><p>${esc(t('date'))}: ${esc(e.date)} · ${esc(t('due'))}: ${esc(e.due)}</p><table><tr><th>${esc(t('description'))}</th><th>${esc(t('quantity'))}</th><th>${esc(t('unit'))}</th><th>${esc(t('amount'))}</th></tr>${e.lines.map(l=>`<tr><td>${esc(l.description)}</td><td>${l.quantity}</td><td>${esc(money(l.unitMinor,e.currency))}</td><td>${esc(money(l.unitMinor===null?null:l.quantity*l.unitMinor,e.currency))}</td></tr>`).join('')}</table><p>${esc(t('amount'))}: ${esc(money(M.total(e),e.currency))}${e.vatMinor!==null?`\n${esc(t('vat'))}: ${esc(money(e.vatMinor,e.currency))}`:''}\n${esc(t('paid'))}: ${esc(money(M.paid(e),e.currency))}</p><p>${esc(e.note)}</p>${e.cancelReason?`<p>${esc(e.cancelReason)}</p>`:''}</body></html>`;
+    frame.onload=()=>frame.contentWindow.print();document.body.append(frame);setTimeout(()=>frame.remove(),60000);
+  }
+  function stopPreviews(){
+    previewObserver?.disconnect();previewObserver=null;previewGeneration++;
+    for(const c of previewCanvases)FinanceDocuments.release(c);previewCanvases.clear();
+  }
+  function bindPreviews(){
+    stopPreviews();const generation=previewGeneration,visible=new Set();
+    previewObserver=new IntersectionObserver(entries=>{
+      for(const entry of entries){
+        const c=entry.target,item=intake[Number(c.dataset.financeCanvas)];
+        if(!entry.isIntersecting){visible.delete(c);FinanceDocuments.release(c);continue;}
+        if(visible.has(c))continue;visible.add(c);
+        previewJobs=previewJobs.then(async()=>{
+          if(generation!==previewGeneration||!visible.has(c)||!c.isConnected)return;
+          await FinanceDocuments.withCanvas(item,720,source=>{
+            if(generation!==previewGeneration||!visible.has(c)||!c.isConnected)return;
+            c.width=source.width;c.height=source.height;const ctx=c.getContext('2d');ctx.drawImage(source,0,0);
+            ctx.strokeStyle='#b84600';ctx.lineWidth=Math.max(3,c.width/300);ctx.font=`bold ${Math.max(25,c.width/35)}px sans-serif`;ctx.fillStyle='#b84600';
+            item.regions.forEach((r,i)=>{ctx.strokeRect(r.x*c.width,r.y*c.height,r.width*c.width,r.height*c.height);ctx.fillText(String(i+1),r.x*c.width+12,r.y*c.height+45);});
+          });
+        }).catch(()=>{
+          if(generation!==previewGeneration||!c.isConnected)return;
+          for(const page of intake)if(page.meta.id===item.meta.id)page.previewError=true;
+          draw();
+        });
+      }
+    },{rootMargin:'200px'});
+    document.querySelectorAll('[data-finance-canvas]').forEach(c=>{
+      const item=intake[Number(c.dataset.financeCanvas)];previewCanvases.add(c);previewObserver.observe(c);
+      let start=null;const point=event=>{const r=c.getBoundingClientRect();return {x:Math.max(0,Math.min(1,(event.clientX-r.left)/r.width)),y:Math.max(0,Math.min(1,(event.clientY-r.top)/r.height))};};c.onpointerdown=event=>{start=point(event);c.setPointerCapture(event.pointerId);};c.onpointerup=event=>{if(!start)return;const end=point(event),r={page:item.page,x:Math.min(start.x,end.x),y:Math.min(start.y,end.y),width:Math.abs(start.x-end.x),height:Math.abs(start.y-end.y)};start=null;if(r.width<.02||r.height<.02)return;if(item.regions.length===1&&item.regions[0].width===1&&item.regions[0].height===1)item.regions=[];item.regions.push(r);draw();};c.onpointercancel=()=>{start=null;};});
+
+  }
+  function bind(){
+    if(state.page!=='business')return;
+    document.querySelector('#finance-new-sale').onclick=()=>newEntry('sale');document.querySelector('#finance-new-expense').onclick=()=>newEntry('expense');
+    document.querySelector('#finance-import').onclick=()=>{leaveEditor();isImport=true;draw();};
+    const exportButton=document.querySelector('#finance-export');exportButton.disabled=S.unavailable()||exporting;
+    exportButton.onclick=async()=>{
+      if(exporting||S.unavailable())return;exporting=true;exportButton.disabled=true;
+      const copy=w.FinanceCopy[state.language]||w.FinanceCopy.en;
+      try{const blob=await FinanceExport.archive(S.snapshot(),key=>copy[key],S.document);FinanceExport.download(blob,'comptabilite.zip');}
+      catch(error){showError(error?.code==='ZIP32_LIMIT'?'exportSizeError':'exportError');}
+      finally{exporting=false;const button=document.querySelector('#finance-export');if(button)button.disabled=S.unavailable();}
+    };
+    document.querySelectorAll('[data-finance-tab]').forEach(b=>b.onclick=()=>{leaveEditor();tab=b.dataset.financeTab;draw();});
+    document.querySelectorAll('[data-finance-edit]').forEach(b=>b.onclick=()=>{if(S.unavailable())return;if(editing?.id===b.dataset.financeEdit){showEditor=true;isImport=false;draw('#finance-form h2');return;}if(!replaceEditor())return;editing=S.snapshot().entries.find(e=>e.id===b.dataset.financeEdit);inputs=null;isImport=false;showEditor=true;dirty=false;draw('#finance-form h2');});
+    document.querySelector('#finance-back')?.addEventListener('click',()=>{leaveEditor();draw();});
+    document.querySelector('#finance-resume')?.addEventListener('click',()=>{showEditor=true;isImport=false;draw('#finance-form h2');});
+    document.querySelector('#finance-discard')?.addEventListener('click',()=>{editing=null;inputs=null;auxiliary={};dirty=false;showEditor=false;draw();});
+    document.querySelector('#finance-resume-intake')?.addEventListener('click',()=>{leaveEditor();isImport=true;draw();});
+    document.querySelector('#finance-discard-intake')?.addEventListener('click',()=>{intake=[];notice='';draw();});
+    document.querySelector('#finance-retry')?.addEventListener('click',async event=>{await persistChange(()=>S.load(true),event.currentTarget);draw();});
+    for(const key of ['payment','cancel']){
+      const form=document.querySelector('#finance-'+key);if(!form)continue;
+      for(const [name,value] of Object.entries(auxiliary[key]||{}))form.elements.namedItem(name).value=value;
+      form.addEventListener('input',rememberDraft);
+    }
+    const queryField=document.querySelector('#finance-query');if(queryField)queryField.onchange=()=>{query=queryField.value;draw('#finance-query');};
+    const monthField=document.querySelector('#finance-month');if(monthField)monthField.onchange=()=>{month=monthField.value;draw('#finance-month');};
+    const formEl=document.querySelector('#finance-form');if(formEl){
+      formEl.querySelectorAll('textarea').forEach(el=>el.value=val(el.name,editing[el.name]||''));
+      updateTotal(formEl);
+      formEl.onsubmit=async event=>{event.preventDefault();try{const e=readForm();e.status=event.submitter.value;if(e.status==='confirmed'){const required=['date','party','currency',...e.lines.flatMap((_,i)=>[`description-${i}`,`unit-${i}`])];if(e.kind==='sale')required.push('number','address','issuer','issuerAddress');for(const name of required){const control=formEl.elements.namedItem(name);if(control&&!control.value.trim())control.setCustomValidity(t('unknown'));}const valid=formEl.reportValidity();for(const name of required)formEl.elements.namedItem(name)?.setCustomValidity('');if(!valid)return;}await storeEntry(e,event.submitter);}catch{showError();}};
+      formEl.elements.kind?.addEventListener('change',()=>{rememberDraft();if(editing.kind!=='sale'&&inputs.kind==='sale'&&editing.status==='confirmed')editing.status='draft';editing.kind=inputs.kind;dirty=true;draw();});
+      document.querySelector('#finance-add-line')?.addEventListener('click',()=>{rememberDraft();dirty=true;editing.lines.push({description:'',quantity:1,unitMinor:null,bookingId:''});draw();});
+      document.querySelectorAll('[data-finance-remove]').forEach(b=>b.onclick=()=>{try{editing=readForm();editing.lines.splice(Number(b.dataset.financeRemove),1);dirty=true;inputs=null;draw();}catch{showError();}});
+      formEl.addEventListener('input',event=>{dirty=true;const payment=document.querySelector('#finance-payment');if(payment){payment.querySelector('button').disabled=true;payment.querySelector('#finance-payment-context').hidden=false;}event.target.setCustomValidity?.('');updateTotal(formEl);});
+      document.querySelector('#finance-booking')?.addEventListener('click',()=>{
+        const d=daily();if(!d){showError('bookingsUnavailable');return;}const used=new Set(S.snapshot().entries.filter(e=>e.status!=='cancelled').flatMap(e=>e.lines.map(l=>l.bookingId)).filter(Boolean));editing.lines.forEach(l=>{if(l.bookingId)used.add(l.bookingId);});
+        const bookings=d.bookings.filter(b=>DailyModel.activeBooking(b)&&!used.has(b.id));if(!bookings.length){showToast(t('noBookings'));return;}
+        const picker=document.createElement('select');picker.setAttribute('aria-label',t('booking'));picker.innerHTML=`<option value="">${esc(t('choose'))}</option>`+bookings.map(b=>`<option value="${esc(b.id)}">${esc(d.dogs.find(dog=>dog.id===b.dogId)?.name||'')} · ${esc(b.start)} · ${esc(DailyUI.text(b.service))} · ${esc(money(DailyModel.amount(b),b.currency))}</option>`).join('');
+        document.querySelector('#finance-booking').after(picker);picker.focus();picker.onchange=()=>{const b=bookings.find(b=>b.id===picker.value);if(!b)return;const portal=window.DogCareAPI?.getPortal(),extras=portal?.quotes?.[b.id]?.extras || [];if(extras.some(e=>e.currency!==b.currency)){showError();return;}try{editing=readForm();if(editing.lines.some(l=>l.description||l.unitMinor!==null)&&editing.currency!==b.currency){showError();return;}editing.currency=b.currency;const dog=d.dogs.find(x=>x.id===b.dogId);if(!editing.party){const clientId=DailyModel.bookingClientId(b,dog,portal?.bookingClients);editing.party=d.clients.find(c=>c.id===clientId)?.name||'';}const line={description:`${dog?.name||''} · ${DailyUI.text(b.service)} · ${b.start} – ${b.end}`,quantity:DailyModel.units(b),unitMinor:b.unitMinor,bookingId:b.id};if(editing.lines.length===1&&!editing.lines[0].description&&editing.lines[0].unitMinor===null)editing.lines=[line];else editing.lines.push(line);editing.lines.push(...extras.map(e=>({description:e.label,quantity:e.quantity,unitMinor:e.unitMinor,bookingId:b.id})));dirty=true;inputs=null;draw();}catch{showError();}};
+      });
+    }
+    document.querySelector('#finance-source')?.addEventListener('click',source);document.querySelector('#finance-print')?.addEventListener('click',printInvoice);
+    document.querySelector('#finance-payment')?.addEventListener('submit',async event=>{event.preventDefault();if(dirty){showError('saveEditsFirst');return;}try{const f=event.currentTarget,e=S.snapshot().entries.find(e=>e.id===editing.id);e.payments.push({id:id(),date:f.elements.date.value,amountMinor:M.parseMinor(f.elements.amount.value),note:f.elements.note.value});rememberDraft();await storeEntry(e,f.querySelector('button'),'payment');}catch{showError();}});
+    document.querySelector('#finance-cancel')?.addEventListener('submit',async event=>{event.preventDefault();const e=structuredClone(editing);e.status='cancelled';e.cancelReason=event.currentTarget.elements.reason.value;rememberDraft();await storeEntry(e,event.currentTarget.querySelector('button'),'cancel');});
+    for(const name of ['finance-files','finance-camera'])document.querySelector('#'+name)?.addEventListener('change',event=>prepare([...event.target.files]));
+    document.querySelector('#finance-recognize')?.addEventListener('click',event=>importEntries(true,event.currentTarget));document.querySelector('#finance-manual-import')?.addEventListener('click',event=>importEntries(false,event.currentTarget));
+    bindPreviews();
+    document.querySelectorAll('[data-region]').forEach(el=>el.onchange=()=>{const [i,j,key]=el.dataset.region.split(',');const r=intake[i].regions[j],v=Number(el.value)/100;if(!Number.isFinite(v)||v<0||v>1)return;const next={...r,[key]:v};if(next.width<=0||next.height<=0||next.x+next.width>1.000001||next.y+next.height>1.000001){showError('fileError');return;}intake[i].regions[j]=next;draw();});
+    document.querySelectorAll('[data-remove-region]').forEach(b=>b.onclick=()=>{const [i,j]=b.dataset.removeRegion.split(',').map(Number);intake[i].regions.splice(j,1);draw();});
+    document.querySelectorAll('[data-add-region]').forEach(b=>b.onclick=()=>{const item=intake[Number(b.dataset.addRegion)];item.regions.push({page:item.page,x:0,y:0,width:.5,height:.5});draw();});
+  }
+  w.addEventListener('beforeunload',event=>{if(exporting){event.preventDefault();event.returnValue='';}});
+  w.FinanceUI={text:t,view,bind,rememberDraft,showRates:()=>{leaveEditor();tab='rates';}};
+})(window);

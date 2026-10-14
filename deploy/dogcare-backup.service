@@ -1,0 +1,15 @@
+[Unit]
+Description=Private Dogcare SQLite and audio backup
+
+[Service]
+Type=oneshot
+User=dogcare
+Group=dogcare
+WorkingDirectory=/opt/dogcare/current
+ExecStart=/usr/bin/python3 scripts/private_backup.py backup --data-dir /var/lib/dogcare --backup-dir /var/lib/dogcare/backups --keep 14
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/dogcare

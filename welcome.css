@@ -1,0 +1,61 @@
+/* Shared restrained palette, with an independent public layout. */
+:root{--display:'DM Sans',Arial,sans-serif;--orange-surface:#f2851e;--green:#242424;--deep:#242424;--lime:#f2851e;--mint:#f4f4f4;--paper:#fff;--cream:#fafafa;--ink:#242424;--muted:#666;--line:#dedede;--shadow:none}
+body{background:#fafafa;color:#242424;font-family:'DM Sans',Arial,sans-serif}
+.public-mode>.app-shell,.public-mode>.utility-bar,.public-mode>.skip-link{display:none}
+#public-welcome{background:white;min-height:100vh;color:#242424}
+#public-welcome button,#public-welcome input{font:inherit;color:inherit}
+#public-welcome button{cursor:pointer}
+#public-welcome a{text-decoration:none;color:inherit}
+#public-welcome h1,#public-welcome h2{font-family:'DM Sans',Arial,sans-serif!important;font-weight:600;letter-spacing:normal;line-height:1.25}
+.welcome-brand svg{width:25px;height:25px}
+#public-welcome :is(button,a,input):focus-visible{outline:3px solid #9b4b0d;outline-offset:4px}
+.welcome-header,.welcome-main{max-width:1256px;padding:0 44px;margin:auto}
+.welcome-header{display:flex;justify-content:space-between;align-items:center;gap:24px;min-height:88px}
+.welcome-brand{font-size:21px;font-weight:650;letter-spacing:normal;display:flex;align-items:center;gap:12px;white-space:nowrap}
+.welcome-brand>span{background:#f2851e;display:grid;place-items:center;width:39px;height:39px;border-radius:12px;font-size:18px}
+.welcome-header nav{display:flex;align-items:center;gap:28px;font-weight:600;font-size:14px}
+.welcome-header nav a,.welcome-header nav button{min-height:44px;display:flex;align-items:center}
+.welcome-header button,.welcome-contact button{background:white;border:0;font-weight:700}
+.welcome-header .welcome-space{border:1px solid #dedede;border-radius:10px;padding:12px 20px}
+.welcome-intro{display:grid;grid-template-columns:1fr 340px;align-items:center;gap:70px;padding:37px 28px 25px 0}
+.welcome-kicker{font-size:11px!important;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#666}
+.welcome-intro h1{font-size:48px;line-height:1.15;letter-spacing:normal;margin:18px 0 22px;font-weight:650}
+.welcome-intro p:not(.welcome-kicker){font-size:18px;line-height:1.65;color:#666;max-width:440px}
+.welcome-photo{height:300px;width:300px;border-radius:20px;overflow:hidden;justify-self:center;box-shadow:12px 10px 0 #f5f5f5}
+.welcome-photo img{width:100%;height:100%;object-fit:cover;object-position:50% 65%}
+.welcome-services{border:1px solid #ddd;border-radius:20px;padding:25px 27px;box-shadow:0 9px 28px #00000008;scroll-margin-top:16px}
+.welcome-section-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:21px}
+.welcome-section-heading h2{font-size:24px;letter-spacing:normal;line-height:1.3;margin:0}
+.welcome-section-heading p{font-size:12px;color:#666;margin:0}
+.welcome-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px}
+.welcome-choices button{position:relative;display:flex;align-items:center;gap:14px;min-height:136px;padding:15px 24px 15px 13px;border:1px solid #ddd;border-radius:13px;text-align:left;background:white}
+.welcome-choices button:hover{border-color:#242424}
+.welcome-choices button[aria-pressed=true]{border:2px solid #f2851e;padding:14px 23px 14px 12px;box-shadow:0 0 0 3px #f2851e10}
+.service-dog{width:91px;height:91px;flex-shrink:0}
+.welcome-choices strong{font-size:17px;font-weight:600;letter-spacing:normal;line-height:1.4;display:block}
+.welcome-choices small{font-size:12px;color:#666;display:block;margin-top:9px}
+.service-check{position:absolute;right:10px;top:9px;border:1px solid #ddd;border-radius:50%;width:18px;height:18px;font-size:12px;text-align:center}
+[aria-pressed=true]>.service-check{background:#f2851e;border-color:#f2851e}
+.welcome-request{display:flex;align-items:center;justify-content:flex-end;gap:25px;border-top:1px solid #e6e6e6;padding-top:19px;margin-top:21px}
+.welcome-request p{display:flex;align-items:center;gap:13px;margin:0;font-size:14px}
+.welcome-request small{text-transform:uppercase;letter-spacing:1px;font-size:10px;color:#666}
+#public-welcome .primary{background:#f2851e;color:#242424;border:0;border-radius:9px;min-height:48px;padding:14px 23px;font-size:14px;font-weight:600}
+.welcome-contact{display:flex;justify-content:center;align-items:center;gap:13px;font-size:12px;color:#666}
+.welcome-contact button{border-bottom:1px solid;min-height:44px;font-size:12px!important}
+#welcome-about{display:grid;grid-template-columns:1.2fr 1fr;gap:75px;padding:35px 0;border-top:1px solid #e4e4e4;margin-top:20px;scroll-margin-top:16px}
+#welcome-about h2{font-size:28px;line-height:1.3;letter-spacing:normal;max-width:390px}
+#welcome-about p{font-size:14px;line-height:1.65;color:#666;max-width:390px}
+#welcome-about ol{display:grid;gap:24px;padding-left:24px;align-content:center;font-size:14px;font-weight:650}
+.welcome-dialog{color:#242424;border:1px solid #ddd;border-radius:18px;padding:28px;width:490px;max-width:calc(100% - 28px);max-height:85vh}
+.welcome-dialog::backdrop{background:#2227;backdrop-filter:blur(3px)}
+.welcome-dialog h2{font-size:28px;line-height:1.15}.welcome-dialog p{color:#666;line-height:1.6}
+.welcome-close{float:right;background:white;border:0;width:44px;height:44px;font-size:24px!important}
+.welcome-dialog input{width:100%;border:1px solid #ccc;padding:12px;border-radius:8px;margin:8px 0 16px;min-height:44px}
+@media(max-width:650px){.welcome-header,.welcome-main{padding-left:21px;padding-right:21px}.welcome-header{display:block;padding-top:20px}.welcome-brand{font-size:17px;max-width:205px;min-height:37px}.welcome-brand>span{width:33px;height:33px}.welcome-header nav{display:flex;justify-content:space-between;gap:18px;border-bottom:1px solid #ddd;padding-top:17px;font-size:12px}.welcome-header .welcome-space{position:absolute;right:21px;top:18px;font-size:11px;padding:10px 12px}.welcome-intro{grid-template-columns:minmax(0,1fr) 104px;gap:13px;padding:26px 0 25px}.welcome-intro h1{font-size:31px;letter-spacing:normal;line-height:1.2;margin:14px 0 16px}.welcome-intro .welcome-kicker{font-size:9px!important;letter-spacing:1px;line-height:1.6}.welcome-intro p:not(.welcome-kicker){font-size:12px}.welcome-photo{height:104px;width:104px;border-radius:8px;box-shadow:5px 5px 0 #f2f2f2}.welcome-services{padding:17px 13px 15px;border-radius:15px}.welcome-section-heading{display:block;margin-bottom:15px}.welcome-section-heading h2{font-size:20px}.welcome-section-heading p{font-size:11px;margin-top:7px}.welcome-choices{gap:8px}.welcome-choices button{flex-direction:column;gap:6px;text-align:center;min-height:157px;padding:17px 5px 12px}.welcome-choices button[aria-pressed=true]{padding:16px 4px 11px}.service-dog{width:65px;height:65px}.welcome-choices strong{font-size:12px}.welcome-choices small{font-size:10px;margin-top:5px}.service-check{width:14px;height:14px;font-size:10px;top:6px;right:6px}.welcome-request{display:block;margin-top:15px;padding-top:13px}.welcome-request p{justify-content:space-between;font-size:12px;margin-bottom:13px}.welcome-request .primary{width:100%}.welcome-contact{justify-content:start;flex-wrap:wrap;gap:6px;font-size:10px}#welcome-about{display:block;padding-top:25px}#welcome-about h2{font-size:24px}#welcome-about ol{margin-top:24px}.welcome-dialog{padding:21px}}
+
+.welcome-brand-block{display:flex;flex-direction:column;gap:3px}.welcome-credit{margin-left:51px;font-size:11px;line-height:1.6;color:#666!important;align-self:flex-start}.welcome-credit strong{font-weight:600}.welcome-header{padding-top:8px;padding-bottom:8px}.welcome-intro .welcome-kicker{font-weight:600}.welcome-choices button{gap:18px}.welcome-section-heading{margin-bottom:25px}.welcome-request{margin-top:25px;padding-top:22px}#welcome-about{margin-top:38px}#public-welcome h1{font-weight:650}#public-welcome h2{font-weight:600}@media(max-width:650px){.welcome-header{padding-top:18px}.welcome-credit{margin-left:45px;font-size:10px}.welcome-header nav{padding-top:14px}.welcome-intro .welcome-kicker{font-size:10px!important;letter-spacing:.5px}.welcome-choices button{gap:9px}.welcome-section-heading{margin-bottom:20px}.welcome-request{margin-top:20px;padding-top:18px}.welcome-choices strong{font-size:12px;line-height:1.5}#welcome-about{margin-top:30px}}
+
+.service-detail{margin-top:22px;padding:0 6px;display:flex;align-items:start;justify-content:space-between;gap:28px}.service-detail p{margin:0;max-width:640px;line-height:1.6;color:#514a44}.service-detail strong{font-size:16px;font-weight:600;white-space:nowrap;padding-top:2px}@media(max-width:600px){.service-detail{display:block;margin-top:18px}.service-detail p{font-size:15px}.service-detail strong{display:block;margin-top:12px}}
+
+.first-contact{border-top:1px solid #ddd;padding-top:18px;margin-top:22px}.first-contact summary{font-size:17px;font-weight:600;cursor:pointer;min-height:44px}.first-contact textarea{width:100%;min-height:88px;padding:12px;border:1px solid #ccc;border-radius:8px;font:inherit;resize:vertical}.first-contact>div{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:center}.first-contact button,.first-contact a{min-height:44px;padding:10px 12px;font:inherit;font-size:13px}.first-contact button{background:white;border:1px solid #ccc;border-radius:8px}.first-contact a{text-decoration:underline!important}.first-contact p{font-size:14px}.welcome-dialog textarea:focus-visible{outline:3px solid #9b4b0d;outline-offset:3px}
+.welcome-choices img.service-dog{object-fit:contain;border-radius:12px}.welcome-photo{background:#f5f5f5}

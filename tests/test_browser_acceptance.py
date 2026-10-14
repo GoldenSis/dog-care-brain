@@ -85,13 +85,20 @@ class BrowserFixture(unittest.IsolatedAsyncioTestCase, ApiServerTestCase):
             self.assertTrue(await self.page.evaluate("DogCareAPI.ready"))
         self.assertGreater(await self.page.locator('#app-content > *').count(), 0)
 
-    async def capture_evidence(self, name):
+    async def open_route(self, route, page=None):
+        page = page or self.page
+        button = page.locator(f'[data-page="{route}"]')
+        if not await button.is_visible():
+            await page.click('#workspace-tools')
+        await button.click()
+
+    async def capture_evidence(self, name, full_page=True):
         directory = os.environ.get('DOGCARE_EVIDENCE_DIR')
         if directory:
             path = Path(directory)
             path.mkdir(parents=True, exist_ok=True)
             await self.page.evaluate("window.scrollTo({top: 0, behavior: 'instant'})")
-            await self.page.screenshot(path=str(path / name), full_page=True,
+            await self.page.screenshot(path=str(path / name), full_page=full_page,
                                        animations='disabled')
 
     async def asyncTearDown(self):
@@ -101,6 +108,78 @@ class BrowserFixture(unittest.IsolatedAsyncioTestCase, ApiServerTestCase):
 
 
 class BrowserAcceptanceTest(BrowserFixture):
+    async def test_navigation_from_scrolled_content_starts_at_heading(self):
+        for width, height in ((390, 844), (1024, 768), (1440, 900)):
+            with self.subTest(width=width):
+                await self.page.set_viewport_size({'width': width, 'height': height})
+                await self.open_route('dogs')
+                for route in ('dashboard', 'dogs'):
+                    await self.page.evaluate("window.scrollTo({top: 700, behavior: 'instant'})")
+                    self.assertGreater(await self.page.evaluate('scrollY'), 0)
+                    await self.open_route(f'{route}')
+                    await self.page.wait_for_function('scrollY === 0', timeout=2000)
+                    heading = await self.page.locator('#page-title').bounding_box()
+                    header = await self.page.locator('.utility-bar').bounding_box()
+                    self.assertGreaterEqual(heading['y'], header['y'] + header['height'])
+                    self.assertLessEqual(heading['y'] + heading['height'], height)
+                    self.assertEqual(await self.page.evaluate('state.page'), route)
+                    self.assertLessEqual(await self.page.evaluate('document.documentElement.scrollWidth'), width)
+                await self.capture_evidence(f'nav-scrolled-heading-{width}-{self.api_mode}.png', full_page=False)
+        self.assertEqual(self.console_errors, [])
+
+    async def test_secondary_tools_close_and_return_to_the_destination(self):
+        for width,height in ((390,844),(1024,400)):
+            await self.page.set_viewport_size({'width':width,'height':height})
+            await self.open_route('handoff')
+            await self.page.click('#app-content [data-go="gallery"]')
+            self.assertEqual(await self.page.evaluate('state.page'),'gallery')
+            self.assertFalse(await self.page.locator('#workspace-tools-dialog').is_visible())
+            await self.page.click('#workspace-tools')
+            self.assertEqual(await self.page.get_attribute('[data-page="gallery"]','aria-current'),'page')
+            await self.page.keyboard.press('Escape')
+            await self.page.click('.utility-brand')
+            self.assertEqual(await self.page.evaluate('state.page'),'dashboard')
+        self.assertEqual(self.console_errors,[])
+
+    async def test_all_destinations_keep_selection_and_touch_targets(self):
+        routes=('dashboard','dogs','capture','handoff','gallery','assistant','story','invite','schedule','business','settings','health')
+        for width,height in ((1440,900),(1024,768),(390,844)):
+            await self.page.set_viewport_size({'width':width,'height':height})
+            for route in routes:
+                button=self.page.locator(f'[data-page="{route}"]')
+                if not await button.is_visible():await self.page.click('#workspace-tools')
+                await button.scroll_into_view_if_needed()
+                box=await button.bounding_box()
+                self.assertGreaterEqual(box['height'],44)
+                self.assertGreaterEqual(box['width'],44)
+                await button.click()
+                self.assertEqual(await self.page.evaluate('state.page'),route)
+                self.assertEqual(await button.get_attribute('aria-current'),'page')
+                self.assertEqual(await self.page.locator('[data-page][aria-current="page"]').count(),1)
+                self.assertFalse(await self.page.locator('#workspace-tools-dialog').is_visible())
+                self.assertLessEqual(await self.page.evaluate('document.documentElement.scrollWidth'),width)
+                self.assertGreater(await self.page.locator('#app-content > *').count(),0)
+            await self.capture_evidence(f'compact-nav-{width}-{self.api_mode}.png',full_page=False)
+        self.assertEqual(self.console_errors,[])
+
+    async def test_navigation_keeps_all_locales_and_keyboard_access(self):
+        for width,height in ((1440,900),(390,844)):
+            await self.page.set_viewport_size({'width':width,'height':height})
+            for locale in ('fr','en','it','de','es'):
+                await self.page.select_option('#language-picker',locale)
+                await self.page.wait_for_function("language => document.documentElement.lang === language && !savePending",arg=locale)
+                for button in await self.page.locator('[data-page]').all():
+                    if not await button.is_visible():await self.page.click('#workspace-tools')
+                    await button.focus();await self.page.keyboard.press('Enter')
+                    self.assertEqual(await self.page.evaluate('state.page'),await button.get_attribute('data-page'))
+                    self.assertEqual(await button.get_attribute('aria-current'),'page')
+                    self.assertLessEqual(await self.page.evaluate('document.documentElement.scrollWidth'),width)
+                await self.open_route('dashboard')
+                self.assertEqual(' '.join((await self.page.locator('body').inner_text()).upper().split()).count('LE BUS DES TOUTOUS'),1)
+                self.assertIn('by Plus de Fun',' '.join((await self.page.locator('.utility-bar').inner_text()).split()))
+                self.assertIn('DM Sans',await self.page.locator('#page-title').evaluate('(e)=>getComputedStyle(e).fontFamily'))
+        self.assertEqual(self.console_errors,[])
+
     async def test_capture_drafts_stay_with_their_dog_across_navigation(self):
         await self.page.click('.topbar [data-go="capture"]')
         await self.page.click('#observation')
@@ -116,8 +195,7 @@ class BrowserAcceptanceTest(BrowserFixture):
         await self.page.fill('#observation', charlie_note)
         await self.page.select_option('#language-picker', 'fr')
         self.assertEqual(await self.page.input_value('#observation'), charlie_note)
-        await self.page.click('#mobile-menu')
-        await self.page.click('[data-page="handoff"]')
+        await self.open_route('handoff')
         await self.page.click('.topbar [data-go="capture"]')
         self.assertEqual(await self.page.input_value('#observation'), charlie_note)
         await self.page.click('[data-capture-dog="billie"]')
@@ -189,8 +267,7 @@ class BrowserAcceptanceTest(BrowserFixture):
         self.assertEqual(await self.page.locator('.timeline-card p').first.text_content(), corrected)
         await self.page.reload()
         await self.wait_ready()
-        await self.page.click('#mobile-menu')
-        await self.page.click('[data-page="handoff"]')
+        await self.open_route('handoff')
         await self.page.click('[data-handoff-dog="charlie"]')
         evidence = self.page.locator('.evidence-row').filter(has_text=corrected)
         self.assertEqual(await evidence.count(), 1)
@@ -203,13 +280,11 @@ class BrowserAcceptanceTest(BrowserFixture):
         await self.page.clock.fast_forward(10 * 60 * 1000)
         await self.page.reload()
         await self.wait_ready()
-        await self.page.click('#mobile-menu')
-        await self.page.click('[data-page="handoff"]')
+        await self.open_route('handoff')
         await self.page.click('[data-handoff-dog="charlie"]')
         await self.capture_evidence(f'next-day-handoff-{self.api_mode}.png')
         self.assertEqual(await self.page.locator('.evidence-row').filter(has_text=corrected).count(), 0)
-        await self.page.click('#mobile-menu')
-        await self.page.click('[data-page="dogs"]')
+        await self.open_route('dogs')
         self.assertEqual(await self.page.locator(f'#observation-{observation_id} > p').text_content(), corrected)
         self.assertNotIn('Aujourd’hui', await self.page.locator(f'#observation-{observation_id} time').text_content())
         self.assertEqual(self.console_errors, [])
@@ -228,12 +303,10 @@ class BrowserAcceptanceTest(BrowserFixture):
             await self.page.evaluate("data => localStorage.setItem('dogcare-observations', JSON.stringify(data))", observations)
         await self.page.reload()
         await self.wait_ready()
-        await self.page.click('#mobile-menu')
-        await self.page.click('[data-page="handoff"]')
+        await self.open_route('handoff')
         await self.capture_evidence(f'legacy-handoff-{self.api_mode}.png')
         self.assertEqual(await self.page.locator('.evidence-row').count(), 0)
-        await self.page.click('#mobile-menu')
-        await self.page.click('[data-page="dogs"]')
+        await self.open_route('dogs')
         self.assertEqual(await self.page.locator(f'#observation-{old_id} > p').text_content(), observations['billie'][0]['text'])
         self.assertNotIn('Today', await self.page.locator(f'#observation-{old_id} time').text_content())
 
@@ -296,8 +369,7 @@ class BrowserAcceptanceTest(BrowserFixture):
         self.assertEqual(self.console_errors, [])
 
     async def test_mobile_handoff_has_no_horizontal_overflow(self):
-        await self.page.click("#mobile-menu")
-        await self.page.click('[data-page="handoff"]')
+        await self.open_route('handoff')
         dimensions = await self.page.evaluate("({ viewport: innerWidth, content: document.documentElement.scrollWidth })")
         self.assertLessEqual(dimensions["content"], dimensions["viewport"])
         self.assertEqual(await self.page.locator("h1").text_content(), "Billie Blue · Next carer")
@@ -309,8 +381,7 @@ class BrowserAcceptanceTest(BrowserFixture):
         self.assertEqual(self.console_errors, [])
 
     async def test_muse_gives_a_private_briefing_and_opens_the_handoff(self):
-        await self.page.click("#mobile-menu")
-        await self.page.click('[data-page="assistant"]')
+        await self.open_route('assistant')
 
         self.assertEqual(await self.page.locator("h1").text_content(), "Muse · Your care assistant")
         self.assertIn("Billie Blue", await self.page.locator("#assistant-thread").text_content())
@@ -331,12 +402,10 @@ class BrowserAcceptanceTest(BrowserFixture):
 
         await self.page.click('[data-assistant-action="capture"]')
         self.assertEqual(await self.page.locator("h1").text_content(), "Capture the moment")
-        await self.page.click("#mobile-menu")
-        await self.page.click('[data-page="assistant"]')
+        await self.open_route('assistant')
         await self.page.click('[data-assistant-action="story"]')
         self.assertEqual(await self.page.locator("h1").text_content(), "A lovely day, ready to share")
-        await self.page.click("#mobile-menu")
-        await self.page.click('[data-page="assistant"]')
+        await self.open_route('assistant')
 
         await self.page.click('[data-assistant-action="handoff"]')
         self.assertEqual(await self.page.locator("h1").text_content(), "Billie Blue · Next carer")
@@ -361,18 +430,21 @@ class BrowserAcceptanceTest(BrowserFixture):
             "Billie a bu de l’eau après sa promenade.",
         )
 
-        await self.page.click("#mobile-menu")
-        await self.page.click('[data-page="invite"]')
-        self.assertEqual(await self.page.locator("h2").first.text_content(), "Préparer une invitation")
-        await self.page.fill("#invite-name", "Camille Martin")
-        await self.page.fill("#invite-email", "camille@example.com")
-        await self.page.click("#create-invite")
-        await self.page.wait_for_function('document.querySelector("#pending-invites").textContent.includes("Camille Martin")')
-        self.assertIn("Camille Martin", await self.page.locator("#pending-invites").text_content())
+        await self.open_route('invite')
+        if self.api_mode:
+            await self.page.fill('#member-form [name=email]', 'camille@example.com')
+            await self.page.select_option('#member-form [name=role]', 'trusted-carer')
+            await self.page.click('#member-form button')
+            await self.page.wait_for_function('document.querySelector("#member-list").textContent.includes("camille@example.com")')
+        else:
+            self.assertEqual(await self.page.locator(".page-title-row h2").text_content(), "Préparer une invitation")
+            await self.page.fill("#invite-name", "Camille Martin")
+            await self.page.fill("#invite-email", "camille@example.com")
+            await self.page.click("#create-invite")
+            await self.page.wait_for_function('document.querySelector("#pending-invites").textContent.includes("Camille Martin")')
 
-        await self.page.click("#mobile-menu")
-        await self.page.click('[data-page="assistant"]')
-        self.assertEqual(await self.page.locator("h1").text_content(), "Muse · Votre assistant de soin")
+        await self.open_route('assistant')
+        self.assertEqual(await self.page.locator("h1").text_content(), "Muse · Votre assistant du quotidien")
         self.assertEqual(await self.page.locator("html").get_attribute("lang"), "fr")
         self.assertEqual(self.console_errors, [])
 
@@ -467,8 +539,7 @@ class StaticBrowserAcceptanceTest(BrowserAcceptanceTest):
         await self.page.wait_for_selector('.timeline-card')
         await self.page.reload()
         await self.wait_ready()
-        await self.page.click('#mobile-menu')
-        await self.page.click('[data-page="dogs"]')
+        await self.open_route('dogs')
         self.assertEqual(await self.page.locator('.timeline-card').filter(has_text=note).count(), 1)
         await self.page.click('.topbar [data-go="capture"]')
         self.assertEqual(await self.page.input_value('#observation'), '')
@@ -513,8 +584,7 @@ class StaticBrowserAcceptanceTest(BrowserAcceptanceTest):
         await self.page.click('#save-observation')
         await self.page.wait_for_selector('.timeline-card')
         await self.capture_evidence('static-timeline-mobile.png')
-        await self.page.click('#mobile-menu')
-        await self.page.click('[data-page="invite"]')
+        await self.open_route('invite')
         await self.page.fill('#invite-name', 'Demo Carer')
         await self.page.fill('#invite-email', 'carer@example.com')
         await self.page.click('#create-invite')
@@ -555,18 +625,18 @@ class StaticBrowserAcceptanceTest(BrowserAcceptanceTest):
         await self.page.fill('#observation', account_note)
         await self.page.click('#save-observation')
         await self.page.wait_for_selector('.timeline-card')
-        await self.page.click('#mobile-menu')
-        await self.page.click('[data-page="invite"]')
-        await self.page.fill('#invite-name', 'Account Carer')
-        await self.page.fill('#invite-email', 'account-carer@example.com')
-        await self.page.click('#create-invite')
+        await self.open_route('invite')
+        await self.page.fill('#member-form [name=email]', 'account-carer@example.com')
+        await self.page.select_option('#member-form [name=role]', 'trusted-carer')
+        await self.page.click('#member-form button')
         await self.page.wait_for_function(
-            'document.querySelector("#pending-invites").textContent.includes("Account Carer")')
+            'document.querySelector("#member-list").textContent.includes("account-carer@example.com")')
         await self.page.select_option('#language-picker', 'en')
         await self.page.wait_for_function('document.documentElement.lang === "en"')
         saved = await (await self.context.request.get(self.url + '/api/state')).json()
         self.assertEqual(saved['observations']['billie'][0]['text'], account_note)
-        self.assertEqual(saved['invites'][0]['name'], 'Account Carer')
+        self.assertEqual(saved['invites'][0]['name'], 'Demo Carer')
+        self.assertIn('account-carer@example.com',[member['email'] for member in saved['portal']['members']])
         self.assertEqual(saved['language'], 'en')
         for key, value in local.items():
             self.assertEqual(await self.page.evaluate(
@@ -594,18 +664,16 @@ class StaticBrowserAcceptanceTest(BrowserAcceptanceTest):
         await self.wait_ready()
         self.assertEqual(await self.page.evaluate('localStorage.length'), 0)
         self.assertEqual(await (await fresh.request.get(self.url + '/api/state')).json(), saved)
-        await self.page.click('[data-page="dogs"]')
+        await self.open_route('dogs')
         self.assertEqual(await self.page.locator('.timeline-card p').first.text_content(), account_note)
         self.assertIn(note, await self.page.locator('#app-content').text_content())
         await self.capture_evidence('account-timeline-fresh-browser.png')
-        await self.page.click('.more-toggle')
-        await self.page.click('#more-nav [data-page="invite"]')
-        self.assertIn('Account Carer', await self.page.locator('#pending-invites').text_content())
+        await self.open_route('invite')
+        self.assertIn('account-carer@example.com', await self.page.locator('#member-list').text_content())
         self.assertIn('Demo Carer', await self.page.locator('#pending-invites').text_content())
         await self.capture_evidence('account-invites-fresh-browser.png')
         await self.page.set_viewport_size({'width': 390, 'height': 844})
-        await self.page.click('#mobile-menu')
-        await self.page.click('[data-page="handoff"]')
+        await self.open_route('handoff')
         self.assertLessEqual(await self.page.evaluate('document.documentElement.scrollWidth'), 390)
         await self.capture_evidence('account-handoff-mobile.png')
         evidence = self.page.locator('[data-evidence-id]').first
@@ -629,6 +697,38 @@ class StaticBrowserAcceptanceTest(BrowserAcceptanceTest):
 
 
 class AccountRecoveryTest(BrowserFixture):
+    async def test_account_recovery_copy_is_localized_without_writes(self):
+        # Signed-in account data unavailable: no private local/demo fallback.
+        await self.page.route('**/api/state',lambda route:route.fulfill(status=503,content_type='application/json',body='{}'))
+        stored = await self.page.evaluate('JSON.stringify(localStorage)')
+        writes = []
+        self.page.on('request', lambda request: writes.append(request.url)
+                     if request.method not in ('GET', 'HEAD') else None)
+        await self.page.reload()
+        await self.page.wait_for_selector('#retry-account')
+        self.assertIn('compte', (await self.page.locator('#page-title').inner_text()).lower())
+        self.assertNotIn('Your account', await self.page.locator('#app-content').inner_text())
+        for width, height in ((1440, 900), (1024, 768), (390, 844)):
+            await self.page.set_viewport_size({'width': width, 'height': height})
+            self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+            self.assertGreaterEqual((await self.page.locator('#retry-account').bounding_box())['height'], 44)
+            await self.capture_evidence(f'account-recovery-fr-{width}.png')
+        for language, retry, explanation in (
+            ('fr', 'Recharger le compte', 'connexion'),
+            ('en', 'Reload account', 'connection'),
+            ('it', 'Ricarica l’account', 'connessione'),
+            ('de', 'Konto neu laden', 'Verbindung'),
+            ('es', 'Recargar la cuenta', 'conexión'),
+        ):
+            await self.page.select_option('#language-picker', language)
+            self.assertEqual(await self.page.get_attribute('html', 'lang'), language)
+            self.assertEqual(await self.page.locator('#retry-account').inner_text(), retry)
+            self.assertIn(explanation, await self.page.locator('[role="alert"]').inner_text())
+        self.assertEqual(writes, [])
+        self.assertEqual(await self.page.evaluate('JSON.stringify(localStorage)'), stored)
+        self.assertEqual(await self.page.locator('.timeline-card').count(), 0)
+        self.assertEqual(self.console_errors, ['Failed to load resource: the server responded with a status of 503 (Service Unavailable)'])
+
     async def test_sharing_recording_rejects_expired_and_switched_sessions(self):
         status, body, _ = _http(self.port, 'POST', '/api/blobs',
                                {'type': 'audio/webm', 'data': 'YQ=='}, cookie=self.sid)
@@ -771,10 +871,9 @@ class AccountRecoveryTest(BrowserFixture):
         self.assertNotIn('Second tab draft', [item['text'] for item in saved['observations']['billie']])
 
     async def test_invitation_waits_for_save_and_failed_preferences_preserve_state(self):
-        await self.page.click('#mobile-menu')
-        await self.page.click('[data-page="invite"]')
-        await self.page.fill('#invite-name', 'Waiting Carer')
-        await self.page.fill('#invite-email', 'waiting@example.com')
+        await self.open_route('invite')
+        await self.page.fill('#member-form [name=email]', 'waiting@example.com')
+        await self.page.select_option('#member-form [name=role]', 'trusted-carer')
         release = asyncio.Event()
         started = asyncio.Event()
 
@@ -783,15 +882,15 @@ class AccountRecoveryTest(BrowserFixture):
             await release.wait()
             await route.continue_()
 
-        await self.page.route('**/api/invites', delay)
-        await self.page.click('#create-invite')
+        await self.page.route('**/api/portal/members', delay)
+        await self.page.click('#member-form button')
         await asyncio.wait_for(started.wait(), timeout=5)
         try:
-            self.assertNotIn('Waiting Carer', await self.page.locator('#pending-invites').text_content())
-            self.assertTrue(await self.page.is_disabled('#create-invite'))
+            self.assertNotIn('waiting@example.com', await self.page.locator('#member-list').text_content())
+            self.assertTrue(await self.page.is_disabled('#member-form button'))
         finally:
             release.set()
-        await self.page.wait_for_function('document.querySelector("#pending-invites").textContent.includes("Waiting Carer")')
+        await self.page.wait_for_function('document.querySelector("#member-list").textContent.includes("waiting@example.com")')
         await self.page.route('**/api/prefs', lambda route: route.fulfill(status=503, content_type='application/json', body='{}'))
         await self.page.select_option('#language-picker', 'fr')
         await self.page.evaluate('DogCareAPI.whenSaved()')
@@ -864,8 +963,7 @@ class AccountRecoveryTest(BrowserFixture):
         await self.page.reload(wait_until='domcontentloaded')
         self.assertTrue(await self.page.is_disabled('#language-picker'))
         await self.page.click('.topbar [data-go="capture"]')
-        await self.page.click('#mobile-menu')
-        await self.page.click('[data-page="dogs"]')
+        await self.open_route('dogs')
         self.assertEqual(await self.page.locator('#observation').count(), 0)
         self.assertEqual(await self.page.locator('.timeline-card').count(), 0)
         release.set()
@@ -879,8 +977,7 @@ class AccountRecoveryTest(BrowserFixture):
         await self.page.reload()
         await self.page.wait_for_selector('#retry-account')
         self.assertFalse(await self.page.evaluate('DogCareAPI.ready'))
-        await self.page.click('#mobile-menu')
-        await self.page.click('[data-page="dogs"]')
+        await self.open_route('dogs')
         self.assertEqual(await self.page.locator('.timeline-card').count(), 0)
         await self.page.evaluate('DogCareAPI.saveObservations({billie:[{text:"Must never persist"}]})')
         status, state, _ = _http(self.port, 'GET', '/api/state', cookie=self.sid)
@@ -949,10 +1046,10 @@ class AccountRecoveryTest(BrowserFixture):
         await self.wait_ready()
         self.assertEqual(await self.page.evaluate('Object.values(state.observations).flat().length'), 0)
         await self.page.click('[data-dog="charlie"]')
-        await self.page.click('#mobile-menu')
-        await self.page.click('[data-page="dashboard"]')
+        await self.open_route('dashboard')
         self.assertEqual(await self.page.locator('.activity-list [data-evidence-id]').count(), 0)
-        await self.page.click('.activity-list [data-capture-dog="billie"]')
+        await self.page.click('.topbar [data-go="capture"]')
+        await self.page.click('[data-capture-dog="billie"]')
         self.assertEqual(await self.page.locator('.dog-pick.active').get_attribute('data-capture-dog'), 'billie')
         await self.page.fill('#observation', 'First real observation')
         await self.page.click('#save-observation')
