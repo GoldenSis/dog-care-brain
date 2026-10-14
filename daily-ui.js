@@ -181,6 +181,7 @@
         const next=structuredClone(daily);
         registeredDog(next,dogId).walkTariff=unitMinor===null?null:{unitMinor,currency};
         if(!await save(next,prices.querySelector('[type="submit"]'))){setError(prices);return;}
+        document.querySelectorAll('#document-form [name="clientId"], #document-form [name="client"]').forEach(field=>field.closest('.daily-field').remove());
         prices.outerHTML=tariff(dogId);bindWalks();document.querySelector('#tariff-saved').textContent=text('saved');
       };
     }
