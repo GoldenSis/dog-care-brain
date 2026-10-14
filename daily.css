@@ -64,5 +64,5 @@
 .daily-walk-month .daily-record small {line-height:1.6}
 .walk-amount {flex-shrink:0;font-size:16px;text-align:right}
 #app-content .daily-record .daily-actions {margin-top:10px}
-#app-content .daily-record .daily-actions button {white-space:normal;text-align:left}
+#app-content .daily-record .daily-actions button {max-width:100%;white-space:normal;text-align:left}
 @media(max-width:700px){.daily-walk-month .daily-record{align-items:flex-start}.daily-walk-month h2{font-size:28px}}

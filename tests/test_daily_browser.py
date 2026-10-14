@@ -1,5 +1,7 @@
 """Operational booking, summary and document journeys in disposable browser accounts."""
 import base64
+import json
+import os
 import threading
 from datetime import date, timedelta
 from functools import partial
@@ -1324,6 +1326,64 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
         self.assertEqual(sorted((w['dogId'], w['date']) for w in (await self.snapshot())['walks']),
                          sorted([(rex, '2026-10-05'), (rex, '2026-10-06')]))
         self.assertEqual(self.console_errors, [])
+
+    async def test_unpriced_walk_action_fits_mobile_and_leaves_accounting_unchanged(self):
+        await self.page.select_option('#language-picker', 'fr')
+        await self.page.wait_for_function('!savePending')
+        finance_before = await self.page.evaluate('FinanceStore.snapshot()')
+        dog_id = await self.add_dog('Fixture Oslo')
+        self.assertEqual(await self.page.input_value('#tariff-form [name="tariff"]'), '')
+        self.assertIsNone((await self.snapshot())['dogs'][0]['walkTariff'])
+        await self.page.locator('#tariff-form').scroll_into_view_if_needed()
+        directory = os.environ.get('DOGCARE_EVIDENCE_DIR')
+        if directory:
+            Path(directory).mkdir(parents=True, exist_ok=True)
+            await self.page.screenshot(path=str(Path(directory) / f'walk-tariff-blank-390-{self.api_mode}.png'))
+        await self.tick_walks('2026-10-05', {dog_id})
+        await self.route('dogs')
+        await self.set_tariff('24,50')
+        self.assertIsNone((await self.snapshot())['walks'][0]['tariff'])
+        await self.route('schedule')
+        await self.page.click('[data-finance-walks]')
+        await self.page.fill('#daily-month', '2026-10')
+        await self.page.locator('#daily-month').dispatch_event('change')
+        await self.page.locator('[data-apply-tariff]').scroll_into_view_if_needed()
+        await self.page.evaluate("window.scrollTo({left: 0, behavior: 'instant'})")
+        layout = await self.page.evaluate('''() => ({
+            viewport: innerWidth, content: document.documentElement.scrollWidth,
+            actionRight: document.querySelector('[data-apply-tariff]').getBoundingClientRect().right
+        })''')
+        await self.capture_evidence(f'walk-apply-tariff-390-{self.api_mode}.png')
+        if directory:
+            await self.page.locator('[data-apply-tariff]').scroll_into_view_if_needed()
+            await self.page.evaluate("window.scrollTo({left: 0, behavior: 'instant'})")
+            await self.page.screenshot(path=str(Path(directory) / f'walk-apply-tariff-viewport-390-{self.api_mode}.png'))
+        unpriced = await self.snapshot()
+        self.page.once('dialog', lambda dialog: dialog.dismiss())
+        await self.page.click('[data-apply-tariff]')
+        self.assertEqual(await self.snapshot(), unpriced)
+        self.page.once('dialog', lambda dialog: dialog.accept())
+        await self.page.click('[data-apply-tariff]')
+        await self.page.wait_for_function('!savePending')
+        await self.page.reload()
+        await self.wait_ready()
+        saved = await self.snapshot()
+        finance_after = await self.page.evaluate('FinanceStore.snapshot()')
+        self.assertEqual(saved['walks'][0]['tariff'], {'unitMinor': 2450, 'currency': 'EUR'})
+        self.assertEqual(saved['bookings'], [])
+        self.assertEqual(finance_after, finance_before)
+        await self.route('schedule')
+        await self.page.click('[data-finance-walks]')
+        await self.page.fill('#daily-month', '2026-10')
+        await self.page.locator('#daily-month').dispatch_event('change')
+        self.assertIn('24,50 EUR', await self.plain('#walk-month .daily-total'))
+        await self.capture_evidence(f'walk-explicit-price-reloaded-390-{self.api_mode}.png')
+        if directory:
+            (Path(directory) / f'walk-explicit-price-persisted-{self.api_mode}.json').write_text(
+                json.dumps({'daily': saved, 'financeBefore': finance_before, 'financeAfter': finance_after,
+                            'unpricedActionLayout': layout}, ensure_ascii=False, indent=2), encoding='utf-8')
+        self.assertEqual(self.console_errors, [])
+        self.assertLessEqual(layout['content'], layout['viewport'], layout)
 
     async def test_saved_walk_tariff_currency_transition_is_explicit(self):
         daily = await self.page.evaluate('DailyModel.empty()')
