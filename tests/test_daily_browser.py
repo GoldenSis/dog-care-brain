@@ -1,9 +1,10 @@
 """Operational booking, summary and document journeys in disposable browser accounts."""
 import base64
+import json
+import os
 import threading
 from datetime import date, timedelta
 from functools import partial
-from http.server import ThreadingHTTPServer
 from pathlib import Path
 
 from tests.test_browser_acceptance import BrowserFixture, QuietStaticHandler, ROOT
@@ -163,9 +164,43 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
         self.assertEqual(await choice.count(), 0)
         self.assertEqual(self.console_errors, [])
 
+    async def test_tariff_registration_refreshes_document_owner_controls_without_losing_draft(self):
+        await self.page.select_option('#language-picker', 'fr')
+        await self.page.wait_for_function('!savePending')
+        await self.prepare_document(choose_owner=False)
+        self.assertEqual(await self.page.locator('#document-form [name="clientId"]').count(), 1)
+        self.assertFalse(await self.page.locator('#document-form').evaluate('el => el.checkValidity()'))
+        label = '  Justificatif à conserver  '
+        await self.page.fill('#document-form [name="label"]', label)
+        await self.set_tariff('25')
+        self.assertEqual(await self.page.locator('#document-form [name="clientId"]').count(), 0)
+        self.assertEqual(await self.page.locator('#document-form [name="client"]').count(), 0)
+        self.assertEqual(await self.page.input_value('#document-form [name="label"]'), label)
+        self.assertEqual(await self.page.input_value('#document-form [name="renewal"]'), '2027-10-05')
+        self.assertEqual(await self.page.locator('#document-form [name="file"]').evaluate('el => el.files[0].name'), 'proof.pdf')
+        self.assertTrue(await self.page.locator('#document-form').evaluate('el => el.checkValidity()'))
+        self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+        await self.capture_evidence(f'tariff-document-draft-390-{self.api_mode}.png')
+        await self.page.click('#document-form button')
+        await self.page.wait_for_selector('[data-open-document]')
+        saved = await self.snapshot()
+        self.assertEqual(saved['clients'], [])
+        self.assertEqual(len(saved['dogs']), 1)
+        self.assertIsNone(saved['dogs'][0]['clientId'])
+        self.assertEqual(saved['dogs'][0]['walkTariff'], {'unitMinor': 2500, 'currency': 'EUR'})
+        self.assertEqual(len(saved['documents']), 1)
+        self.assertEqual(saved['documents'][0]['dogId'], saved['dogs'][0]['id'])
+        self.assertEqual(saved['documents'][0]['label'], label)
+        self.assertEqual(saved['documents'][0]['renewal'], '2027-10-05')
+        self.assertEqual(saved['documents'][0]['name'], 'proof.pdf')
+        await self.page.reload()
+        await self.wait_ready()
+        self.assertEqual(await self.snapshot(), saved)
+        self.assertEqual(self.console_errors, [])
+
     async def test_document_upload_preserves_explicitly_unknown_registered_owner(self):
         seeded = await self.page.evaluate('DailyModel.empty()')
-        seeded['dogs'] = [{'id': 'billie', 'name': '  Known dog  ', 'clientId': None}]
+        seeded['dogs'] = [{'id': 'billie', 'name': '  Known dog  ', 'clientId': None, 'walkTariff': None}]
         await self.seed_daily(seeded)
         await self.prepare_document()
         self.assertEqual(await self.page.locator('#document-form [name="clientId"]').count(), 0)
@@ -181,7 +216,7 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
         seeded['clients'] = [{'id': 'first', 'name': 'Shared owner'},
                              {'id': 'second', 'name': 'Shared owner'},
                              {'id': 'padded', 'name': '  Padded owner  '}]
-        seeded['dogs'] = [{'id': 'ownerless', 'name': '  Registered dog  ', 'clientId': None}]
+        seeded['dogs'] = [{'id': 'ownerless', 'name': '  Registered dog  ', 'clientId': None, 'walkTariff': None}]
         await self.seed_daily(seeded)
         for dog_id, client_id in [('ownerless', 'second'), (':new', 'padded')]:
             await self.new_booking(service='day', start='2026-10-05', end='2026-10-05')
@@ -437,8 +472,8 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
         daily = await self.page.evaluate('DailyModel.empty()')
         daily['clients'] = [{'id': 'client-first', 'name': 'Fixture Client'},
                             {'id': 'client-second', 'name': 'Fixture Client'}]
-        daily['dogs'] = [{'id': 'dog-first', 'name': 'First Pup', 'clientId': 'client-first'},
-                         {'id': 'dog-second', 'name': 'Second Pup', 'clientId': 'client-second'}]
+        daily['dogs'] = [{'id': 'dog-first', 'name': 'First Pup', 'clientId': 'client-first', 'walkTariff': None},
+                         {'id': 'dog-second', 'name': 'Second Pup', 'clientId': 'client-second', 'walkTariff': None}]
         daily['bookings'] = [{'id': 'first-booking', 'dogId': 'dog-first', 'service': 'day',
                               'start': '2026-10-30', 'end': '2026-10-30',
                               'unitMinor': 1800, 'currency': 'CHF'}]
@@ -448,7 +483,7 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
     async def test_saved_locales_keep_daily_and_knowledge_views_readable(self):
         daily = await self.page.evaluate('DailyModel.empty()')
         daily['clients'] = [{'id': 'locale-client', 'name': 'Fixture Client'}]
-        daily['dogs'] = [{'id': 'billie', 'name': 'Fixture Pup', 'clientId': 'locale-client'}]
+        daily['dogs'] = [{'id': 'billie', 'name': 'Fixture Pup', 'clientId': 'locale-client', 'walkTariff': None}]
         daily['rates']['day'] = 1250
         daily['bookings'] = [{'id': 'locale-booking', 'dogId': 'billie', 'service': 'day',
                               'start': '2026-10-05', 'end': '2026-10-06',
@@ -531,7 +566,7 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
     async def test_invalid_registration_name_does_not_block_existing_dog_booking(self):
         daily = await self.page.evaluate('DailyModel.empty()')
         daily['clients'] = [{'id': 'existing-client', 'name': 'Fixture Client'}]
-        daily['dogs'] = [{'id': 'new', 'name': 'Existing Pup', 'clientId': 'existing-client'}]
+        daily['dogs'] = [{'id': 'new', 'name': 'Existing Pup', 'clientId': 'existing-client', 'walkTariff': None}]
         await self.seed_daily(daily)
         await self.new_booking(new_dog=True)
         name = self.page.locator('#booking-form [name="dogName"]')
@@ -644,7 +679,7 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
         pdf = b'%PDF-1.7\nUnicode boundary fixture'
         daily = await self.page.evaluate('DailyModel.empty()')
         daily['clients'] = [{'id': 'unicode-client', 'name': client_name}]
-        daily['dogs'] = [{'id': 'unicode-dog', 'name': dog_name, 'clientId': 'unicode-client'}]
+        daily['dogs'] = [{'id': 'unicode-dog', 'name': dog_name, 'clientId': 'unicode-client', 'walkTariff': None}]
         daily['bookings'] = [{'id': 'unicode-booking', 'dogId': 'unicode-dog', 'service': 'night',
                               'start': '2026-10-30', 'end': '2026-11-02',
                               'unitMinor': 1250, 'currency': 'CHF'}]
@@ -713,7 +748,7 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
         seeded = await self.page.evaluate('DailyModel.empty()')
         seeded['rates'] = {'currency': 'JPY', 'walk': None, 'day': 0, 'night': 1250}
         seeded['clients'] = [{'id': 'currency-client', 'name': 'Existing Client'}]
-        seeded['dogs'] = [{'id': 'currency-dog', 'name': 'Existing Pup', 'clientId': 'currency-client'}]
+        seeded['dogs'] = [{'id': 'currency-dog', 'name': 'Existing Pup', 'clientId': 'currency-client', 'walkTariff': None}]
         seeded['bookings'] = [{'id': 'kwd-booking', 'dogId': 'currency-dog', 'service': 'day',
                                'start': '2026-10-30', 'end': '2026-10-30',
                                'unitMinor': 1250, 'currency': 'KWD'}]
@@ -832,7 +867,7 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
         seeded = await self.page.evaluate('DailyModel.empty()')
         seeded['rates'] = {'currency': 'CAD', 'walk': None, 'day': 0, 'night': 2500}
         seeded['clients'] = [{'id': 'currency-client', 'name': 'Existing Client'}]
-        seeded['dogs'] = [{'id': 'currency-dog', 'name': 'Existing Pup', 'clientId': 'currency-client'}]
+        seeded['dogs'] = [{'id': 'currency-dog', 'name': 'Existing Pup', 'clientId': 'currency-client', 'walkTariff': None}]
         seeded['bookings'] = [{'id': 'currency-booking', 'dogId': 'currency-dog', 'service': 'night',
                                'start': '2026-10-30', 'end': '2026-11-02',
                                'unitMinor': 1800, 'currency': 'CHF'}]
@@ -935,7 +970,7 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
         self.assertEqual(self.console_errors, [])
 
     async def test_literal_new_dog_id_preserves_booking_and_note_relationships(self):
-        dog = {'id': 'new', 'name': 'Existing Pup', 'clientId': 'existing-client'}
+        dog = {'id': 'new', 'name': 'Existing Pup', 'clientId': 'existing-client', 'walkTariff': None}
         client = {'id': 'existing-client', 'name': 'Fixture Client'}
         if self.api_mode:
             status, _, _ = _http(self.port, 'POST', '/api/dogs',
@@ -989,7 +1024,7 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
             const daily = DailyModel.empty();
             daily.clients.push({id: 'client', name: 'Client'});
             daily.dogs.push({id: document.querySelector('[name="dogId"]').value,
-                name: 'Dog', clientId: 'client'});
+                name: 'Dog', clientId: 'client', walkTariff: null});
             try { DailyModel.validateDaily(daily); return false; } catch { return true; }
         }'''))
         await self.page.select_option('#booking-form [name="clientId"]', first['clients'][0]['id'])
@@ -1178,17 +1213,295 @@ class DailyBrowserAcceptanceTest(BrowserFixture):
         await self.wait_ready()
         await self.route('dogs')
         await self.page.click(f'[data-dog="{dog_id}"]')
+        # No page shows an arrival or consent badge (an element whose whole
+        # text is the label) that was never recorded.
+        badges = '''(labels) => [...document.querySelectorAll('#app-content *')]
+            .filter(el => !el.children.length && labels.includes(el.textContent.trim().toLowerCase()))
+            .map(el => el.outerHTML)'''
         for locale in ('en', 'fr', 'it', 'de', 'es'):
             await self.page.select_option('#language-picker', locale)
             await self.page.wait_for_function('!savePending')
-            hero = await self.page.locator('.profile-hero').inner_text()
-            for label in ('Checked in', 'Consent on file'):
-                self.assertNotIn((await self.page.evaluate('(label) => t(label)', label)).lower(), hero.lower())
+            labels = [(await self.page.evaluate('(label) => t(label)', label)).lower() for label in ('Checked in', 'Consent on file')]
+            for route in ('dogs', 'dashboard', 'schedule', 'handoff', 'story', 'capture'):
+                await self.page.evaluate('(dog) => { state.dog = dog; }', dog_id)
+                await self.route(route)
+                self.assertEqual(await self.page.evaluate(badges, labels), [], (locale, route))
+            await self.route('dogs')
         await self.page.select_option('#language-picker', 'en')
         await self.page.wait_for_function('!savePending')
         await self.page.click('[data-dog="billie"]')
         self.assertIn('Sample', await self.page.locator('.timeline').inner_text())
         self.assertNotIn('Consent on file', await self.page.locator('.profile-hero').inner_text())
+
+    async def plain(self, selector):
+        return (await self.page.inner_text(selector)).replace('\xa0', ' ').replace('\u202f', ' ')
+
+    async def add_dog(self, name, tariff=None):
+        await self.route('dogs')
+        await self.page.click('#new-dog')
+        await self.page.fill('#dog-form [name="dogName"]', name)
+        await self.page.click('#dog-form [type="submit"]')
+        await self.page.wait_for_selector('#dog-form', state='detached')
+        await self.page.wait_for_function('!savePending')
+        if tariff is not None:
+            await self.set_tariff(tariff)
+        return next(d['id'] for d in (await self.snapshot())['dogs'] if d['name'] == name)
+
+    async def set_tariff(self, value):
+        await self.page.fill('#tariff-form [name="tariff"]', value)
+        await self.page.click('#tariff-form [type="submit"]')
+        await self.page.wait_for_function("document.querySelector('#tariff-saved')?.textContent.length > 0 && !savePending")
+
+    async def tick_walks(self, day, dog_ids):
+        await self.route('schedule')
+        await self.page.fill('#walk-date', day)
+        await self.page.locator('#walk-date').dispatch_event('change')
+        for box in await self.page.locator('#walk-form [name="walked"]').all():
+            await box.set_checked(await box.get_attribute('value') in dog_ids)
+        await self.page.click('#walk-form [type="submit"]')
+        await self.page.wait_for_function('!savePending')
+
+    async def test_daily_walk_checklist_and_month_totals_keep_tariff_in_force(self):
+        await self.page.select_option('#language-picker', 'fr')
+        await self.page.wait_for_function('!savePending')
+        rex = await self.add_dog('Fixture Rex', '25')
+        plume = await self.add_dog('Fixture Plume')
+        await self.page.click('#dog-list-toggle')
+        self.assertIn('25,00 EUR par promenade', await self.plain(f'[data-select-profile="{rex}"]'))
+        self.assertIn('Pas de tarif', await self.plain(f'[data-select-profile="{plume}"]'))
+        self.assertIn('(EUR)', await self.plain('#tariff-form'))
+        await self.tick_walks('2026-10-05', {rex, plume})
+        await self.page.reload()
+        await self.wait_ready()
+        await self.route('schedule')
+        await self.page.fill('#walk-date', '2026-10-05')
+        await self.page.locator('#walk-date').dispatch_event('change')
+        self.assertEqual(await self.page.locator('#walk-form [name="walked"]:checked').count(), 2)
+        self.assertIn('2 chien(s) coché(s)', await self.plain('#walk-count'))
+        saved = await self.snapshot()
+        self.assertEqual(saved['bookings'], [])
+        self.assertEqual({(w['dogId'], w['date']): w['tariff'] for w in saved['walks']},
+                         {(rex, '2026-10-05'): {'unitMinor': 2500, 'currency': 'EUR'}, (plume, '2026-10-05'): None})
+        for width in (390, 1440):
+            await self.page.set_viewport_size({'width': width, 'height': 900})
+            self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+        await self.page.set_viewport_size({'width': 390, 'height': 844})
+        await self.page.evaluate('document.activeElement.blur()')
+        await self.capture_evidence(f'walk-checklist-390-{self.api_mode}.png')
+        # A mid-month tariff change applies to later walks only.
+        await self.route('dogs')
+        await self.page.click('#dog-list-toggle')
+        await self.page.click(f'[data-select-profile="{rex}"]')
+        await self.set_tariff('30,50')
+        await self.tick_walks('2026-10-06', {rex})
+        self.assertEqual(await self.page.locator('#walk-form [name="walked"]:checked').count(), 1)
+        await self.page.click('[data-finance-walks]')
+        await self.page.wait_for_function('!savePending')
+        await self.page.fill('#daily-month', '2026-10')
+        await self.page.locator('#daily-month').dispatch_event('change')
+        rex_row = await self.plain(f'[data-walk-dog="{rex}"]')
+        for expected in ('2 promenade(s)', '1 × 25,00 EUR = 25,00 EUR', '1 × 30,50 EUR = 30,50 EUR', '55,50 EUR'):
+            self.assertIn(expected, rex_row)
+        self.assertIn('1 sans tarif', await self.plain(f'[data-walk-dog="{plume}"]'))
+        self.assertIn('55,50 EUR', await self.plain('#walk-month .daily-total'))
+        self.assertIn('aucune facture', await self.plain('#walk-month'))
+        self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+        await self.page.evaluate('document.activeElement.blur()')
+        await self.capture_evidence(f'walk-month-390-{self.api_mode}.png')
+        # Applying the current tariff to unpriced walks is explicit and leaves priced walks unchanged.
+        await self.route('dogs')
+        await self.page.click('#dog-list-toggle')
+        await self.page.click(f'[data-select-profile="{plume}"]')
+        await self.set_tariff('10')
+        await self.open_route('business')
+        await self.page.wait_for_function('!savePending')
+        self.page.once('dialog', lambda dialog: dialog.accept())
+        await self.page.click(f'[data-apply-tariff="{plume}"]')
+        await self.page.wait_for_function('!savePending')
+        walks = {(w['dogId'], w['date']): w['tariff']['unitMinor'] for w in (await self.snapshot())['walks']}
+        self.assertEqual(walks, {(rex, '2026-10-05'): 2500, (plume, '2026-10-05'): 1000, (rex, '2026-10-06'): 3050})
+        self.assertIn('65,50 EUR', await self.plain('#walk-month .daily-total'))
+        # Unticking removes only that day's attendance record.
+        await self.tick_walks('2026-10-05', {rex})
+        self.assertEqual(sorted((w['dogId'], w['date']) for w in (await self.snapshot())['walks']),
+                         sorted([(rex, '2026-10-05'), (rex, '2026-10-06')]))
+        self.assertEqual(self.console_errors, [])
+
+    async def test_unpriced_walk_action_fits_mobile_and_leaves_accounting_unchanged(self):
+        await self.page.select_option('#language-picker', 'fr')
+        await self.page.wait_for_function('!savePending')
+        finance_before = await self.page.evaluate('FinanceStore.snapshot()')
+        dog_id = await self.add_dog('Fixture Oslo')
+        self.assertEqual(await self.page.input_value('#tariff-form [name="tariff"]'), '')
+        self.assertIsNone((await self.snapshot())['dogs'][0]['walkTariff'])
+        await self.page.locator('#tariff-form').scroll_into_view_if_needed()
+        directory = os.environ.get('DOGCARE_EVIDENCE_DIR')
+        if directory:
+            Path(directory).mkdir(parents=True, exist_ok=True)
+            await self.page.screenshot(path=str(Path(directory) / f'walk-tariff-blank-390-{self.api_mode}.png'))
+        await self.tick_walks('2026-10-05', {dog_id})
+        await self.route('dogs')
+        await self.set_tariff('24,50')
+        self.assertIsNone((await self.snapshot())['walks'][0]['tariff'])
+        await self.route('schedule')
+        await self.page.click('[data-finance-walks]')
+        await self.page.fill('#daily-month', '2026-10')
+        await self.page.locator('#daily-month').dispatch_event('change')
+        await self.page.locator('[data-apply-tariff]').scroll_into_view_if_needed()
+        await self.page.evaluate("window.scrollTo({left: 0, behavior: 'instant'})")
+        layout = await self.page.evaluate('''() => ({
+            viewport: innerWidth, content: document.documentElement.scrollWidth,
+            actionRight: document.querySelector('[data-apply-tariff]').getBoundingClientRect().right
+        })''')
+        await self.capture_evidence(f'walk-apply-tariff-390-{self.api_mode}.png')
+        if directory:
+            await self.page.locator('[data-apply-tariff]').scroll_into_view_if_needed()
+            await self.page.evaluate("window.scrollTo({left: 0, behavior: 'instant'})")
+            await self.page.screenshot(path=str(Path(directory) / f'walk-apply-tariff-viewport-390-{self.api_mode}.png'))
+        unpriced = await self.snapshot()
+        self.page.once('dialog', lambda dialog: dialog.dismiss())
+        await self.page.click('[data-apply-tariff]')
+        self.assertEqual(await self.snapshot(), unpriced)
+        self.page.once('dialog', lambda dialog: dialog.accept())
+        await self.page.click('[data-apply-tariff]')
+        await self.page.wait_for_function('!savePending')
+        await self.page.reload()
+        await self.wait_ready()
+        saved = await self.snapshot()
+        finance_after = await self.page.evaluate('FinanceStore.snapshot()')
+        self.assertEqual(saved['walks'][0]['tariff'], {'unitMinor': 2450, 'currency': 'EUR'})
+        self.assertEqual(saved['bookings'], [])
+        self.assertEqual(finance_after, finance_before)
+        await self.route('schedule')
+        await self.page.click('[data-finance-walks]')
+        await self.page.fill('#daily-month', '2026-10')
+        await self.page.locator('#daily-month').dispatch_event('change')
+        self.assertIn('24,50 EUR', await self.plain('#walk-month .daily-total'))
+        await self.capture_evidence(f'walk-explicit-price-reloaded-390-{self.api_mode}.png')
+        if directory:
+            (Path(directory) / f'walk-explicit-price-persisted-{self.api_mode}.json').write_text(
+                json.dumps({'daily': saved, 'financeBefore': finance_before, 'financeAfter': finance_after,
+                            'unpricedActionLayout': layout}, ensure_ascii=False, indent=2), encoding='utf-8')
+        self.assertEqual(self.console_errors, [])
+        self.assertLessEqual(layout['content'], layout['viewport'], layout)
+
+    async def test_saved_walk_tariff_currency_transition_is_explicit(self):
+        daily = await self.page.evaluate('DailyModel.empty()')
+        tariff = {'unitMinor': 2500, 'currency': 'CHF'}
+        daily['dogs'] = [{'id': 'billie', 'name': 'Fixture dog', 'clientId': None, 'walkTariff': tariff}]
+        daily['walks'] = [{'id': 'w1', 'dogId': 'billie', 'date': '2026-10-05', 'tariff': tariff}]
+        await self.seed_daily(daily)
+        await self.route('dogs')
+        for locale, prefix in (('en', 'Tariff recorded in CHF.'), ('it', 'Tariffa registrata in CHF.'),
+                               ('de', 'Tarif in CHF gespeichert.'), ('es', 'Tarifa guardada en CHF.'),
+                               ('fr', 'Tarif enregistré en CHF.')):
+            await self.page.select_option('#language-picker', locale)
+            await self.page.wait_for_function('!savePending')
+            self.assertIn('(CHF)', await self.plain('#tariff-form label'))
+            self.assertEqual(await self.page.input_value('#tariff-form [name="tariff"]'), '25.00')
+            help_text = await self.plain('#tariff-form')
+            self.assertIn(prefix, help_text)
+            self.assertIn('EUR', help_text)
+            self.assertEqual(await self.snapshot(), daily)
+            self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+        self.assertIn('Les promenades déjà enregistrées gardent leur devise.', await self.plain('#tariff-form'))
+        await self.capture_evidence(f'walk-tariff-currency-390-{self.api_mode}.png')
+        await self.set_tariff('25.00')
+        saved = await self.snapshot()
+        self.assertEqual(saved['dogs'][0]['walkTariff'], {'unitMinor': 2500, 'currency': 'EUR'})
+        self.assertEqual(saved['walks'], daily['walks'])
+        self.assertIn('(EUR)', await self.plain('#tariff-form label'))
+        self.assertNotIn('Tarif enregistré en CHF.', await self.plain('#tariff-form'))
+        await self.page.reload()
+        await self.wait_ready()
+        await self.route('dogs')
+        self.assertEqual(await self.snapshot(), saved)
+        self.assertIn('(EUR)', await self.plain('#tariff-form label'))
+        self.assertEqual(self.console_errors, [])
+
+    async def test_unavailable_accounting_blocks_walk_tariff_saves_until_recovery(self):
+        daily = await self.page.evaluate('DailyModel.empty()')
+        daily['dogs'] = [
+            {'id': 'billie', 'name': 'Priced dog', 'clientId': None,
+             'walkTariff': {'unitMinor': 2500, 'currency': 'CHF'}},
+            {'id': 'charlie', 'name': 'Unpriced dog', 'clientId': None, 'walkTariff': None}]
+        await self.seed_daily(daily)
+        self.assertTrue(await self.page.evaluate('''() => {
+            const next=FinanceStore.snapshot(), entry=FinanceModel.draft('currency-record');
+            entry.currency='CHF';entry.date='2026-10-01';next.entries.push(entry);
+            return FinanceStore.save(next);
+        }'''))
+        finance = await self.page.evaluate('FinanceStore.snapshot()')
+        if self.api_mode:
+            async def bad_finance(route):
+                response = await route.fetch()
+                body = await response.json()
+                body.pop('finance')
+                await route.fulfill(response=response, json=body)
+            await self.page.route('**/api/state', bad_finance)
+        else:
+            await self.page.add_init_script('''
+                const original=IDBObjectStore.prototype.get;
+                IDBObjectStore.prototype.get=function(...args){
+                    if(this.name==='state'&&!window.allowFinanceRead)throw Error('Read unavailable');
+                    return original.apply(this,args);
+                };
+            ''')
+        await self.page.reload()
+        await self.wait_ready()
+        self.assertTrue(await self.page.evaluate('FinanceStore.unavailable()'))
+        for dog_id in ('billie', 'charlie'):
+            await self.page.evaluate('id => {state.dog=id;}', dog_id)
+            await self.route('dogs')
+            for locale, message in (
+                    ('en', 'The Comptabilité currency cannot be read.'),
+                    ('it', 'Impossibile leggere la valuta della contabilità.'),
+                    ('de', 'Die Währung der Buchhaltung kann nicht gelesen werden.'),
+                    ('es', 'No se puede leer la moneda de la contabilidad.'),
+                    ('fr', 'Impossible de lire la devise de la comptabilité.')):
+                await self.page.select_option('#language-picker', locale)
+                await self.page.wait_for_function('!savePending')
+                self.assertTrue(await self.page.locator('#tariff-form [type="submit"]').is_disabled())
+                self.assertIn(message, await self.plain('#tariff-form'))
+                self.assertNotIn('EUR', await self.plain('#tariff-form'))
+                if dog_id == 'billie':
+                    self.assertIn('(CHF)', await self.plain('#tariff-form label'))
+                    self.assertEqual(await self.page.input_value('#tariff-form [name="tariff"]'), '25.00')
+                self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+            await self.capture_evidence(f'walk-tariff-unavailable-{dog_id}-390-{self.api_mode}.png')
+            await self.page.fill('#tariff-form [name="tariff"]', '40')
+            await self.page.locator('#tariff-form').dispatch_event('submit')
+            await self.page.wait_for_function('!savePending')
+            self.assertEqual(await self.snapshot(), daily)
+        if self.api_mode:
+            await self.page.unroute('**/api/state')
+        else:
+            await self.page.evaluate('window.allowFinanceRead=true')
+        await self.open_route('business')
+        await self.page.click('#finance-retry')
+        await self.page.wait_for_function('!savePending')
+        self.assertFalse(await self.page.evaluate('FinanceStore.unavailable()'))
+        self.assertEqual(await self.page.evaluate('FinanceStore.snapshot()'), finance)
+        await self.route('dogs')
+        self.assertTrue(await self.page.locator('#tariff-form [type="submit"]').is_enabled())
+        self.assertIn('(CHF)', await self.plain('#tariff-form label'))
+        await self.set_tariff('40')
+        self.assertEqual((await self.snapshot())['dogs'][1]['walkTariff'], {'unitMinor': 4000, 'currency': 'CHF'})
+        self.assertEqual(self.console_errors, [])
+
+    async def test_walk_month_shortcut_survives_checklist_date_changes(self):
+        await self.page.select_option('#language-picker', 'fr')
+        await self.page.wait_for_function('!savePending')
+        await self.route('schedule')
+        for day in ('2026-10-05', '2026-10-06'):
+            await self.page.fill('#walk-date', day)
+            await self.page.locator('#walk-date').dispatch_event('change')
+        await self.page.click('[data-finance-walks]')
+        self.assertEqual(await self.page.evaluate('state.page'), 'business')
+        self.assertTrue(await self.page.locator('#walk-month').is_visible())
+        self.assertIn('Promenades du mois', await self.plain('#walk-month'))
+        self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+        self.assertEqual(self.console_errors, [])
 
     async def test_additional_dogs_fit_care_pickers_at_all_sizes(self):
         for index in range(3):
@@ -1771,7 +2084,7 @@ class StaticDailyBrowserAcceptanceTest(DailyBrowserAcceptanceTest):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.static_httpd = ThreadingHTTPServer(('127.0.0.1', 0), partial(QuietStaticHandler, directory=str(ROOT)))
+        cls.static_httpd = cls.server_mod.Server(('127.0.0.1', 0), partial(QuietStaticHandler, directory=str(ROOT)))
         cls.static_thread = threading.Thread(target=cls.static_httpd.serve_forever, daemon=True)
         cls.static_thread.start()
         cls.url = f'http://127.0.0.1:{cls.static_httpd.server_address[1]}'

@@ -6,7 +6,7 @@ import threading
 import unittest
 from datetime import datetime, timezone
 from functools import partial
-from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from http.server import SimpleHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -548,7 +548,7 @@ class StaticBrowserAcceptanceTest(BrowserAcceptanceTest):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.static_httpd = ThreadingHTTPServer(("127.0.0.1", 0), partial(QuietStaticHandler, directory=str(ROOT)))
+        cls.static_httpd = cls.server_mod.Server(("127.0.0.1", 0), partial(QuietStaticHandler, directory=str(ROOT)))
         cls.static_thread = threading.Thread(target=cls.static_httpd.serve_forever, daemon=True)
         cls.static_thread.start()
         cls.url = f"http://127.0.0.1:{cls.static_httpd.server_address[1]}"

@@ -4,7 +4,7 @@
   const M = w.DailyModel, KEY = 'dogcare-daily-v1', CREATE_DOG = ':new';
   let daily = M.empty(), loadError = false, month = localDate().slice(0, 7), editing = null;
   let localSnapshot = null, localStale = false;
-  let dogDraft = null, dogListOpen = false;
+  let dogDraft = null, dogListOpen = false, walkDate = localDate();
   const text = key => (w.DailyCopy[state.language] || w.DailyCopy.en)[key] || w.DailyCopy.en[key] || key;
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   function localDate() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
@@ -13,6 +13,9 @@
   const date = value => value ? new Intl.DateTimeFormat(formatLocale(Intl.DateTimeFormat),{dateStyle:'medium',timeZone:'UTC'}).format(new Date(`${value}T12:00:00Z`)) : text('noDate');
   const client = dog => daily.clients.find(c => c.id === dog?.clientId)?.name || '';
   const carer = () => w.DogCareAPI?.getUser()?.role === 'trusted-carer';
+  const fill = (key, values) => text(key).replace(/\{(\w+)\}/g, (_, name) => values[name]);
+  const tariffText = tariff => tariff ? `${money(tariff.unitMinor,tariff.currency)} ${text('perWalk')}` : text('noTariff');
+  const walkCurrency = () => !w.FinanceStore || w.FinanceStore.unavailable() ? null : M.accountingCurrency(w.FinanceStore.snapshot().entries);
   const label = (key, input) => `<label class="daily-field">${esc(text(key))}${input}</label>`;
   const input = (name, type='text', value='', extra='') => `<input name="${name}" type="${type}" value="${esc(value)}" ${extra}>`;
   const errorBox = () => `<p class="daily-error" role="alert" hidden></p>`;
@@ -38,7 +41,7 @@
     try {
       if(!w.DogCareAPI)localSnapshot=localStorage.getItem(KEY);
       const raw=w.DogCareAPI ? w.DogCareAPI.getDaily() : JSON.parse(localSnapshot || 'null');
-      const candidate=!w.DogCareAPI && localSnapshot===null ? M.empty() : raw; M.validateDaily(candidate); daily=candidate;
+      const candidate=!w.DogCareAPI && localSnapshot===null ? M.empty() : M.upgrade(raw); M.validateDaily(candidate); daily=candidate;
     } catch { loadError=true; }
     syncDogs();
     if(!Object.hasOwn(dogs,state.dog))state.dog=Object.keys(dogs)[0] || '';
@@ -73,7 +76,7 @@
       c={id:id(),name:clientName};next.clients.push(c);
     }else{c=next.clients.find(c=>c.id===clientId);if(!c)throw Error('missing');}
     if(registered){registered.clientId=c.id;return registered;}
-    const dog={id:dogId || id(),name,clientId:c.id};next.dogs.push(dog);return dog;
+    const dog={id:dogId || id(),name,clientId:c.id,walkTariff:null};next.dogs.push(dog);return dog;
   }
   function rememberDogDraft() {
     const form=document.querySelector('#dog-form');
@@ -81,7 +84,7 @@
   }
   function dogControls() {
     const showList=dogListOpen || !Object.keys(dogs).length;
-    return `${unavailable()}<div class="daily-toolbar dog-toolbar"><button class="primary" id="new-dog" aria-expanded="${!!dogDraft}" aria-controls="dog-editor" ${loadError?'disabled':''}>＋ ${esc(text('newDog'))}</button><button class="ghost" id="dog-list-toggle" aria-expanded="${showList}" aria-controls="dog-directory">${esc(text('allDogs'))}</button></div><div id="dog-directory" ${showList?'':'hidden'}>${showList?`<div class="dog-directory">${Object.entries(dogs).map(([key,d])=>`<button class="ghost" data-select-profile="${esc(key)}" aria-pressed="${key===state.dog}"><strong translate="no">${esc(d.name)}</strong>${d.owner?`<small translate="no">${esc(d.owner)}</small>`:''}</button>`).join('') || `<p class="daily-empty">${esc(text('noDogs'))}</p>`}</div>`:''}</div><div id="dog-editor">${dogDraft?dogForm():''}</div>`;
+    return `${unavailable()}<div class="daily-toolbar dog-toolbar"><button class="primary" id="new-dog" aria-expanded="${!!dogDraft}" aria-controls="dog-editor" ${loadError?'disabled':''}>＋ ${esc(text('newDog'))}</button><button class="ghost" id="dog-list-toggle" aria-expanded="${showList}" aria-controls="dog-directory">${esc(text('allDogs'))}</button></div><div id="dog-directory" ${showList?'':'hidden'}>${showList?`<div class="dog-directory">${Object.entries(dogs).map(([key,d])=>`<button class="ghost" data-select-profile="${esc(key)}" aria-pressed="${key===state.dog}"><strong translate="no">${esc(d.name)}</strong>${d.owner?`<small translate="no">${esc(d.owner)}</small>`:''}${w.PortalUI.owner()?`<small>${esc(tariffText(daily.dogs.find(x=>x.id===key)?.walkTariff ?? null))}</small>`:''}</button>`).join('') || `<p class="daily-empty">${esc(text('noDogs'))}</p>`}</div>`:''}</div><div id="dog-editor">${dogDraft?dogForm():''}</div>`;
   }
   function dogForm() {
     return `<form id="dog-form" class="card daily-form"><h2>${esc(text('newDog'))}</h2><p class="daily-help">${esc(text('dogFormHelp'))}</p><div class="daily-fields">${label('dogName',input('dogName','text',dogDraft.dogName,'required pattern="[\\s\\S]{0,120}" autocomplete="off"'))}${label('optionalOwner',`<select name="clientId"><option value="">${esc(text('ownerLater'))}</option>${daily.clients.map(c=>`<option translate="no" value="${esc(c.id)}" ${dogDraft.clientId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}<option value=":new" ${dogDraft.clientId===':new'?'selected':''}>${esc(text('newOwner'))}</option></select>`)}<label class="daily-field" id="dog-owner-field" ${dogDraft.clientId===':new'?'':'hidden'}>${esc(text('ownerName'))}${input('clientName','text',dogDraft.clientName,'pattern="[\\s\\S]{0,120}" autocomplete="off"')}</label></div><p class="daily-help">${esc(text('dogDraftHelp'))}</p><p class="daily-error" role="alert" ${dogDraft.error?'':'hidden'}>${dogDraft.error?esc(text(dogDraft.error)):''}</p><div class="daily-actions"><button class="primary" type="submit">${esc(text('saveDog'))}</button><button class="ghost" type="button" id="cancel-dog">${esc(text('cancel'))}</button></div></form>`;
@@ -102,11 +105,93 @@
       const draft=dogDraft, next=structuredClone(daily);let clientId=draft.clientId || null;
       try {
         if(clientId===':new'){clientId=id();next.clients.push({id:clientId,name:draft.clientName});}
-        next.dogs.push({id:draft.id,name:draft.dogName,clientId});M.validateDaily(next);
+        next.dogs.push({id:draft.id,name:draft.dogName,clientId,walkTariff:null});M.validateDaily(next);
       }catch{draft.error='invalidDog';setError(form,'invalidDog');return;}
       if(!await save(next,form.querySelector('[type="submit"]'))){draft.error='saveError';setError(form);return;}
       dogDraft=null;state.dog=draft.id;dogListOpen=false;navigate('dogs');document.querySelector('#page-title').focus();showToast(text('saved'));
     };
+  }
+  // A care profile without a daily record is registered on its first tariff or
+  // walk, with no owner: only the facts entered are recorded.
+  function registeredDog(next, dogId) {
+    let dog=next.dogs.find(d=>d.id===dogId);
+    if(!dog){dog={id:dogId,name:dogs[dogId].name,clientId:null,walkTariff:null};next.dogs.push(dog);}
+    return dog;
+  }
+  function tariff(dogId) {
+    if(!w.PortalUI.owner())return '';
+    const current=daily.dogs.find(d=>d.id===dogId)?.walkTariff ?? null;
+    const currency=walkCurrency();
+    const recordedCurrency=current?.currency || currency;
+    const currencyHelp=!currency?text('walkCurrencyUnavailable'):current&&current.currency!==currency?fill('walkCurrencyChange',{recorded:current.currency,currency}):fill('walkCurrency',{currency});
+    return `<form id="tariff-form" class="card daily-form" ${loadError?'inert':''}><h2>${esc(text('walkTariff'))}</h2><p class="daily-help">${esc(text('walkTariffHelp'))}</p><div class="daily-fields"><label class="daily-field">${esc(text('walkTariff'))}${recordedCurrency?` (${esc(recordedCurrency)})`:''}${input('tariff','text',current?(current.unitMinor/100).toFixed(2):'','inputmode="decimal" maxlength="12" placeholder="—" autocomplete="off" aria-describedby="tariff-currency"')}</label></div><p class="daily-help" id="tariff-currency">${esc(currencyHelp)}</p>${errorBox()}<div class="daily-actions"><button class="primary" type="submit" ${currency?'':'disabled'}>${esc(text('saveTariff'))}</button></div><p role="status" id="tariff-saved"></p></form>`;
+  }
+  function walkChecklist() {
+    const done=new Set(daily.walks.filter(x=>x.date===walkDate).map(x=>x.dogId));
+    const list=Object.entries(dogs).sort(([,a],[,b])=>a.name.localeCompare(b.name,formatLocale(Intl.Collator)));
+    const priced=w.PortalUI.owner();
+    return `<section class="card daily-form daily-walks" id="walk-checklist" ${loadError?'inert':''}><h2>${esc(text('walkChecklist'))}</h2><p class="daily-help">${esc(text('walkChecklistHelp'))}</p><form id="walk-form"><div class="daily-fields">${label('walkDate',input('date','date',walkDate,`id="walk-date" required min="2000-01-01" max="${localDate()}"`))}</div>${list.length?`<fieldset class="walk-list"><legend class="sr-only">${esc(text('walkDogs'))}</legend>${list.map(([key,d])=>{const record=daily.dogs.find(x=>x.id===key), owner=client(record);return `<label class="walk-dog"><input type="checkbox" name="walked" value="${esc(key)}" ${done.has(key)?'checked':''}><span><strong translate="no">${esc(d.name)}</strong>${owner?`<small translate="no">${esc(owner)}</small>`:''}${priced?`<small>${esc(tariffText(record?.walkTariff ?? null))}</small>`:''}</span></label>`;}).join('')}</fieldset><p class="daily-help" id="walk-count" aria-live="polite">${esc(fill('walkCount',{count:done.size}))}</p>${errorBox()}<div class="daily-actions"><button class="primary" type="submit">${esc(text('saveWalks'))}</button>${priced?`<button class="ghost" type="button" data-go="business" data-finance-walks>${esc(text('walkTotalsLink'))} ↗</button>`:''}</div>`:`<p class="daily-empty">${esc(text('noWalkDogs'))}</p>`}</form></section>`;
+  }
+  function walkMonth() {
+    const summary=M.walkSummary(daily,month), current=new Map(daily.dogs.map(d=>[d.id,d.walkTariff]));
+    const amounts=totals=>Object.entries(totals).map(([currency,minor])=>money(minor,currency)).join(' · ');
+    const rows=summary.rows.sort((a,b)=>a.dogName.localeCompare(b.dogName,formatLocale(Intl.Collator)));
+    return `${storage()}${unavailable()}<section class="daily-walk-month" id="walk-month"><h2>${esc(text('monthWalks'))}</h2>${monthControl()}<p class="daily-help">${esc(text('monthWalksHelp'))}</p>${rows.length?rows.map(r=>{
+      const tariffNow=current.get(r.dogId);
+      const lines=[...r.lines.map(l=>`${l.count} × ${money(l.tariff.unitMinor,l.tariff.currency)} = ${money(l.totalMinor,l.tariff.currency)}`),...(r.unpriced?[fill('unpricedWalks',{count:r.unpriced})]:[])];
+      return `<article class="daily-record" data-walk-dog="${esc(r.dogId)}"><div><strong translate="no">${esc(r.dogName)}</strong><p>${esc(fill('walksCount',{count:r.count}))}</p><small>${lines.map(esc).join('<br>')}</small>${r.unpriced&&tariffNow&&!carer()?`<div class="daily-actions"><button class="ghost" data-apply-tariff="${esc(r.dogId)}">${esc(fill('applyTariff',{price:money(tariffNow.unitMinor,tariffNow.currency),count:r.unpriced}))}</button></div>`:''}</div><strong class="walk-amount">${esc(amounts(r.totals) || '—')}</strong></article>`;
+    }).join(''):`<p class="daily-empty">${esc(text('noMonthWalks'))}</p>`}${rows.length?`<p class="daily-total">${esc(text('monthTotal'))} · ${esc(fill('walksCount',{count:summary.count}))}${summary.unpriced?` · ${esc(fill('unpricedWalks',{count:summary.unpriced}))}`:''}: <strong>${esc(amounts(summary.totals) || '—')}</strong></p>`:''}${errorBox()}</section>`;
+  }
+  function bindWalks() {
+    const form=document.querySelector('#walk-form');
+    if(form){
+      const count=()=>{form.querySelector('#walk-count').textContent=fill('walkCount',{count:form.querySelectorAll('[name="walked"]:checked').length});};
+      form.querySelectorAll('[name="walked"]').forEach(box=>box.onchange=count);
+      form.elements.date.onchange=()=>{
+        if(!M.validDate(form.elements.date.value) || form.elements.date.value>localDate())return;
+        walkDate=form.elements.date.value;
+        document.querySelector('#walk-checklist').outerHTML=walkChecklist();bindWalks();
+        document.querySelector('#walk-date').focus();
+      };
+      form.onsubmit=async event=>{
+        event.preventDefault();if(savePending || loadError)return;
+        const day=form.elements.date.value;
+        if(!M.validDate(day) || day>localDate()){setError(form,'walkFuture');return;}
+        const ticked=new Set([...form.querySelectorAll('[name="walked"]:checked')].map(box=>box.value));
+        const next=structuredClone(daily);
+        next.walks=next.walks.filter(x=>x.date!==day || ticked.has(x.dogId));
+        for(const dogId of ticked){
+          if(next.walks.some(x=>x.date===day && x.dogId===dogId))continue;
+          next.walks.push(M.recordWalk(registeredDog(next,dogId),day,id()));
+        }
+        if(!await save(next,form.querySelector('[type="submit"]'))){setError(form);return;}
+        walkDate=day;navigate('schedule');document.querySelector('#walk-date')?.focus();showToast(text('walksSaved'));
+      };
+    }
+    const prices=document.querySelector('#tariff-form'), dogId=state.dog;
+    if(prices){
+      const saved=prices.querySelector('#tariff-saved');
+      prices.addEventListener('input',()=>{saved.textContent='';});
+      prices.onsubmit=async event=>{
+        event.preventDefault();if(savePending || loadError)return;saved.textContent='';
+        const currency=walkCurrency();
+        if(!currency){setError(prices,'walkCurrencyUnavailable');return;}
+        let unitMinor;
+        try{unitMinor=M.parseMinor(prices.elements.tariff.value);}catch{setError(prices,'invalidTariff');return;}
+        const next=structuredClone(daily);
+        registeredDog(next,dogId).walkTariff=unitMinor===null?null:{unitMinor,currency};
+        if(!await save(next,prices.querySelector('[type="submit"]'))){setError(prices);return;}
+        document.querySelectorAll('#document-form [name="clientId"], #document-form [name="client"]').forEach(field=>field.closest('.daily-field').remove());
+        prices.outerHTML=tariff(dogId);bindWalks();document.querySelector('#tariff-saved').textContent=text('saved');
+      };
+    }
+    document.querySelectorAll('[data-apply-tariff]').forEach(button=>button.onclick=async()=>{
+      if(savePending || loadError || !w.confirm(text('applyTariffConfirm')))return;
+      const next=structuredClone(daily), dog=next.dogs.find(d=>d.id===button.dataset.applyTariff);
+      for(const walk of next.walks)if(walk.dogId===dog.id && walk.tariff===null && walk.date.startsWith(month))walk.tariff={...dog.walkTariff};
+      if(!await save(next,button)){setError(document.querySelector('#walk-month'));return;}
+      navigate('business');showToast(text('saved'));
+    });
   }
   function dogOptions(selected=state.dog) {return Object.entries(dogs).map(([key,d])=>`<option translate="no" value="${esc(key)}" ${key===selected?'selected':''}>${esc(d.name)}</option>`).join('');}
   function followups() {
@@ -137,7 +222,7 @@
     const associations=w.DogCareAPI?.getPortal()?.bookingClients || {},dogIndex=new Map(daily.dogs.map(d=>[d.id,d])),clientIndex=new Map(daily.clients.map(c=>[c.id,c]));
     const visible=daily.bookings.filter(b=>M.serviceDates(b).some(d=>d.startsWith(month))).sort((a,b)=>a.start.localeCompare(b.start));
     const active=visible.filter(M.activeBooking),cancelled=visible.filter(b=>!M.activeBooking(b));
-    return `${storage()}${unavailable()}<div class="daily-toolbar"><button class="primary" id="new-booking" ${loadError?'disabled':''}>＋ ${esc(text('newBooking'))}</button></div><div id="booking-editor"></div>${monthControl()}<p class="daily-help">${esc(text('plannedHelp'))}</p><div id="booking-list">${active.length?active.map(b=>bookingCard(b,associations,dogIndex,clientIndex)).join(''):`<p class="daily-empty">${esc(text('noBookings'))}</p>`}</div>${cancelled.length?`<details id="cancelled-bookings"><summary>${esc(text('cancelledBookings'))} (${cancelled.length})</summary>${cancelled.map(b=>bookingCard(b,associations,dogIndex,clientIndex)).join('')}</details>`:''}${followups()}${carer()?'':`<p class="daily-help">${esc(text('ratesLink'))} <button class="link-button" data-go="business" data-finance-rates>${esc(text('rates'))} ↗</button></p>`}`;
+    return `${storage()}${unavailable()}${walkChecklist()}<div class="daily-toolbar"><button class="primary" id="new-booking" ${loadError?'disabled':''}>＋ ${esc(text('newBooking'))}</button></div><div id="booking-editor"></div>${monthControl()}<p class="daily-help">${esc(text('plannedHelp'))}</p><div id="booking-list">${active.length?active.map(b=>bookingCard(b,associations,dogIndex,clientIndex)).join(''):`<p class="daily-empty">${esc(text('noBookings'))}</p>`}</div>${cancelled.length?`<details id="cancelled-bookings"><summary>${esc(text('cancelledBookings'))} (${cancelled.length})</summary>${cancelled.map(b=>bookingCard(b,associations,dogIndex,clientIndex)).join('')}</details>`:''}${followups()}${carer()?'':`<p class="daily-help">${esc(text('ratesLink'))} <button class="link-button" data-go="business" data-finance-rates>${esc(text('rates'))} ↗</button></p>`}`;
   }
   function monthControl() { return `<div class="daily-month"><button class="ghost" data-month-step="-1" aria-label="${esc(text('previousMonth'))}">←</button>${label('month',input('month','month',month,'id="daily-month" required min="2000-01" max="2199-12"'))}<button class="ghost" data-month-step="1" aria-label="${esc(text('nextMonth'))}">→</button></div>`; }
   function business() {
@@ -209,7 +294,7 @@
     }catch{showToast(text('documentError'));button.focus();}
   }
   function bind() {
-    bindDogRegistration();
+    bindDogRegistration();bindWalks();
     document.querySelector('#new-booking')?.addEventListener('click',()=>editBooking(null));
     document.querySelectorAll('[data-edit-booking]').forEach(b=>b.onclick=()=>editBooking(b.dataset.editBooking));
     document.querySelectorAll('[data-cancel-booking]').forEach(button=>button.onclick=async()=>{
@@ -260,5 +345,5 @@
       if(!ok)return;state.dog=dogId;navigate('dogs');document.querySelector('#dog-documents').scrollIntoView({block:'start'});showToast(text('saved'));
     };
   }
-  w.DailyUI={text,load,snapshot:()=>loadError?null:structuredClone(daily),alerts:()=>unavailable()+followups(),home,schedule,business,documents,dogControls,rememberDogDraft,bind};
+  w.DailyUI={text,load,snapshot:()=>loadError?null:structuredClone(daily),alerts:()=>unavailable()+followups(),home,schedule,business,walkMonth,tariff,documents,dogControls,rememberDogDraft,bind};
 })(window);

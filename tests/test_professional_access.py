@@ -57,6 +57,10 @@ class ProfessionalAccessTest(ApiServerTestCase):
         return next(r for r in reversed(candidates) if r['dogId'] == dog and r['key'].startswith('client-document:' if shared else 'document:'))
 
     def test_exact_projection_and_existing_clients_preserved(self):
+        daily = self.state()['daily']
+        daily['dogs'][0]['walkTariff'] = {'unitMinor': 4321, 'currency': 'CHF'}
+        daily['walks'] = [{'id': 'walk', 'dogId': 'nino', 'date': '2026-10-05', 'tariff': daily['dogs'][0]['walkTariff']}]
+        self.assertEqual(_http(self.port, 'PUT', '/api/daily', {'daily': daily}, cookie=self.owner)[0], 200)
         cookie = self.invite()
         state = self.state(cookie)
         self.assertEqual(state['role'], 'professional')
@@ -69,7 +73,9 @@ class ProfessionalAccessTest(ApiServerTestCase):
         self.assertIsNone(state['knowledge'])
         self.assertEqual(len(state['portal']['sharedRecords']), 1)
         self.assertTrue(state['portal']['sharedRecords'][0]['key'].startswith('note:nino:1:'))
-        for private in ('Private family', 'Private Pablo', 'Private internal', 'Other dog private', '99123', self.client_email):
+        self.assertEqual(state['daily']['walks'], [])
+        self.assertIsNone(state['daily']['dogs'][0]['walkTariff'])
+        for private in ('Private family', 'Private Pablo', 'Private internal', 'Other dog private', '99123', '4321', self.client_email):
             self.assertNotIn(private, json.dumps(state))
         self.assertEqual(self.state(self.client)['portal']['members'], [])
         self.assertNotIn('sharedRecords', self.state(self.client)['portal'])
@@ -171,7 +177,7 @@ class ProfessionalAccessTest(ApiServerTestCase):
         cookie = self.login(self.email)
         changed['dogs'] = changed['dogs'][:1]
         self.assertEqual(_http(self.port, 'PUT', '/api/daily', {'daily': changed}, cookie=self.owner)[0], 200)
-        changed['dogs'].append({'id': 'pablo', 'name': 'A new dog', 'clientId': 'b'})
+        changed['dogs'].append({'id': 'pablo', 'name': 'A new dog', 'clientId': 'b', 'walkTariff': None})
         self.assertEqual(_http(self.port, 'PUT', '/api/daily', {'daily': changed}, cookie=self.owner)[0], 200)
         self.assertEqual(self.state(cookie)['dogs'], [])
 

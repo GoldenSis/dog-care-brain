@@ -131,7 +131,8 @@ def project(c, user, state):
     shared = records(c, user)
     state.update(imported=True, dogs=[{'id': d['id'], 'slug': d['id'], 'name': d['name']} for d in selected.values()],
                  observations={}, invites=[], knowledge=None, finance=None,
-                 daily={**daily.empty(), 'dogs': [{'id': d['id'], 'name': d['name'], 'clientId': None} for d in selected.values()]},
+                 daily={**daily.empty(), 'dogs': [{'id': d['id'], 'name': d['name'], 'clientId': None, 'walkTariff': None}
+                                                     for d in selected.values()]},
                  portal={'updates': [], 'requests': [], 'documents': [], 'members': [], 'quotes': {},
                          'extras': [], 'bookingClients': {}, 'sharedRecords': shared})
     return state

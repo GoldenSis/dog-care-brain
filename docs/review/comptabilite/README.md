@@ -1,5 +1,7 @@
 # Accounting workspace comparison
 
+Historical comparison of the accounting workspace's introduction. The screenshots predate the **Promenades du mois** tab; current behavior is described in [Comptabilité](../../comptabilite.md).
+
 All new records and receipts shown here are synthetic test fixtures.
 
 Before: **Activité** opened the monthly planned-booking summary and rates. It did not provide invoice, expense-claim or receipt-intake workflows. [Before](before-monthly.png).

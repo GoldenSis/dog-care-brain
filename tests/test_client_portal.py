@@ -3,6 +3,7 @@ import base64
 import concurrent.futures
 import copy
 import hashlib
+import json
 import threading
 import uuid
 from unittest.mock import patch
@@ -721,3 +722,43 @@ class ClientPortalTest(ApiServerTestCase):
             plan = ' '.join(row['detail'] for row in c.execute('EXPLAIN QUERY PLAN ' + query))
         self.assertIn('business_id=? AND target_id=?', plan)
         self.assertNotIn('TEMP B-TREE', plan)
+
+    def state(self, cookie):
+        status, body, _ = _http(self.port, 'GET', '/api/state', cookie=cookie)
+        self.assertEqual(status, 200, body)
+        return body
+
+    def priced_walks(self):
+        state = self.state(self.owner)
+        daily = state['daily']
+        for dog in daily['dogs']:
+            dog['walkTariff'] = {'unitMinor': 4321, 'currency': 'CHF'}
+        daily['walks'] = [{'id': 'walk-' + dog['id'], 'dogId': dog['id'], 'date': '2026-10-05', 'tariff': dog['walkTariff']}
+                          for dog in daily['dogs']]
+        status, body, _ = _http(self.port, 'PUT', '/api/daily', {'daily': daily}, cookie=self.owner)
+        self.assertEqual(status, 200, body)
+        return body['daily']
+
+    def test_walk_tariffs_and_attendance_stay_with_staff(self):
+        saved = self.priced_walks()
+        client = self.state(self.client)['daily']
+        self.assertEqual(client['walks'], [])
+        self.assertEqual([(d['id'], d['walkTariff']) for d in client['dogs']], [('nino', None)])
+        self.assertNotIn('4321', json.dumps(self.state(self.client)))
+        for path in ('/api/daily', '/api/finance'):
+            self.assertEqual(_http(self.port, 'GET', path, cookie=self.client)[0], 403)
+        self.assertEqual(_http(self.port, 'PUT', '/api/daily', {'daily': saved}, cookie=self.client)[0], 403)
+        # A trusted carer may tick walks at the tariff in force but never sets prices.
+        carer = self.state(self.carer)
+        self.assertEqual(carer['daily']['walks'], saved['walks'])
+        for change in (lambda d: d['dogs'][0].update(walkTariff={'unitMinor': 1, 'currency': 'CHF'}),
+                       lambda d: d['walks'][0].update(tariff=None)):
+            invalid = copy.deepcopy(carer['daily'])
+            change(invalid)
+            status, body, _ = _http(self.port, 'PUT', '/api/daily', {'daily': invalid}, cookie=self.carer)
+            self.assertEqual(status, 400, body)
+        ticked = copy.deepcopy(carer['daily'])
+        ticked['walks'].append({'id': 'carer-walk', 'dogId': 'nino', 'date': '2026-10-06', 'tariff': {'unitMinor': 4321, 'currency': 'CHF'}})
+        status, body, _ = _http(self.port, 'PUT', '/api/daily', {'daily': ticked}, cookie=self.carer)
+        self.assertEqual(status, 200, body)
+        self.assertEqual(body['daily']['walks'][-1]['tariff'], {'unitMinor': 4321, 'currency': 'CHF'})
