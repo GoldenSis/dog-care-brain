@@ -146,6 +146,8 @@ The shell keeps one **Le Bus des Toutous · by Plus de Fun** header. The staff d
 | Primary navigation | Home (dashboard), Schedule, Dogs, Capture |
 | All my tools | Handoff, Care & wellbeing (Maison de la Santé in French), Muse assistant, Daily story, Gallery, Invite, Accounting (Comptabilité in French), Settings |
 
+On the owner home screen, **Accounting / Comptabilité** is the first shortcut under **For the rest of the day / Pour la suite de la journée**. It always opens **Ledger / Journal**, even after another accounting tab was used. The shortcut is also available in static mode; clients, professionals and trusted carers do not see it.
+
 The primary buttons wrap within the page at desktop and phone widths. The header and navigation scroll with the page; the tools dialog scrolls independently when needed. Trusted carers have the same care navigation but no Invite, Accounting or Settings. Clients have a separate four-button space: **My dogs**, **Reservations**, **Updates** and **Documents**, with no staff tools or capture shortcut. Professionals have one **Shared records / Dossiers partagés** destination for selected dogs and records, with language and sign-out controls but no staff tools or capture shortcut.
 
 Buttons have at least 44px targets, visible keyboard focus, and an active state exposed as `aria-current="page"`. Use Tab to reach a destination and Enter or Space to activate it. Selecting a tool closes the dialog and returns the page to its heading. Handoff evidence links open the source note in the dog's timeline.
@@ -154,7 +156,7 @@ The static workspace uses the owner navigation. Both modes support French, Engli
 
 ## Comptabilité
 
-Invoices, expense claims, billed extras, local receipt recognition and accountant export are available under **Accounting** (**Comptabilité** in French). Planned monthly booking totals and base rates remain in its **Bookings & rates / Réservations et tarifs** tab, also reached directly from home/planning shortcuts. See [Comptabilité](docs/comptabilite.md) for review, payments, print/PDF, original documents, workbook export and storage boundaries. OCR/PDF/ZIP libraries are bundled locally and loaded only for intake/export; no install or external document service is required.
+Invoices, expense claims, billed extras, local receipt recognition and accountant export are available under **Accounting** (**Comptabilité** in French). Planned monthly booking totals and base rates remain in its **Bookings & rates / Réservations et tarifs** tab, also reached directly from the **Base rates / Tarifs de base** shortcuts on home and Planning. See [Comptabilité](docs/comptabilite.md) for review, payments, print/PDF, original documents, workbook export and storage boundaries. OCR/PDF/ZIP libraries are bundled locally and loaded only for intake/export; no install or external document service is required.
 
 **Monthly walks / Promenades du mois** shows actual daily attendance per dog, totals at each walk's recorded tariff, and unpriced walks. Set **Tarif par promenade** on the dog's profile, tick attendance in **Planning → Promenades du jour**, then save. Tariffs start empty and use the accounting currency, or EUR when accounting has none. The [walk workflow](docs/daily-workflows.md#daily-walks-and-per-dog-tariffs) preserves earlier prices and creates no invoice, charge or payment.
 
