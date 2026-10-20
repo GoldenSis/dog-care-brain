@@ -2026,6 +2026,7 @@ document.addEventListener('click',event=>{
   if(!el || el.matches(':disabled') || el.closest('[inert]'))return;
   if(el.hasAttribute('data-finance-rates'))FinanceUI.showRates();
   if(el.hasAttribute('data-finance-walks'))FinanceUI.showWalks();
+  if(el.hasAttribute('data-finance-journal'))FinanceUI.showJournal();
   navigate(el.dataset.go);
 });
 document.querySelectorAll('.nav-item[data-page]').forEach(el=>el.onclick=()=>navigate(el.dataset.page));
