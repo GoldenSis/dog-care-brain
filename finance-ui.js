@@ -177,5 +177,5 @@
     document.querySelectorAll('[data-add-region]').forEach(b=>b.onclick=()=>{const item=intake[Number(b.dataset.addRegion)];item.regions.push({page:item.page,x:0,y:0,width:.5,height:.5});draw();});
   }
   w.addEventListener('beforeunload',event=>{if(exporting){event.preventDefault();event.returnValue='';}});
-  w.FinanceUI={text:t,view,bind,rememberDraft,showRates:()=>{leaveEditor();tab='rates';},showWalks:()=>{leaveEditor();tab='walks';}};
+  w.FinanceUI={text:t,view,bind,rememberDraft,showRates:()=>{leaveEditor();tab='rates';},showWalks:()=>{leaveEditor();tab='walks';},showJournal:()=>{leaveEditor();tab='journal';}};
 })(window);
