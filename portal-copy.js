@@ -116,5 +116,5 @@
     reviewAccess: ["Review selection", "Revoir la sélection", "Rivedi selezione", "Auswahl prüfen", "Revisar selección"],
     notes: ['Notes','Notes','Note','Notizen','Notas']
   };
-  w.PortalCopy = Object.fromEntries(locales.map((locale,i)=>[locale,Object.fromEntries(Object.entries(rows).map(([key,values])=>[key,values[i]]))]));
+  w.PortalCopy = (w.DogCareBrand?.map || (x=>x))(Object.fromEntries(locales.map((locale,i)=>[locale,Object.fromEntries(Object.entries(rows).map(([key,values])=>[key,values[i]]))])));
 })(window);

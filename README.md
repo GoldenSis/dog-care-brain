@@ -1,6 +1,6 @@
 # DogCare Brain
 
-A polished, build-free MVP for a small dog-care business. This premium **Muse** edition is branded for Adine-Sophie and Le Bus des Toutous. It provides a public service welcome, a private client space, [selected read-only professional access](docs/client-portal.md#selected-professional-access) and a complete dog-sitter workspace. The static demo retains Billie Blue and Charlie Rose. See [client access, requests, pricing and login delivery](docs/client-portal.md).
+A polished, build-free MVP for a small dog-care business. This premium **Muse** edition defaults to Adine-Sophie and Le Bus des Toutous; separate API instances can use their [own brand and palette](docs/second-instance.md#brand). It provides a public service welcome, a private client space, [selected read-only professional access](docs/client-portal.md#selected-professional-access) and a complete dog-sitter workspace. The static demo retains Billie Blue and Charlie Rose. See [client access, requests, pricing and login delivery](docs/client-portal.md).
 
 ## Run locally
 
@@ -50,7 +50,7 @@ A notice appears before existing inline recordings transfer. Cancel leaves brows
 
 ### Account configuration and storage
 
-Listener and storage configuration uses these environment variables. See [login transport](docs/client-portal.md#login-transport) for authentication/SMTP settings and [public prices](docs/client-portal.md#prices-and-options) for the `DC_PUBLIC_BUSINESS` binding used by rates and artwork.
+Listener and storage configuration uses these environment variables. See [login transport](docs/client-portal.md#login-transport) for authentication/SMTP settings, [public prices](docs/client-portal.md#prices-and-options) for the `DC_PUBLIC_BUSINESS` binding used by rates and artwork, and [instance branding](docs/second-instance.md#brand) for all eight `DC_BRAND_*` settings, defaults and palette rules. Branding applies to the whole API process, independently of business records; changing it does not create or isolate an account. The [second-instance templates](docs/second-instance.md) use a separate process, private store and origin. The plain static server does not read these environment variables and retains the default brand.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
@@ -66,7 +66,7 @@ Listener and storage configuration uses these environment variables. See [login 
 
 Use absolute paths for overrides. `DC_DATA_DIR` expands `~`; the individual path overrides do not expand it themselves. `DC_DB`, `DC_OUTBOX`, and `DC_BLOBS` take precedence over the base directory. Every private runtime path must resolve outside `DC_ROOT`; startup rejects paths or symlinks that resolve inside it. If you ran an earlier version, stop it and move `api/dogcare.db` together with any `-wal`/`-shm` files, `.dev-outbox/`, and `api/blobs/` into the configured private locations before using either launcher. API startup refuses legacy private locations still present in the document root; the generic static server has no such check.
 
-The root `.private/` Git ignore rule does not change this storage boundary. The API serves only `STATIC_FILES` in `api/server.py`: repository docs, deployment files, tests, scripts, dotfiles and provenance metadata remain unavailable, including aliases and symlinks. Add intended frontend assets deliberately and verify with `tests.test_static_boundary`. The generic static server has no allowlist and can expose private files left beneath its root.
+The root `.private/` Git ignore rule does not change this storage boundary. The API serves only `STATIC_FILES` in `api/server.py`: repository docs, deployment files, tests, scripts, dotfiles and provenance metadata remain unavailable, including aliases and symlinks. A custom brand additionally returns 404 for all bundled `assets/photos/*` and `assets/films/*`, even allowlisted files. Add intended frontend assets deliberately and verify with `tests.test_static_boundary`. The generic static server has no allowlist and can expose private files left beneath its root.
 
 The default launcher binds to loopback HTTP. The `dc_s` session cookie is HttpOnly, SameSite=Lax, and scoped to `/`. `DC_INSECURE_COOKIE=0` is available for an HTTPS reverse proxy; the stdlib listener itself still serves HTTP. Production magic links use the fixed HTTPS `DC_PUBLIC_ORIGIN`; only loopback development links use the request Host. Login delivery is disabled by default; see the [auth transport configuration](docs/client-portal.md#login-transport). Static mode never injects the API flag; leave it unset when serving with `python3 -m http.server`.
 
@@ -142,7 +142,7 @@ API errors generally return `{ "ok": false, "error": "…" }`. Invalid JSON or c
 
 ## Navigate the workspace
 
-The shell keeps one **Le Bus des Toutous · by Plus de Fun** header. The staff dashboard, **Votre journée, au clair.**, shows saved planning, dogs, notes and pending client requests. Four primary destinations sit above the content; **All my tools / Tous mes outils** opens the remaining tools in a dialog.
+The shell keeps one instance-brand header, **Le Bus des Toutous · by Plus de Fun** by default. The staff dashboard, **Votre journée, au clair.**, shows saved planning, dogs, notes and pending client requests. Four primary destinations sit above the content; **All my tools / Tous mes outils** opens the remaining tools in a dialog.
 
 | Group | Destinations (English labels) |
 | --- | --- |
@@ -243,7 +243,7 @@ node --test tests/*.js
 for file in *.js; do node --check "$file" || exit 1; done
 ```
 
-The full Python discovery command below also includes portal, professional-access, login-delivery/rate-limit, account-registry, cancellation, billing, media, backup and static-boundary regressions. Browser checks need Playwright and its matching Chromium binary; Crawl4AI is not required. Real media checks need FFmpeg/ffprobe with the codecs described in [media verification](docs/media.md), including the test-only libx265 encoder for synthetic HEVC fixtures. Real HEIC conversion checks need `heif-convert`; a skipped check does not establish support. Using `uv` and the Playwright version in `requirements-crawler.txt` (reuse matching cached Chromium when available):
+The full Python discovery command below also includes portal, professional-access, login-delivery/rate-limit, account-registry, cancellation, billing, media, backup, static-boundary and instance-brand regressions. Browser checks need Playwright and its matching Chromium binary; Crawl4AI is not required. Real media checks need FFmpeg/ffprobe with the codecs described in [media verification](docs/media.md), including the test-only libx265 encoder for synthetic HEVC fixtures. Real HEIC conversion checks need `heif-convert`; a skipped check does not establish support. Using `uv` and the Playwright version in `requirements-crawler.txt` (reuse matching cached Chromium when available):
 
 ```bash
 uv run --python 3.12 --with playwright==1.61.0 python -m playwright install chromium
@@ -264,6 +264,8 @@ Accounting checks cover invoice/extra/payment save/reload, local receipt OCR and
 
 Navigation checks reach all 13 owner destinations through the primary buttons and tools dialog, in five locales at 1440 × 900, 1024 × 768, and 390 × 844. They cover keyboard activation, active state, 44px targets, a single business brand, heading visibility after switching from scrolled content, and return to the selected tool.
 
+Instance-brand checks in `tests.test_brand_instance` cover unchanged default asset responses, custom welcome/gallery isolation and gold buttons, owner headings in five locales, owner fallback and special characters, saved dog names, and observation display translations without brand substitution or stored-text changes. See [brand checks](docs/second-instance.md#checks) for the focused command and 390px evidence.
+
 Professional-access checks cover individual grants and file denial, shared note versions, stale selections, dog reassignment/removal, revocation and concurrent authorization changes. The browser journey checks owner selection/review, professional self-login, reload and revocation at desktop and phone widths; see [selected professional access](docs/client-portal.md#selected-professional-access).
 
 Account recovery checks cover French initial copy, all five recovery languages, no account or browser-setting writes when switching languages, and no fallback to demo history. They also check overflow and the reload button's 44px target at the three viewports above.
@@ -272,4 +274,4 @@ Speech recognition is simulated; these tests do not verify a real microphone or 
 
 Set `DOGCARE_EVIDENCE_DIR` to an allowed evidence directory to retain the browser suite's selected screenshots and migration-state JSON; when unset it does not write those evidence files. Browser checks await `#app-content[data-ready="true"]` and rendered content, since adapter hydration alone does not establish that the UI is ready.
 
-Private beta operator procedure and reviewed local templates: [docs/private-beta-release.md](docs/private-beta-release.md). No deployment is performed by the application or these templates.
+Private beta operator procedure and reviewed local templates: [docs/private-beta-release.md](docs/private-beta-release.md). The [second-instance guide](docs/second-instance.md) adds separate service, proxy, environment and backup templates plus proposed shared-release steps. No deployment is performed by the application or these templates.
