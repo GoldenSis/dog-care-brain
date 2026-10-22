@@ -1434,7 +1434,7 @@ class FinanceBrowserTest(BrowserFixture):
             self.assertEqual(await self.page.get_attribute('[data-finance-tab="journal"]', 'aria-current'), 'page')
             await self.capture_evidence(f'finance-fr-{width}-{self.api_mode}.png')
             pages = await self.page.locator('[data-page]').evaluate_all('(nodes)=>nodes.map(n=>n.dataset.page)')
-            self.assertEqual(len(pages), 12)
+            self.assertEqual(len(pages), 13)
             for page in pages:
                 await self.open_route(f'{page}')
                 self.assertEqual(await self.page.get_attribute(f'[data-page="{page}"]','aria-current'),'page')

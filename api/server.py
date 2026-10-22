@@ -18,6 +18,7 @@ from http import cookies as httpcookies
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlparse
 
+import balades
 import daily
 import knowledge
 import finance
@@ -58,6 +59,11 @@ MIME = {
 STATIC_FILES = frozenset((
     'api.js',
     'app.js',
+    'balades-copy.js',
+    'balades-model.js',
+    'balades-store.js',
+    'balades-ui.js',
+    'balades.css',
     'assets/films/a-day-with-adine.mp4',
     'assets/fonts/barlow-600-5bc49d41.woff2',
     'assets/fonts/barlow-700-e3e520cb.woff2',
@@ -72,6 +78,9 @@ STATIC_FILES = frozenset((
     'assets/photos/pack-in-the-sun.jpg',
     'assets/photos/pack-on-the-trail.jpg',
     'assets/photos/the-bus.jpg',
+    'assets/vendor/balades/maplibre-gl/maplibre-gl-worker.mjs',
+    'assets/vendor/balades/maplibre-gl/maplibre-gl.css',
+    'assets/vendor/balades/maplibre-gl/maplibre-gl.mjs',
     'assets/vendor/finance/fflate/index.js',
     'assets/vendor/finance/pdfjs-dist/pdf.mjs',
     'assets/vendor/finance/pdfjs-dist/pdf.worker.mjs',
@@ -785,6 +794,27 @@ class Handler(BaseHTTPRequestHandler):
             return self._send({"ok": False, "error": "accounting records could not be saved"}, 500)
         return self._send(out)
 
+    def _write_balades(self, payload):
+        try:
+            daily.fields(payload, 'balades')
+            with self._mutation_transaction() as (c, user):
+                if not user:
+                    return
+                if user['role'] not in portal.STAFF:
+                    return self._send({"ok": False, "error": "access denied"}, 403)
+                revision = balades.load(c, user['business_id'])[1]
+                expected = self.headers.get("If-Match")
+                if expected != f'"{revision}"':
+                    return self._send({"ok": False, "error": "walk tracks changed; reload before saving", "conflict": True},
+                                      428 if expected is None else 409)
+                revision = balades.save(c, user['business_id'], balades.validate(payload['balades']))
+                value = balades.load(c, user['business_id'])[0]
+        except ValueError:
+            return self._send({"ok": False, "error": "invalid walk tracks"}, 400)
+        except sqlite3.Error:
+            return self._send({"ok": False, "error": "walk tracks could not be saved"}, 500)
+        return self._send({"ok": True, "business_id": user['business_id'], "revision": revision, "balades": value})
+
     def _write_daily(self, payload, uploading=False):
         try:
             with self._mutation_transaction() as (c, user):
@@ -999,6 +1029,16 @@ class Handler(BaseHTTPRequestHandler):
             if not u:
                 return self._send({"ok": False}, 200)
             return self._send({"ok": True, "email": u["email"], "role": u["role"]})
+        if path == "/api/balades":
+            with connection() as c:
+                c.execute('BEGIN')
+                u = self._need_user(c)
+                if not u:
+                    return
+                if u["role"] not in portal.STAFF:
+                    return self._send({"ok": False, "error": "access denied"}, 403)
+                value, revision = balades.load(c, u["business_id"])
+            return self._send({"ok": True, "business_id": u["business_id"], "revision": revision, "balades": value})
         if path in ("/api/finance", "/api/knowledge", "/api/daily"):
             with connection() as c:
                 c.execute('BEGIN')
@@ -1236,6 +1276,8 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/finance":
             return self._write_finance(payload)
+        if path == "/api/balades":
+            return self._write_balades(payload)
         if path == "/api/knowledge":
             return self._write_knowledge(payload)
         if path == "/api/daily":

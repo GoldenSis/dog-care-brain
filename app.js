@@ -1547,6 +1547,7 @@ function escapeHtml(value) { return String(value).replace(/[&<>'"]/g, c => ({'&'
 function showToast(message) { const toast=document.querySelector('#toast'); toast.textContent=message; toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'),2500); }
 function dogAvatar(key) { const d=dogs[key], cover=window.MediaUI?.avatar(key,d.name); if(cover)return cover; return `<div class="dog-avatar ${d.colour}">${!window.DogCareAPI && key==='billie'?`<img src="assets/photos/billie-pines.jpg" alt="Billie Blue" width="960" height="1280">`:`<span class="dog-initials" aria-hidden="true">${escapeHtml(d.name.split(/\s+/).slice(0,2).map(part=>part[0] || '').join('').toUpperCase())}</span><small>${t('Photo to add')}</small>`}</div>`; }
 Object.entries({fr:'Comptabilité',en:'Accounting',it:'Contabilità',de:'Buchhaltung',es:'Contabilidad'}).forEach(([lang,label])=>{translations[lang]??={};translations[lang].Accounting=label;});
+Object.entries({fr:'Balades',en:'Walk tracks',it:'Percorsi',de:'Spazierwege',es:'Rutas de paseo'}).forEach(([lang,label])=>{translations[lang]??={};translations[lang]['Walk tracks']=label;});
 function t(text) { return translations[state.language]?.[text] || text; }
 function formatLocale(formatter) {
   try { return formatter.supportedLocalesOf(state.language)[0] || 'en'; }
@@ -1728,6 +1729,7 @@ const views = {
   health() { setHeader('', KnowledgeUI.text('title')); return KnowledgeUI.view(); },
   schedule() { setHeader('', t('Schedule')); return DailyUI.schedule(); },
   business() { setHeader('', FinanceUI.text('title')); return FinanceUI.view(); },
+  balades() { setHeader('', BaladesUI.text('title')); return BaladesUI.view(); },
   settings() { if(window.DogCareAPI){setHeader('',t('Settings'));return PortalUI.settings();} setHeader('SETTINGS','Your calm corner'); return `<section class="card empty"><div class="big">⚙️</div><h2>${t('Demo settings')}</h2><p>${t('External integrations are intentionally unavailable in this local prototype.')}</p><button class="ghost" id="reset-demo">${t('Reset demo observations')}</button></section>`; }
 };
 
@@ -1909,6 +1911,7 @@ function navigate(page) {
   if(state.page==='dogs')DailyUI.rememberDogDraft();
   if(state.page==='business')FinanceUI.rememberDraft();
   if(state.page==='health')KnowledgeUI.rememberDraft();
+  if(state.page==='balades')BaladesUI.leave();
   if(state.page==='capture'){stopActiveRecording();stopTranscription(true);rememberCaptureDraft();}
   WelcomeUI.hide();
   document.querySelector('#workspace-tools-dialog').close();
@@ -1949,6 +1952,7 @@ function bindView() {
   DailyUI.bind();
   if(state.page==='health')KnowledgeUI.bind();
   if(state.page==='business')FinanceUI.bind();
+  if(state.page==='balades')BaladesUI.bind();
   document.querySelectorAll('[data-assistant-action]').forEach(el=>el.onclick=()=>navigate(el.dataset.assistantAction));
   document.querySelectorAll('[data-assistant-prompt]').forEach(el=>el.onclick=()=>{const prompt=el.textContent.trim(),response=addAssistantExchange(prompt,el.dataset.assistantPrompt);appendAssistantExchange(prompt,response);document.querySelector('#assistant-question').focus();});
   const assistantForm=document.querySelector('#assistant-form');
@@ -2074,6 +2078,7 @@ async function boot() {
   DailyUI.load();
   if(PortalUI.staff()) {
     KnowledgeUI.load();
+    BaladesUI.load();
     if(PortalUI.owner())await FinanceStore.load();
   }
   languagePicker.value = state.language;

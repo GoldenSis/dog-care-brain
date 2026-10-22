@@ -1,0 +1,18 @@
+[
+  {
+    "file": "maplibre-gl/LICENSE.txt",
+    "sha256": "ee5fc05a0677eaf69601d2c7db0d9ecd6cc27c3abc1d0733bc9ed34707cf8ef2"
+  },
+  {
+    "file": "maplibre-gl/maplibre-gl-worker.mjs",
+    "sha256": "53a2dd60f76c7b9201a3cc007b755d98ce4b52403843fef5c90c41780fe62e91"
+  },
+  {
+    "file": "maplibre-gl/maplibre-gl.css",
+    "sha256": "20fc3054e6c769ae9502ec5c7ea46dae05b544fdc4fca2108553fb8c07265bf3"
+  },
+  {
+    "file": "maplibre-gl/maplibre-gl.mjs",
+    "sha256": "389731e8581cc59d484e867b051db73ae034a76f0691d2890a2a1a7d2495bdf3"
+  }
+]

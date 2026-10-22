@@ -17,16 +17,18 @@ The owner registers a client and their dog in the existing daily records, then o
 | Role | Available records and actions |
 | --- | --- |
 | Visitor | Public descriptions and explicitly published service rates; no private account state. |
-| Client | Their linked dogs, bookings, family requests and quotes, explicitly shared news and client documents. Can request a booking, change their language and manage their authorized dog albums. No per-dog walk tariffs or attendance records. |
-| Trusted carer | Internal care records and planning; can add/remove walk attendance, accept/decline requests and share client news/documents. Cannot manage access, set prices/extras or walk tariffs, price an unpriced walk, cancel bookings, read accounting originals or access private dog albums. Walk prices and monetary totals are hidden in their UI. |
-| Professional | Only explicitly selected dogs and individual shared note versions, documents, photos/videos. Read-only, with their own language preference. No family details, bookings, quotes, walk tariffs/attendance, accounting, raw audio or general internal records. |
-| Owner | All existing care functions plus access grants, prices/extras, per-dog walk tariffs and monthly totals, explicit pricing of unpriced walks, cancellation, private accounting, dog albums and public artwork settings. |
+| Client | Their linked dogs, bookings, family requests and quotes, explicitly shared news and client documents. Can request a booking, change their language and manage their authorized dog albums. No per-dog walk tariffs, attendance records or Balades tracks/spots. |
+| Trusted carer | Internal care records and planning; can add/remove walk attendance, record/import/edit/delete/export Balades tracks and spots, accept/decline requests and share client news/documents. Cannot manage access, set prices/extras or walk tariffs, price an unpriced walk, cancel bookings, read accounting originals or access private dog albums. Walk prices and monetary totals are hidden in their UI. |
+| Professional | Only explicitly selected dogs and individual shared note versions, documents, photos/videos. Read-only, with their own language preference. No family details, bookings, quotes, walk tariffs/attendance, Balades tracks/spots, accounting, raw audio or general internal records. |
+| Owner | All existing care functions plus access grants, prices/extras, per-dog walk tariffs and monthly totals, explicit pricing of unpriced walks, Balades track/spot management, cancellation, private accounting, dog albums and public artwork settings. |
 
 Authorization is enforced by the API for reads, writes and attachment downloads, including direct/guessed URLs. Client news and documents are separate from internal notes, health documents and accounting originals. Saved client-facing records retain their family audience; moving a dog to another client does not transfer the former family’s requests, quotes or shared files. Existing daily bookings acquire their saved client association during the additive schema upgrade. In account mode, Inviter opens real membership controls. Previously saved invitation previews remain in a read-only disclosure and do not grant access. Static mode retains its explicitly labeled preview form. Account settings show the account and access/rate actions; the demo reset exists only in static mode. Static mode retains the existing local workspace, without a simulated client login or server membership system.
 
 Staff share news and files through **Chiens → Partager au client**, choosing a dog linked to a family. Publishing here explicitly makes that item available in the family's **Nouvelles** or **Documents** section; internal notes and health documents are not copied automatically. [Photos, videos and public artwork](media.md) have separate album permissions and publication controls.
 
 Client and professional daily projections carry `walkTariff: null` on allowed dogs and `walks: []`; the server excludes these prices and attendance records. Trusted carers receive the full staff daily snapshot, including saved tariffs, so they can preserve it when ticking attendance; their UI's hidden prices are not API redaction. Only owners receive `finance`. See the [daily contract](daily-workflows.md#api-contract) for walk write restrictions.
+
+[Balades](balades.md) are business-private and fetched separately from `/api/state`. Both `GET` and `PUT /api/balades` require owner or trusted-carer access; clients and professionals receive 403, including for tracks linked to their dogs. Tracks and spots are not offered in professional record selection or on the public site.
 
 ## Selected professional access
 
@@ -85,6 +87,7 @@ Protected requests read the session, active role, family membership and protecte
 | Account and family reads | `GET /state`, `/dogs`, `/dogs/<id>`, `/observations`, `/invites`, `/portal/estimate` |
 | Private downloads and albums | `GET /documents/<id>`, `/finance-documents/<id>`, `/client-documents/<id>`, `/blobs/<ref>`, `/media`, `/media/content/<id>` |
 | Writes returning account state | `PUT /prefs`, `/observations`, `/invites`, `/daily`, `/knowledge`, `/finance`; `POST /import`, `/documents`, all `/portal/*` actions |
+| Walk tracks with an independent revision | `GET /balades`, `PUT /balades`; see the [Balades contract](balades.md#storage-and-api-contract) |
 | Other protected writes | `POST /dogs`, `/blobs`, `/auth/logout`, `/media/upload`, `/media/cover`, `/media/delete`, `/media/branding` |
 
 The deterministic races in `tests.test_client_portal` cover reassignment and revocation between early authentication and mutation, predicted revisions, consistent read snapshots, and revocation after media normalization. Public endpoints have no private family projection; `/auth/me` reads only the session and user in a single query.
