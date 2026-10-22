@@ -27,6 +27,8 @@ The brand comes from the environment. Leaving `DC_BRAND_NAME` unset, or setting 
 
 Any other brand name hides Adine-Sophie's content. The server refuses `assets/photos/*` and `assets/films/*` (404), the dashboard drops the outdoor journal and photo credits, the gallery keeps only the instance's own uploaded albums, and the welcome photo stays empty until the owner publishes a homepage image from Réglages. The files remain in the read-only release on disk but are never served by that instance.
 
+Brand substitutions apply only to interface copy. Authored records, including observation text, handoffs, shared updates and invoices, keep their original wording even when they mention another dog-sitter or brand. Muse headings use the configured owner in every language, falling back to the brand name.
+
 Nicolas's palette is the Sol de Mayo: gold `#F6B40E`, sun brown `#85340A`, celeste `#74ACDF`. Brown on gold measures 4.59:1 and passes WCAG AA; white on gold (1.83:1) and celeste text on white (2.41:1) do not, which is why the dark colour carries button text and celeste only appears as decoration. Screenshots at 390 px: [public](review/brand-instance/brand-nicolas-public-390.png), [dashboard](review/brand-instance/brand-nicolas-dashboard-390.png), [gallery](review/brand-instance/brand-nicolas-gallery-390.png).
 
 ## Server steps

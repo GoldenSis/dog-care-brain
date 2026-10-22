@@ -13,6 +13,102 @@ NICOLAS = {'DC_BRAND_NAME': 'nicolasdelalaissedogcare', 'DC_BRAND_OWNER': 'Nicol
 
 
 class BrandInstanceTest(BrowserFixture):
+    async def test_handoff_keeps_saved_dog_name(self):
+        with patch.dict(os.environ, NICOLAS):
+            await self.page.reload()
+            await self.wait_ready()
+            await self.open_route('dogs')
+            await self.page.click('#new-dog')
+            name = 'Adine-Sophie & @bus_destoutous'
+            await self.page.fill('#dog-form [name="dogName"]', name)
+            await self.page.click('#dog-form [type="submit"]')
+            await self.page.wait_for_selector('#dog-form', state='detached')
+            await self.open_route('handoff')
+            await self.page.click('[data-audience="owner"]')
+            self.assertEqual(await self.page.locator('#page-title').text_content(), name + ' · Owner')
+            self.assertEqual(self.console_errors, [])
+            self.assertEqual(self.page_errors, [])
+
+    async def test_authored_observations_remain_literal(self):
+        with patch.dict(os.environ, NICOLAS):
+            await self.page.reload()
+            await self.wait_ready()
+            note = 'Adine-Sophie administered medication at Le Bus des Toutous. @bus_destoutous'
+            await self.open_route('capture')
+            await self.page.fill('#observation', note)
+            await self.page.click('#save-observation')
+            await self.page.wait_for_function("state.page === 'dogs' && !savePending")
+            self.assertEqual(await self.page.locator('.timeline-card > p').first.text_content(), note)
+            notes = [note, 'Hello, Adine-Sophie.', 'All good']
+            self.assertTrue(await self.page.evaluate('''async notes => {
+                const records = notes.map((text, i) => ({
+                    id: Date.now() + i, date: localDay(), time: '12:00',
+                    title: text, text, tags: [['Nutrition'], ['Activity'], ['Adine-Sophie']][i]
+                }));
+                return saveObservations({...state.observations, [state.dog]: records});
+            }''', notes))
+            await self.page.reload()
+            await self.wait_ready()
+            for locale in ('en', 'fr', 'it', 'de', 'es'):
+                with self.subTest(locale=locale):
+                    await self.page.select_option('#language-picker', locale)
+                    await self.page.wait_for_function('!savePending')
+                    await self.open_route('dashboard')
+                    self.assertEqual(await self.page.locator('.activity-preview').text_content(), note)
+                    await self.open_route('dogs')
+                    self.assertEqual(await self.page.locator('.timeline-card > p').all_text_contents(), notes)
+                    self.assertEqual(await self.page.locator('.timeline-top h4').all_text_contents(), notes)
+                    self.assertEqual(await self.page.locator('.timeline-card .mini-tags').last.text_content(), 'Adine-Sophie')
+                    self.assertEqual(await self.page.evaluate('state.observations[state.dog].map(o => shareText(o).split("\\n\\n")[1])'), notes)
+                    await self.open_route('handoff')
+                    highlights = await self.page.locator('.highlight-list').text_content()
+                    for text in notes:
+                        self.assertIn(text, highlights)
+                    self.assertEqual(await self.page.locator('.evidence-row small').all_text_contents(), notes)
+                    self.assertEqual(await self.page.locator('.evidence-row strong').all_text_contents(), notes)
+                    await self.open_route('story')
+                    self.assertEqual((await self.page.locator('.story-copy').text_content()).strip(), note)
+                    self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+            self.assertEqual(await self.page.evaluate('state.observations[state.dog].map(o => o.text)'), notes)
+            self.assertEqual(self.console_errors, [])
+            self.assertEqual(self.page_errors, [])
+
+    async def test_assistant_heading_uses_owner_in_every_locale(self):
+        with patch.dict(os.environ, NICOLAS):
+            await self.page.reload()
+            await self.wait_ready()
+            await self.open_route('assistant')
+            for locale, prefix in (('en', 'FOR'), ('fr', 'POUR'), ('it', 'PER'), ('de', 'FÜR'), ('es', 'PARA')):
+                with self.subTest(locale=locale):
+                    await self.page.select_option('#language-picker', locale)
+                    await self.page.wait_for_function('!savePending')
+                    self.assertEqual(await self.page.locator('.muse-kicker').text_content(), f'MUSE {prefix} NICOLAS')
+                    copy = await self.page.evaluate('''() => JSON.stringify([
+                        [...new Set(Object.values(translations).flatMap(copy => Object.keys(copy)))].map(key => t(key)),
+                        assistantCopy[state.language], PortalCopy[state.language],
+                        DailyCopy[state.language], FinanceCopy[state.language],
+                        MediaCopy[state.language], KnowledgeCopy[state.language], BaladesCopy[state.language]
+                    ])''')
+                    self.assertNotRegex(copy, '(?i)adine|bus_destoutous')
+                    self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+                    await self.page.click('#public-home')
+                    self.assertNotRegex(await self.page.locator('#public-welcome').inner_text(), '(?i)adine|bus_destoutous')
+                    await self.page.evaluate('navigate("assistant")')
+            self.assertEqual(self.console_errors, [])
+            self.assertEqual(self.page_errors, [])
+
+    async def test_assistant_owner_fallback_and_html_characters(self):
+        for owner in ('', 'Nicolas <&> $&'):
+            with self.subTest(owner=owner), patch.dict(os.environ, {**NICOLAS, 'DC_BRAND_OWNER': owner}):
+                await self.page.reload()
+                await self.wait_ready()
+                await self.open_route('assistant')
+                expected = owner or NICOLAS['DC_BRAND_NAME']
+                self.assertEqual(await self.page.locator('.muse-kicker').text_content(), 'MUSE FOR ' + expected.upper())
+                self.assertEqual(await self.page.evaluate('assistantText().heroHeading'), f'Good morning, {expected}.')
+        self.assertEqual(self.console_errors, [])
+        self.assertEqual(self.page_errors, [])
+
     async def test_default_brand_is_served_unchanged(self):
         with patch.dict(os.environ, {}):
             for name in NICOLAS:
