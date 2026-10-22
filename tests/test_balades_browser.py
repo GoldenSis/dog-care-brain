@@ -39,10 +39,227 @@ class BaladesBrowserTest(BrowserFixture):
             points:[[48+i,2,null],[48.001+i,2.001,null]],durationSec:60,source:'import',walkRefs:[],
             spots:[{id:'s',type:'pause',lat:48+i,lon:2,note:'Spot '+id,rule:'',noted:'2026-10-20'}]}));
           if(await BaladesStore.save({version:1,tracks})!=='ok')throw Error('Seed failed');
-          await BaladesStore.draft(draft?{startedAt:Date.now()-60000,savedAt:Date.now(),points:[[47,1,null],[47.001,1.001,null]]}:null);
+          await BaladesStore.draft(draft?{id:crypto.randomUUID(),token:crypto.randomUUID(),startedAt:Date.now()-60000,savedAt:Date.now(),points:[[47,1,null],[47.001,1.001,null]]}:null);
           await BaladesUI.load();
         }''', draft)
         await self.open_route('balades')
+
+    async def test_draft_ownership_rejects_other_recordings_and_stale_tabs(self):
+        other = await self.context.new_page()
+        try:
+            await other.goto(self.url)
+            await other.wait_for_function("document.querySelector('#app-content')?.dataset.ready === 'true'")
+            await other.evaluate('BaladesStore.load()')
+            a = {'id': 'record-a', 'token': 'v1', 'startedAt': 1000, 'savedAt': 2000, 'points': [[48, 2, None]]}
+            b = {**a, 'id': 'record-b'}
+            self.assertIsNone(await self.page.evaluate('BaladesStore.draft()'))
+            self.assertIsNone(await other.evaluate('BaladesStore.draft()'))
+            self.assertIs(await self.page.evaluate('value=>BaladesStore.draft(value)', a), True)
+            self.assertEqual(await other.evaluate('value=>BaladesStore.draft(value)', b), {'conflict': True, 'draft': a})
+            recovered = await other.evaluate('BaladesStore.draft()')
+            updated = {**a, 'token': 'v2', 'points': [[48, 2, None], [48.001, 2, None]]}
+            self.assertIs(await self.page.evaluate('([value,previous])=>BaladesStore.draft(value,previous)', [updated, a]), True)
+            self.assertEqual(await other.evaluate('([value,previous])=>BaladesStore.draft(value,previous)', [{**a, 'token': 'stale'}, recovered]), {'conflict': True, 'draft': updated})
+            self.assertEqual(await other.evaluate('previous=>BaladesStore.draft(null,previous)', recovered), {'conflict': True, 'draft': updated})
+            self.assertEqual(await other.evaluate('BaladesStore.draft()'), updated)
+            self.assertIs(await self.page.evaluate('previous=>BaladesStore.draft(null,previous)', updated), True)
+            self.assertIs(await self.page.evaluate('value=>BaladesStore.draft(value)', b), True)
+            self.assertEqual(await other.evaluate('previous=>BaladesStore.draft(null,previous)', updated), {'conflict': True, 'draft': b})
+            self.assertEqual(await other.evaluate('BaladesStore.draft()'), b)
+            outcomes = await other.evaluate('''previous=>Promise.all(['v3','v4'].map(token=>
+              BaladesStore.draft({...previous,token},previous)))''', b)
+            self.assertEqual(outcomes.count(True), 1)
+            self.assertEqual([result for result in outcomes if result is not True],
+                             [{'conflict': True, 'draft': await other.evaluate('BaladesStore.draft()')}])
+        finally:
+            await other.close()
+
+    async def test_readiness_waits_for_draft_recovery(self):
+        await self.seed_tracks(draft=True)
+        before = await self.page.evaluate('BaladesStore.draft()')
+        script = (ROOT / 'balades-store.js').read_text() + '''
+          const readDraft=BaladesStore.draft;
+          BaladesStore.draft=(...args)=>args[0]===undefined?
+            new Promise(resolve=>window.releaseDraft=async()=>resolve(await readDraft(...args))):readDraft(...args);
+        '''
+        await self.page.route('**/balades-store.js', lambda route: route.fulfill(content_type='text/javascript', body=script))
+        await self.page.reload()
+        await self.wait_ready()
+        await self.page.wait_for_function('!!window.releaseDraft')
+        await self.open_route('balades')
+        self.assertEqual(await self.page.locator('[data-b=record]').count(), 0)
+        await self.page.evaluate('releaseDraft()')
+        await self.page.wait_for_selector('[data-b=resume]')
+        self.assertTrue(await self.page.locator('[data-b=record]').is_disabled())
+        self.assertEqual(await self.page.evaluate('readDraft()'), before)
+
+    async def test_legacy_draft_remains_recoverable_and_gains_ownership(self):
+        await self.seed_tracks()
+        legacy = await self.page.evaluate('''async () => {
+          const value={startedAt:Date.now()-60000,savedAt:Date.now(),points:[[47,1,null],[47.001,1.001,null]]};
+          const scope=window.DogCareAPI?'account:'+(await DogCareAPI.balades()).businessId:'static';
+          await new Promise((resolve,reject)=>{
+            const open=indexedDB.open('dogcare-balades-v1');open.onerror=()=>reject(open.error);
+            open.onsuccess=()=>{const db=open.result,tx=db.transaction('drafts','readwrite');
+              tx.objectStore('drafts').put(value,scope);tx.oncomplete=()=>{db.close();resolve();};tx.onerror=()=>reject(tx.error);};
+          });
+          await BaladesUI.load();return value;
+        }''')
+        await self.page.click('[data-b=finish-draft]')
+        await self.page.wait_for_selector('#track-form')
+        recovered = await self.page.evaluate('BaladesStore.draft()')
+        self.assertEqual(recovered['points'], legacy['points'])
+        self.assertEqual(recovered['startedAt'], legacy['startedAt'])
+        self.assertTrue(recovered['id'])
+        self.assertTrue(recovered['token'])
+        await self.page.click('#track-form [type=submit]')
+        await self.page.wait_for_selector('.balades-track')
+        self.assertIsNone(await self.page.evaluate('BaladesStore.draft()'))
+
+    async def test_save_cleanup_preserves_draft_replaced_in_another_tab(self):
+        await self.seed_tracks(draft=True)
+        await self.page.click('[data-b=finish-draft]')
+        await self.page.wait_for_selector('#track-form')
+        other = await self.context.new_page()
+        try:
+            await other.goto(self.url)
+            await other.wait_for_function("document.querySelector('#app-content')?.dataset.ready === 'true'")
+            await other.evaluate('BaladesStore.load()')
+            replacement = await other.evaluate('''async () => {
+              const old=await BaladesStore.draft();
+              if(await BaladesStore.draft(null,old)!==true)throw Error('Clear failed');
+              const next={...old,id:crypto.randomUUID(),token:crypto.randomUUID(),points:[[46,1,null],[46.001,1,null],[46.002,1,null]]};
+              if(await BaladesStore.draft(next)!==true)throw Error('Create failed');return next;
+            }''')
+            await self.page.click('#track-form [type=submit]')
+            await self.page.wait_for_selector('.balades-track')
+            self.assertEqual(await other.evaluate('BaladesStore.draft()'), replacement)
+            self.assertFalse(await self.page.locator('#balades-draft-warning').is_visible())
+            await self.page.click('[data-b=back]')
+            await self.page.click('[data-b=finish-draft]')
+            await self.page.wait_for_selector('#track-form')
+            self.assertIn('3 points', await self.page.locator('#track-form .daily-help').text_content())
+            self.assertEqual((await self.page.evaluate('BaladesStore.draft()'))['id'], replacement['id'])
+        finally:
+            await other.close()
+
+    async def test_recovered_draft_discard_requires_confirmation(self):
+        await self.seed_tracks(draft=True)
+        before = await self.page.evaluate('BaladesStore.draft()')
+        await self.page.get_by_role('button', name='Abandonner', exact=True).click()
+        self.assertEqual(await self.page.evaluate('BaladesStore.draft()'), before)
+        await self.page.wait_for_selector('.balades-confirm')
+        await self.page.click('[data-b=discard-no]')
+        self.assertEqual(await self.page.locator('.balades-confirm').count(), 0)
+        self.assertEqual(await self.page.evaluate('BaladesStore.draft()'), before)
+        await self.page.get_by_role('button', name='Abandonner', exact=True).click()
+        await self.page.click('[data-b=discard]')
+        await self.page.wait_for_function('''async () => (await BaladesStore.draft()) === null''')
+        self.assertTrue(await self.page.locator('[data-b=record]').is_enabled())
+        await self.no_overflow()
+
+    async def test_discard_reconciles_draft_removed_elsewhere(self):
+        await self.seed_tracks(draft=True)
+        await self.page.evaluate('''async () => {
+          const previous=await BaladesStore.draft();
+          if(await BaladesStore.draft(null,previous)!==true)throw Error('Clear failed');
+        }''')
+        await self.page.click('[data-b=discard-ask]')
+        await self.page.click('[data-b=discard]')
+        await self.page.wait_for_function("!document.querySelector('[data-b=record]').disabled", timeout=2000)
+        self.assertEqual(await self.page.locator('[data-b=resume]').count(), 0)
+        self.assertIsNone(await self.page.evaluate('BaladesStore.draft()'))
+
+    async def test_creation_retry_keeps_track_and_spot_ids(self):
+        await self.seed_tracks()
+        page = self.page
+        for kind in ('track', 'spot'):
+            with self.subTest(kind=kind):
+                if kind == 'track':
+                    await page.set_input_files('#balades-import', files=[{'name': 'test.gpx', 'mimeType': 'application/gpx+xml', 'buffer': GPX}])
+                else:
+                    await page.click('[data-b=add-spot]')
+                    if await page.locator('[data-b=place-center]').count():
+                        await page.click('[data-b=place-center]')
+                    await page.fill('#spot-form [name=note]', 'New spot')
+                form = '#track-form' if kind == 'track' else '#spot-form'
+                await page.evaluate('''() => {
+                  const save=BaladesStore.save;let attempts=0;
+                  BaladesStore.save=async next=>{
+                    if(++attempts===1){if(await save(next)!=='ok')throw Error('Save failed');return 'failed';}
+                    if(attempts===2)return 'conflict';
+                    return save(next);
+                  };
+                  window.restoreSave=()=>BaladesStore.save=save;
+                }''')
+                await page.click(f'{form} [type=submit]')
+                await page.wait_for_selector('#balades-message[role=alert]')
+                before = await page.evaluate('BaladesStore.snapshot()')
+                await page.click(f'{form} [type=submit]')
+                await page.wait_for_selector('[data-b=replay]')
+                await page.click('[data-b=replay]')
+                await page.wait_for_selector('.balades-track')
+                self.assertEqual(await page.evaluate('BaladesStore.snapshot()'), before)
+                await page.evaluate('restoreSave()')
+
+    async def test_form_edit_removes_abandoned_retry_button(self):
+        await self.seed_tracks()
+        page = self.page
+        await page.evaluate("window.realSave=BaladesStore.save; BaladesStore.save=async()=> 'conflict'")
+        for kind in ('import', 'track', 'spot'):
+            with self.subTest(kind=kind):
+                if kind == 'import':
+                    await page.set_input_files('#balades-import', files=[{'name': 'test.gpx', 'mimeType': 'application/gpx+xml', 'buffer': GPX}])
+                elif kind == 'track':
+                    await page.click('[data-track=a] [data-b=open]')
+                    await page.click('[data-b=edit]')
+                else:
+                    await page.click('[data-b=edit-spot]')
+                form, field, cancel = {'import': ('#track-form', 'name', 'cancel-save'),
+                                       'track': ('#edit-form', 'name', 'cancel-edit'),
+                                       'spot': ('#spot-form', 'note', 'cancel-spot')}[kind]
+                await page.click(f'{form} [type=submit]')
+                await page.wait_for_selector('[data-b=replay]')
+                await page.fill(f'{form} [name={field}]', 'Revised input')
+                self.assertEqual(await page.locator('[data-b=replay]').count(), 0)
+                self.assertEqual(await page.input_value(f'{form} [name={field}]'), 'Revised input')
+                await page.click(f'[data-b={cancel}]')
+        await self.no_overflow()
+
+    async def test_late_wake_lock_is_released_after_recording_stops(self):
+        await self.seed_tracks(draft=True)
+        await self.context.grant_permissions(['geolocation'], origin=self.url)
+        await self.context.set_geolocation({'latitude': 48.84, 'longitude': 2.22, 'accuracy': 5})
+        page = self.page
+        for stop, reject in (('finish', False), ('discard', False), ('finish', True)):
+            with self.subTest(stop=stop, reject=reject):
+                if await page.locator('[data-b=resume]').count() == 0:
+                    await page.evaluate('''async () => {
+                      await BaladesStore.draft({id:crypto.randomUUID(),token:crypto.randomUUID(),startedAt:Date.now()-1000,
+                        savedAt:Date.now(),points:[[47,1,null],[47.001,1.001,null]]});await BaladesUI.load();
+                    }''')
+                await page.evaluate('''() => {
+                  window.releasedLocks=0;
+                  Object.defineProperty(navigator,'wakeLock',{configurable:true,value:{request:()=>new Promise((resolve,reject)=>{
+                    window.resolveWake=()=>resolve({release:async()=>{releasedLocks++;},addEventListener:()=>{}});
+                    window.rejectWake=()=>reject(Error('Denied'));
+                  })}});
+                }''')
+                await page.click('[data-b=resume]')
+                await page.wait_for_function('!!window.resolveWake')
+                if stop == 'finish':
+                    await page.click('[data-b=finish]')
+                    await page.wait_for_selector('#track-form')
+                else:
+                    await page.click('[data-b=discard-ask]')
+                    await page.click('[data-b=discard]')
+                    await page.wait_for_selector('[data-b=record]')
+                await page.evaluate('rejectWake()' if reject else 'resolveWake()')
+                if not reject:
+                    await page.wait_for_function('releasedLocks === 1', timeout=2000)
+                self.assertEqual(self.page_errors, [])
+                if stop == 'finish':
+                    await page.click('[data-b=cancel-save]')
 
     async def test_import_failure_preserves_form_and_unrelated_recording(self):
         await self.seed_tracks(draft=True)

@@ -4,7 +4,7 @@
   const M=w.BaladesModel, S=w.BaladesStore, STYLE='https://tiles.openfreemap.org/styles/liberty';
   const ICONS={pause:'💧',danger:'⚠️',interdit:'⛔',laisse:'🦮',tolere:'🤝'};
   let view='list', current=null, link=null, pending=null, spot=null, placing=false, confirmDelete=false, editing=false;
-  let ready=false, message=null, retry=null, busy=false, draftFound=null, draftWarning=false, rec=null, map=null, mapLib=null, mapFailed=false, markers=[];
+  let ready=false, message=null, retry=null, busy=false, draftFound=null, draftSaved=null, draftWarning=false, rec=null, map=null, mapLib=null, mapFailed=false, markers=[];
   let operation=0, drawing=0, mapReady=null, mapBox=null, trackVersion=-1, trackCache=[];
   const text=key=>(w.BaladesCopy[state.language]||w.BaladesCopy.fr)[key]??w.BaladesCopy.fr[key]??key;
   const fill=(key,values)=>text(key).replace(/\{(\w+)\}/g,(_,name)=>values[name]??'');
@@ -73,7 +73,7 @@
   }
 
   // ---- saving: a change is a function of the latest snapshot, so a conflict can reload and replay it ----
-  function abandon(){operation++;if(retry)message=null;retry=null;}
+  function abandon(){operation++;if(retry){message=null;retry=null;const el=$('#balades-message');if(el)el.outerHTML=messageHtml();}}
   const target=(next,id)=>{const t=next.tracks.find(x=>x.id===id);if(!t)throw new M.BaladeError('missingTrack');return t;};
   async function commit(change,done,cleanup=null,reload=false){
     if(busy)return false;const started=operation;busy=true;setBusy(true);
@@ -107,16 +107,22 @@
   const draftStatus=()=>{const el=$('#balades-draft-warning');if(el)el.outerHTML=draftHtml();};
   async function persist(){
     if(!rec)return;
-    const value={startedAt:rec.startedAt,points:rec.points.slice(),savedAt:Date.now()};draftFound=value;
-    const ok=await S.draft(value);if(draftFound!==value)return;
-    draftWarning=!ok;draftStatus();
+    const recording=rec,value={id:recording.id,token:uid(),startedAt:recording.startedAt,points:recording.points.slice(),savedAt:Date.now()};draftFound=value;
+    return recording.write=(recording.write||Promise.resolve()).then(async()=>{
+      const ok=await S.draft(value,recording.saved)===true;if(ok)recording.saved=draftSaved=value;
+      if(draftFound!==value)return;draftWarning=!ok;draftStatus();
+    });
   }
-  async function clearDraft(){if(await S.draft(null)){draftFound=null;draftWarning=false;}else draftWarning=true;draftStatus();}
+  async function clearDraft(previous){const result=await S.draft(null,previous);if(result===true||result?.conflict){draftFound=draftSaved=result===true?null:result.draft;draftWarning=false;}else draftWarning=true;draftStatus();}
   async function wake(){
-    if(!rec)return;
-    try{rec.lock=await navigator.wakeLock.request('screen');rec.lockState='wakeOn';rec.lock.addEventListener?.('release',()=>{if(rec&&!document.hidden){rec.lockState='wakeOff';status();}});}
-    catch{rec.lockState='wakeOff';}
-    status();
+    const recording=rec;if(!recording||recording.stopped||recording.waking||recording.lock&&!recording.lock.released)return;
+    recording.waking=true;
+    try{
+      const lock=await navigator.wakeLock.request('screen');
+      if(rec!==recording||recording.stopped||document.hidden){await lock.release();return;}
+      recording.lock=lock;recording.lockState='wakeOn';lock.addEventListener?.('release',()=>{if(rec===recording&&recording.lock===lock){recording.lock=null;recording.lockState='wakeOff';status();}});
+    }catch{if(rec===recording)recording.lockState='wakeOff';}
+    finally{recording.waking=false;if(rec===recording)status();}
   }
   function status(){const el=$('#rec-wake');if(el&&rec)el.textContent=text(rec.lockState||'wakeOff');const g=$('#rec-gps');if(g&&rec)g.textContent=rec.gps?text(rec.gps):'';}
   const visible=()=>{if(rec&&!document.hidden)wake();};
@@ -124,8 +130,8 @@
     if(rec||(!resume&&draftFound))return;
     if(!navigator.geolocation){message={key:'noGps',error:true};render();return;}
     if(!resume&&tracks().length>=M.LIMITS.tracks){message={key:'tooManyTracks',error:true};render();return;}
-    rec={startedAt:resume?.startedAt||Date.now(),points:resume?.points||[],accuracy:null,lock:null,lockState:'wakeOff',gps:'gpsWaiting'};
-    message=null;pending={spots:[]};
+    rec={id:resume?.id||uid(),saved:resume?draftSaved:null,startedAt:resume?.startedAt||Date.now(),points:resume?.points.slice()||[],accuracy:null,lock:null,lockState:'wakeOff',gps:'gpsWaiting'};
+    message=null;confirmDelete=false;pending={spots:[]};
     rec.watch=navigator.geolocation.watchPosition(fix,gpsError,{enableHighAccuracy:true,maximumAge:0,timeout:30000});
     rec.tick=setInterval(stats,1000);rec.save=setInterval(persist,10000);persist();
     document.addEventListener('visibilitychange',visible);
@@ -148,6 +154,7 @@
   }
   function halt(){
     if(!rec)return;
+    rec.stopped=true;
     navigator.geolocation.clearWatch(rec.watch);clearInterval(rec.tick);clearInterval(rec.save);
     document.removeEventListener('visibilitychange',visible);rec.lock?.release?.().catch(()=>{});
   }
@@ -157,11 +164,11 @@
       halt();await persist();
       const done=rec;rec=null;
       if(done.points.length<2){message={key:'tooShort',error:true};view='list';render();return;}
-      pending={source:'record',points:done.points,spots:[],durationSec:Math.min(604800,Math.round((Date.now()-done.startedAt)/1000)),date:localDate(new Date(done.startedAt)),name:fill('defaultName',{date:dayText(localDate(new Date(done.startedAt)))})};
+      pending={draft:done.saved,source:'record',points:done.points,spots:[],durationSec:Math.min(604800,Math.round((Date.now()-done.startedAt)/1000)),date:localDate(new Date(done.startedAt)),name:fill('defaultName',{date:dayText(localDate(new Date(done.startedAt)))})};
       message=reason?{key:reason,error:false}:null;view='save';render();
     }finally{busy=false;setBusy(false);}
   }
-  async function discard(){if(busy)return;busy=true;setBusy(true);try{halt();rec=null;await clearDraft();pending=null;view='list';render();}finally{busy=false;setBusy(false);}}
+  async function discard(){if(busy)return;busy=true;setBusy(true);try{halt();const stopped=rec;rec=null;await stopped?.write;await clearDraft(stopped?stopped.saved:draftSaved);pending=null;view='list';render();}finally{busy=false;setBusy(false);}}
 
   // ---- import / export ----
   async function importFile(file){
@@ -209,14 +216,15 @@
   const meta=t=>`${esc(dayText(t.date))} · ${esc(km(M.distance(t.points)))} · ${esc(clock(t.durationSec))}<br><span translate="no">${esc(dogList(t.dogs))}</span>`;
   const legend=()=>`<ul class="balades-legend" id="balades-legend" aria-label="${esc(text('legend'))}">${M.TYPES.map(type=>`<li><span class="balade-marker balade-${type}" aria-hidden="true">${ICONS[type]}</span>${esc(text(type))}</li>`).join('')}</ul>`;
   const linkBanner=()=>link?`<div class="balades-info" role="status">${esc(fill('linkBanner',{dog:dogName(link.dogId),date:dayText(link.date)}))} <button class="link-button" type="button" data-b="cancel-link">${esc(text('cancelLink'))}</button></div>`:'';
+  const discardPrompt=()=>confirmDelete?`<div class="balades-confirm" role="alert"><p>${esc(text('discardConfirm'))}</p><div class="daily-actions"><button class="primary" type="button" data-b="discard">${esc(text('discardYes'))}</button><button class="ghost" type="button" data-b="discard-no">${esc(text('keepRecording'))}</button></div></div>`:'';
   function listView(){
     const all=tracks().slice().sort((a,b)=>b.date.localeCompare(a.date)||a.name.localeCompare(b.name));
-    const resume=draftFound?`<section class="card balades-draft"><h2>${esc(text('draftTitle'))}</h2><p>${esc(fill('draftBody',{distance:km(M.distance(draftFound.points)),time:clock(Math.round(((draftFound.savedAt||Date.now())-draftFound.startedAt)/1000))}))}</p><div class="daily-actions"><button class="primary" type="button" data-b="resume">${esc(text('resume'))}</button><button class="ghost" type="button" data-b="finish-draft">${esc(text('finishNow'))}</button><button class="ghost" type="button" data-b="discard">${esc(text('discard'))}</button></div></section>`:'';
+    const resume=draftFound?`<section class="card balades-draft"><h2>${esc(text('draftTitle'))}</h2><p>${esc(fill('draftBody',{distance:km(M.distance(draftFound.points)),time:clock(Math.round(((draftFound.savedAt||Date.now())-draftFound.startedAt)/1000))}))}</p><div class="daily-actions"><button class="primary" type="button" data-b="resume">${esc(text('resume'))}</button><button class="ghost" type="button" data-b="finish-draft">${esc(text('finishNow'))}</button><button class="ghost" type="button" data-b="discard-ask">${esc(text('discard'))}</button></div>${discardPrompt()}</section>`:'';
     const rows=all.map(t=>`<article class="daily-record balade-row" data-track="${esc(t.id)}"><div><strong translate="no">${esc(t.name)}</strong><p>${meta(t)}</p>${t.spots.length?`<small>${esc(fill('spotCount',{count:t.spots.length}))}</small>`:''}</div><div class="daily-actions">${link?`<button class="primary" type="button" data-b="link" data-id="${esc(t.id)}">${esc(text('linkThis'))}</button>`:''}<button class="ghost" type="button" data-b="open" data-id="${esc(t.id)}">${esc(text('open'))}</button></div></article>`).join('');
     return `${linkBanner()}${resume}<div class="daily-toolbar balades-toolbar"><button class="primary" type="button" data-b="record" ${draftFound?'disabled':''}>● ${esc(text('record'))}</button><label class="ghost balades-file">${esc(text('import'))}<input type="file" id="balades-import" accept=".gpx,application/gpx+xml,application/xml,text/xml"></label></div><p class="daily-help">${esc(text('importHelp'))}</p>${messageHtml()}<h2 class="balades-heading">${esc(text('tracks'))}</h2>${rows||`<p class="daily-empty">${esc(text('empty'))}</p>`}`;
   }
   function recordView(){
-    return `<section class="card balades-recording" aria-labelledby="rec-title"><h2 id="rec-title">${esc(text('recording'))}</h2><p class="balades-warning" role="note">${esc(text('screenOn'))}</p><p class="daily-help"><span id="rec-wake">${esc(text(rec.lockState))}</span> · <span id="rec-gps" aria-live="polite">${esc(text(rec.gps))}</span></p><dl class="balades-stats"><div><dt>${esc(text('distance'))}</dt><dd id="rec-distance">${esc(km(M.distance(rec.points)))}</dd></div><div><dt>${esc(text('duration'))}</dt><dd id="rec-time">${esc(clock(Math.round((Date.now()-rec.startedAt)/1000)))}</dd></div><div><dt>${esc(text('points'))}</dt><dd id="rec-points">${rec.points.length}</dd></div><div><dt>${esc(text('accuracy'))}</dt><dd id="rec-accuracy">${rec.accuracy===null?'—':`± ${Math.round(rec.accuracy)} m`}</dd></div></dl>${messageHtml()}<div class="daily-actions"><button class="primary" type="button" data-b="finish">${esc(text('finish'))}</button><button class="ghost" type="button" data-b="discard-ask">${esc(text('discard'))}</button></div>${confirmDelete?`<div class="balades-confirm" role="alert"><p>${esc(text('discardConfirm'))}</p><div class="daily-actions"><button class="primary" type="button" data-b="discard">${esc(text('discardYes'))}</button><button class="ghost" type="button" data-b="discard-no">${esc(text('keepRecording'))}</button></div></div>`:''}</section>`;
+    return `<section class="card balades-recording" aria-labelledby="rec-title"><h2 id="rec-title">${esc(text('recording'))}</h2><p class="balades-warning" role="note">${esc(text('screenOn'))}</p><p class="daily-help"><span id="rec-wake">${esc(text(rec.lockState))}</span> · <span id="rec-gps" aria-live="polite">${esc(text(rec.gps))}</span></p><dl class="balades-stats"><div><dt>${esc(text('distance'))}</dt><dd id="rec-distance">${esc(km(M.distance(rec.points)))}</dd></div><div><dt>${esc(text('duration'))}</dt><dd id="rec-time">${esc(clock(Math.round((Date.now()-rec.startedAt)/1000)))}</dd></div><div><dt>${esc(text('points'))}</dt><dd id="rec-points">${rec.points.length}</dd></div><div><dt>${esc(text('accuracy'))}</dt><dd id="rec-accuracy">${rec.accuracy===null?'—':`± ${Math.round(rec.accuracy)} m`}</dd></div></dl>${messageHtml()}<div class="daily-actions"><button class="primary" type="button" data-b="finish">${esc(text('finish'))}</button><button class="ghost" type="button" data-b="discard-ask">${esc(text('discard'))}</button></div>${discardPrompt()}</section>`;
   }
   const dogBoxes=(selected,locked)=>{
     const list=Object.entries(typeof dogs!=='undefined'?dogs:{}).sort(([,a],[,b])=>a.name.localeCompare(b.name,formatLocale(Intl.Collator)));
@@ -265,7 +273,7 @@
   const actions={
     record:()=>start(null),
     resume:()=>start(draftFound),
-    'finish-draft':async()=>{const d=draftFound;rec={...d,watch:null,tick:null,save:null,lock:null};await finish();},
+    'finish-draft':async()=>{const d=draftFound;rec={...d,id:d.id||uid(),saved:draftSaved,watch:null,tick:null,save:null,lock:null};await finish();},
     finish:()=>finish(),
     'discard-ask':()=>{confirmDelete=true;render(false);},
     'discard-no':()=>{confirmDelete=false;render(false);},
@@ -289,7 +297,7 @@
     'delete-spot':el=>{const id=current,spotId=el.dataset.id;return commit(next=>{const t=target(next,id);t.spots=t.spots.filter(s=>s.id!==spotId);},()=>render(false));},
     'cancel-spot':()=>{spot=null;message=null;view='track';render(false);},
     replay:()=>replay(),
-    'retry-load':async()=>{await S.reload();if(!draftFound&&!S.unavailable())draftFound=await S.draft();render();}
+    'retry-load':async()=>{await S.reload();if(!draftFound&&!S.unavailable())draftFound=draftSaved=await S.draft();render();}
   };
   const readForm=form=>({name:form.elements.name.value,date:form.elements.date.value,dogs:[...form.querySelectorAll('[name=dog]')].filter(b=>b.checked).map(b=>b.value)});
   function formValues(form){
@@ -306,13 +314,13 @@
     if(save)save.oninput=()=>{Object.assign(pending,readForm(save));abandon();};
     if(save)save.onsubmit=async e=>{
       e.preventDefault();if(busy)return;abandon();Object.assign(pending,readForm(save));const values=formValues(save);if(!values){render(false);return;}
-      const id=uid(),source=pending.source,ref=link?{...link}:null,draft=pending;
+      const id=pending.id||=uid(),source=pending.source,ref=link?{...link}:null,draft=pending;
       const made={id,name:values.name,date:values.date,dogs:values.dogs,points:pending.points,durationSec:pending.durationSec,source,walkRefs:[],spots:pending.spots};
-      await commit(next=>{next.tracks.push(structuredClone(made));if(ref)linkTo(id,next,ref);},()=>{
+      await commit(next=>{const saved=next.tracks.find(t=>t.id===id);if(saved){Object.assign(saved,values);saved.walkRefs=saved.walkRefs.filter(r=>saved.dogs.includes(r.dogId));}else next.tracks.push(structuredClone(made));if(ref)linkTo(id,next,ref);},()=>{
         if(ref){linked_done(ref);return;}
         current=id;view='track';showToast(text('saved'));render();
       },async()=>{
-        if(source==='record')await clearDraft();
+        if(source==='record')await clearDraft(draft.draft);
         if(pending===draft){pending=null;if(view==='save')view='list';}
       });
     };
@@ -333,7 +341,7 @@
         const type=form.elements.type.value,lat=Number(String(form.elements.lat.value).replace(',','.')),lon=Number(String(form.elements.lon.value).replace(',','.')),noted=form.elements.noted.value;
         if(!M.date(noted)||noted>localDate()){message={key:'dateInvalid',error:true};render(false);return;}
         if(!(Number.isFinite(lat)&&lat>=-90&&lat<=90&&Number.isFinite(lon)&&lon>=-180&&lon<=180)){message={key:'positionInvalid',error:true};render(false);return;}
-        const value={id:spot.id||uid(),type,lat,lon,note:M.clean(form.elements.note.value,M.LIMITS.note),rule:type==='tolere'?M.clean(form.elements.rule.value,M.LIMITS.note):'',noted};
+        const value={id:spot.id||=uid(),type,lat,lon,note:M.clean(form.elements.note.value,M.LIMITS.note),rule:type==='tolere'?M.clean(form.elements.rule.value,M.LIMITS.note):'',noted};
         const id=current;await commit(next=>{const t=target(next,id),at=t.spots.findIndex(s=>s.id===value.id);if(at<0)t.spots.push(value);else t.spots[at]=value;},()=>{spot=null;view='track';showToast(text('spotSaved'));render(false);});
       };
     }
@@ -356,8 +364,9 @@
     box.outerHTML=walkLinks(date,done);
   }
   async function load(){
-    await S.load();ready=true;
-    if(!draftFound&&!S.unavailable())draftFound=await S.draft();
+    await S.load();
+    if(!draftFound&&!S.unavailable())draftFound=draftSaved=await S.draft();
+    ready=true;
     refreshPlanning();if(onPage())render();
   }
   function bind(){

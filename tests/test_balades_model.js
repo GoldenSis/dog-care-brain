@@ -43,6 +43,20 @@ test('GPX export and import round trip keeps points and spots',()=>{
   assert.deepEqual(back.spots.map(({id,...s})=>s),original.spots.map(({id,...s})=>s));
 });
 
+test('maximum exported GPX fits the 8 MiB import limit with escaped Unicode notes',()=>{
+  const original=track({name:'&'.repeat(120),points:Array.from({length:M.LIMITS.points},(_,i)=>[Math.round((48+i*1e-6)*1e6)/1e6,-179.123456,1792900000+i]),
+    spots:Array.from({length:M.LIMITS.spots},(_,i)=>spot({id:'s'+i,note:'"&😀'.repeat(166)+'"&',rule:"'".repeat(500)}))});
+  M.validate({version:1,tracks:[original]});
+  const exported=M.toGpx(original),bytes=Buffer.byteLength(exported);
+  assert.ok(bytes>2*1024*1024);
+  assert.equal(M.LIMITS.fileBytes,8*1024*1024);
+  assert.ok(bytes<M.LIMITS.fileBytes);
+  const back=M.parseGpx(exported,'2026-10-22');
+  assert.equal(back.name,original.name);
+  assert.deepEqual(back.points,original.points);
+  assert.deepEqual(back.spots.map(({id,...s})=>s),original.spots.map(({id,...s})=>s));
+});
+
 test('foreign GPX: route points, waypoints as pause spots, malformed files rejected',()=>{
   const gpx=`<?xml version="1.0"?><gpx:gpx xmlns:gpx="http://www.topografix.com/GPX/1/1"><gpx:wpt lat="48.1" lon="2.1"><gpx:name>Lac &amp; banc</gpx:name></gpx:wpt><gpx:rte><gpx:name>Boucle</gpx:name><gpx:rtept lat="48.1" lon="2.1"/><gpx:rtept lat='48.2' lon='2.2'/></gpx:rte></gpx:gpx>`;
   const parsed=M.parseGpx(gpx,'2026-10-22');

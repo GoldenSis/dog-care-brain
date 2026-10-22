@@ -44,13 +44,21 @@
     data=structuredClone(next);baseline=text;version++;return 'ok';
   }
   // The recording draft never leaves this browser; it is keyed by account so a shared device keeps them apart.
-  async function draft(value){
+  async function draft(value,previous=null){
+    const key=scope;
     try{
       await open();
-      const tx=db.transaction('drafts',value===undefined?'readonly':'readwrite'),store=tx.objectStore('drafts');
-      if(value===undefined)return await request(store.get(scope))||null;
-      if(value===null)store.delete(scope);else store.put(value,scope);
-      await complete(tx);return true;
+      if(value===undefined)return await request(db.transaction('drafts').objectStore('drafts').get(key))||null;
+      if(value!==null&&(!M.ident(value.id)||!M.ident(value.token)))return false;
+      const tx=db.transaction('drafts','readwrite'),done=complete(tx),store=tx.objectStore('drafts'),read=store.get(key);let matched=false,found=null;
+      read.onsuccess=()=>{
+        const old=found=read.result||null;
+        matched=old===null?previous===null:!!previous&&(old.id&&old.token?old.id===previous.id&&old.token===previous.token:JSON.stringify(old)===JSON.stringify(previous));
+        if(!matched)return;
+        if(value!==null&&old?.id&&old.id!==value.id){matched=false;return;}
+        if(value===null)store.delete(key);else store.put(value,key);
+      };
+      await done;return matched?true:{conflict:true,draft:found};
     }catch{return value===undefined?null:false;}
   }
   w.BaladesStore={load,reload,save,draft,snapshot:()=>structuredClone(data),version:()=>version,unavailable:()=>failed};
