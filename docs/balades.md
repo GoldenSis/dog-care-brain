@@ -28,6 +28,8 @@ Files are refused with a localized message (French by default) when they are lar
 
 **Exporter le GPX** downloads GPX 1.1 with the track (`trkpt` with `time` when known) and every spot as a `wpt` carrying `<time>` (the date noted), `<name>` (type label), `<desc>` (note, omitted when empty), `<cmt>` (official rule, Toléré only, omitted when empty) and `<type>` (`pause`, `danger`, `interdit`, `laisse` or `tolere`).
 
+The GPX `creator` attribute uses the current [instance brand](second-instance.md#brand), XML-escaped, with **Le Bus des Toutous** as the static/default fallback. Track names, spot notes and rules are not rebranded.
+
 GPX is a track exchange, not a full Balades backup: it omits internal IDs, selected dogs, Planning links, `source`, and separately saved track date/duration. Reimport creates a new track and derives its date/duration from point times. An empty spot note stays empty on reimport. Elevation, GPX extensions and the original imported file are not retained.
 
 ## Manage saved tracks

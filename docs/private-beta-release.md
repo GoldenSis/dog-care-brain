@@ -2,6 +2,8 @@
 
 This is a reviewable release procedure, not an executed deployment. The API, not a static Pages publish, provides accounts and private records. Keep the existing static site available as a DNS rollback target. Merging a PR does not install this service.
 
+The paths and commands below target the default **Le Bus des Toutous** instance. For the separate `nicolasdelalaissedogcare` process, use [Second instance](second-instance.md) and its `dogcare-nicolas` templates; apply these same runtime, access, backup and public-verification checks with that instance's user, port, store and origin. Its `DC_BRAND_*` settings are process-wide public presentation values, not a data-isolation mechanism. Leave them unset for the default instance.
+
 ## Candidate and configuration
 
 The welcome/client increment starts at `76451c9ac84efae5046db8ce4cd8d255ba39011d`, on top of inherited daily-workflow, knowledge and accounting work through `81fb7b00fa7d0302aadc6b730e1a484f2c8c03ac`. Compare `81fb7b00..<candidate>` for that increment and `52d40482b5c595f6d65d75cc98f2cd0bb4b4b356..<candidate>` for the full branch. The release archive and acceptance checks must include the inherited code as well.
@@ -9,6 +11,8 @@ The welcome/client increment starts at `76451c9ac84efae5046db8ce4cd8d255ba39011d
 Use one reviewed, clean commit containing the welcome, client portal, selected professional access, SMTP adapter, version-2 daily walk records and [Balades](balades.md), including its vendored map assets. Record its full SHA, validation result, archive SHA-256 and previous release in the operator's release record. Export with `git archive --format=tar --output=<private-release.tar> <sha>`. Never copy a working tree, local database, outbox, test evidence or credentials into the release. The deployment templates are in [deploy](../deploy/); they have not been validated against the live host by this code change.
 
 The API publishes only its explicit frontend file allowlist (`api/server.py:STATIC_FILES`). Repository docs, dotfiles, deployment files, tests, scripts and asset provenance metadata are not served, even to signed-in users. Add new intended frontend assets to that list deliberately and run `tests.test_static_boundary`. Protected record downloads remain separate authorized API routes. The development-only plain static server does not provide this boundary and is not the beta server.
+
+Releases supporting custom instances must include `api/brand.py` and the allowlisted `brand.js`. Custom-brand processes additionally deny bundled `assets/photos/*` and `assets/films/*`, retain their own authorised albums and published artwork, and apply their configured palette without changing the shared files on disk. Run the [brand checks](second-instance.md#checks) alongside the full acceptance suite.
 
 The standard layout is:
 
@@ -25,6 +29,8 @@ Copy `deploy/dogcare.env.example` privately and replace the placeholders. The ex
 SMTP always verifies the TLS certificate. The envelope sender matches the authenticated mailbox. Messages contain Date, Message-ID and Auto-Submitted headers. `DC_PUBLIC_ORIGIN` must be the canonical HTTPS origin and `DC_INSECURE_COOKIE=0`. Leave `DC_ALLOW_DEMO_SIGNUP` unset. Never enable development authentication on this host. Production delivery failure invalidates the new login token; there is no debug-outbox fallback.
 
 The templates use the standard `dogcare.db` and `blobs/` paths. If `DC_DB` or `DC_BLOBS` is overridden, adapt and test the backup contract before deploying; the supplied helper intentionally targets the standard layout.
+
+When both services use `/opt/dogcare/current`, take and verify a backup for each store before changing that symlink, then restart and health-check both services and verify both public origins. The external release script additions remain [proposed, not applied](second-instance.md#releases); restarting only `dogcare.service` does not complete a shared release.
 
 ## Media runtime gate
 
@@ -121,6 +127,8 @@ Existing device-local records stay in that browser. Do not import or overwrite t
 ## Rollback
 
 Keep the preceding code directory and a pre-upgrade private snapshot. For code rollback, verify schema compatibility before repointing `current` to the prior tested release and restarting this service. Do not assume an old static-only or demo-signup commit is an acceptable authenticated backend. For the first install there is no prior API release: stop the new service and use the recorded Pages DNS target. Preserve all private data. Validate Caddy before removing/reloading only this site's block. No Git history rewrite, merge or deletion of private data is part of rollback.
+
+With both instances on the shared symlink, verify compatibility with both stores and restart/check both services after rollback. The target must retain custom-brand support and its media exclusion; otherwise the second site would expose the default identity and bundled media. A first-install rollback for the second instance stops/removes only its service/site configuration, preserving the default instance and both private stores; see [second-instance releases](second-instance.md#releases).
 
 Daily records upgrade from version 1 to version 2 on read and persist as version 2 on the next daily save. Accepting version-1 API writes in the new server does not make older code able to read version-2 records. Test snapshot compatibility as well as SQLite schema compatibility before rollback; there is no automatic downgrade. Static mode also saves version 2 under the unchanged `dogcare-daily-v1` key. A pre-upgrade backup cannot retain walks or other writes made afterwards; preserve the current store and follow the recovery procedure above.
 

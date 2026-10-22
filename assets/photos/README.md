@@ -1,6 +1,8 @@
 # Photo and film sources
 
-The page uses Adine-Sophie’s own material from [@bus_destoutous](https://www.instagram.com/bus_destoutous/), as explicitly requested by the user. Twelve public post previews were inspected. Two featured reels were retrieved at 720×1280; six still frames were extracted without generative changes. Exact frame timestamps, original post links and asset hashes are in [sources.json](sources.json).
+The default **Le Bus des Toutous** page uses Adine-Sophie’s own material from [@bus_destoutous](https://www.instagram.com/bus_destoutous/), as explicitly requested by the user. Twelve public post previews were inspected. Two featured reels were retrieved at 720×1280; six still frames were extracted without generative changes. Exact frame timestamps, original post links and asset hashes are in [sources.json](sources.json).
+
+For any [custom API brand](../../docs/second-instance.md#brand), all paths under `assets/photos/` and `assets/films/` return 404, including otherwise allowlisted files. The files remain in the shared release, but its interface omits this journal, film and credits, and has no default welcome photograph. Publishing that instance's own homepage image uses the separate artwork workflow below. The plain static server retains the default brand and does not enforce this exclusion.
 
 - [19 May 2025 reel](https://www.instagram.com/reel/DJ2A0xrsF-a/): preparing the bus, collecting dogs, and the woodland walk. The full 85.33-second film is also available through native video controls, with its timeline and audio retained and encoded at 540×960. It loads on request. Its original captions remain part of the recording.
 - [May 2025 care reel](https://www.instagram.com/reel/DJqVS9MouXT/): preparing leashes and collecting dogs at home. Public profile shows 14 May; downloaded UTC metadata gives 15 May. The page does not assign these scenes to today.

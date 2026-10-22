@@ -8,6 +8,10 @@ Un vétérinaire ou ostéopathe invité retrouve uniquement les photos et vidéo
 
 Dans **Réglages → Photo de la page d’accueil**, **Changer la photo** ajoute un brouillon privé. La propriétaire choisit l’image, vérifie l’aperçu, conserve la photo entière ou ajuste le cadrage, puis choisit **Enregistrer sur le site** pour la publier. Le cadrage initial d’une nouvelle photo conserve toute l’image sans couper les sujets. La photo déjà publiée, ou la photo par défaut, reste publique jusqu’à l’enregistrement ; **Rétablir la photo d’origine** restaure immédiatement la photo par défaut. Les services proposent trois visages dessinés dans l’application — terrier, carlin et dalmatien — ou une image ajoutée pour cette page. Les libellés des services restent visibles. Un album privé ne peut jamais devenir une illustration publique : il faut ajouter délibérément une image dans ces réglages.
 
+La photo par défaut appartient à **Le Bus des Toutous**. Sur une [instance portant une autre marque](second-instance.md#brand), aucune photo d’origine n’est proposée : l’aperçu des réglages reste vide et la photo d’accueil est masquée jusqu’à la publication d’une image. **Rétablir la photo d’origine** remet alors l’accueil sans photo. La publication sur l’accueil nécessite toujours `DC_PUBLIC_BUSINESS` pour sélectionner l’entreprise. Le journal, les crédits, les photos et le film d’Adine-Sophie sont absents de cette instance ; le serveur refuse aussi leurs URL sous `assets/photos/*` et `assets/films/*`. Les albums autorisés, les notes audio et les aperçus de connexions sociales restent disponibles.
+
+Les réglages `branding` de l’API ci-dessous ne concernent que les illustrations. Le nom, la personne présentée, le contact Instagram, le symbole et les couleurs viennent des variables `DC_BRAND_*` du serveur ; ils ne se modifient pas dans **Réglages**.
+
 ## Formats et limites
 
 - Photos : JPEG, PNG 8 bits non entrelacé, WebP fixe et HEIC/HEIF ; 12 Mio et 40 millions de pixels maximum. Les photos HEIC/HEIF à image unique sont converties en JPEG sur le serveur avec `heif-convert` et FFmpeg. Les séquences HEIF sont refusées.
