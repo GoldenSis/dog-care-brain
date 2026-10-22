@@ -36,7 +36,7 @@ test('recorder drops imprecise fixes and moves under four metres',()=>{
 });
 
 test('GPX export and import round trip keeps points and spots',()=>{
-  const original=track({spots:[spot(),spot({id:'s2',type:'danger',note:'Route <rapide> & vélos',rule:''})]});
+  const original=track({spots:[spot(),spot({id:'s2',type:'danger',note:'Route <rapide> & vélos',rule:''}),spot({id:'s3',type:'pause',note:'',rule:''})]});
   const back=M.parseGpx(M.toGpx(original,t=>t.toUpperCase()),'2026-10-22');
   assert.equal(back.name,original.name);
   assert.deepEqual(back.points,original.points);

@@ -164,7 +164,7 @@
       halt();await persist();
       const done=rec;rec=null;
       if(done.points.length<2){message={key:'tooShort',error:true};view='list';render();return;}
-      pending={draft:done.saved,source:'record',points:done.points,spots:[],durationSec:Math.min(604800,Math.round((Date.now()-done.startedAt)/1000)),date:localDate(new Date(done.startedAt)),name:fill('defaultName',{date:dayText(localDate(new Date(done.startedAt)))})};
+      pending={id:done.id,draft:done.saved,source:'record',points:done.points,spots:[],durationSec:Math.min(604800,Math.round((Date.now()-done.startedAt)/1000)),date:localDate(new Date(done.startedAt)),name:fill('defaultName',{date:dayText(localDate(new Date(done.startedAt)))})};
       message=reason?{key:reason,error:false}:null;view='save';render();
     }finally{busy=false;setBusy(false);}
   }
@@ -338,8 +338,9 @@
         const note=form.elements.note;note.placeholder=text(form.elements.type.value+'Placeholder');note.closest('label').firstChild.nodeValue=text(tolere?'practice':'note');});
       form.onsubmit=async e=>{
         e.preventDefault();if(busy)return;abandon();remember();
-        const type=form.elements.type.value,lat=Number(String(form.elements.lat.value).replace(',','.')),lon=Number(String(form.elements.lon.value).replace(',','.')),noted=form.elements.noted.value;
+        const type=form.elements.type.value,rawLat=String(form.elements.lat.value).trim(),rawLon=String(form.elements.lon.value).trim(),lat=Number(rawLat.replace(',','.')),lon=Number(rawLon.replace(',','.')),noted=form.elements.noted.value;
         if(!M.date(noted)||noted>localDate()){message={key:'dateInvalid',error:true};render(false);return;}
+        if(!rawLat||!rawLon){message={key:'positionRequired',error:true};render(false);return;}
         if(!(Number.isFinite(lat)&&lat>=-90&&lat<=90&&Number.isFinite(lon)&&lon>=-180&&lon<=180)){message={key:'positionInvalid',error:true};render(false);return;}
         const value={id:spot.id||=uid(),type,lat,lon,note:M.clean(form.elements.note.value,M.LIMITS.note),rule:type==='tolere'?M.clean(form.elements.rule.value,M.LIMITS.note):'',noted};
         const id=current;await commit(next=>{const t=target(next,id),at=t.spots.findIndex(s=>s.id===value.id);if(at<0)t.spots.push(value);else t.spots[at]=value;},()=>{spot=null;view='track';showToast(text('spotSaved'));render(false);});
