@@ -73,7 +73,7 @@
     const heading=lines[0]||'';
     // A payment network identifies the card, not the supplier. Leave review open.
     const cardNetwork=/^(?:master\s*card|visa(?:\s+(?:debit|credit|electron))?|maestro|amex|american\s+express|carte\s+bancaire|cb)[®™]?$/i;
-    // On a card slip the merchant is printed under the payment boilerplate; anything doubtful stays blank.
+    // For a whole-network heading, scan only the next four nonblank lines for a name-like merchant.
     const boilerplate=/^(?:(?:master\s*card|visa|maestro|amex|american\s+express|carte\s+bancaire|cb|electron|sans\s+contact|contactless|d[ée]bit|cr[ée]dit|paiement\s+accept[ée]e?|ticket\s+client)(?:\s+|$))+$/i;
     const cardDetails=/^(?:(?:carte|cb)\s+[*x\d\s]+|a\s*\d{6,}.*)$/i;
     result.party=cardNetwork.test(heading)?(lines.slice(1,5).find(l=>!boilerplate.test(l)&&!cardNetwork.test(l)&&!cardDetails.test(l)&&!/\b(?:total|montant)\b/i.test(l)&&/^[\p{L}][\p{L}'’&.\- ]{2,}$/u.test(l))||'').slice(0,160):heading.slice(0,160);
@@ -82,7 +82,7 @@
     const short=[...raw.matchAll(/(?<!\d[./])\b(\d{2})[./](\d{2})[./](\d{2})(?![\d./])/g)].map(m=>`20${m[3]}-${m[2]}-${m[1]}`).filter(date);
     const iso=[...raw.matchAll(/\b\d{4}-\d{2}-\d{2}\b/g)].map(m=>m[0]).filter(date);const found=new Set([...dates,...short,...iso]);if(found.size===1)result.date=[...found][0];
     result.number=proposeReference(lines);
-    // Strongest wording wins: what is due, then the stated total, then the card line that repeats it.
+    // First matching label tier wins; malformed/conflicting amounts block fallback to weaker tiers.
     const labels=[/^(?:net\s+)?[àa]\s+payer\b/i,/^(?:total\s+ttc|montant(?:\s+ttc)?|gesamtbetrag|importe\s+total)\b/i,/^(?:totale|total|ttc|gesamt|importe)\b/i,/^(?:pay[ée]\s+)?(?:cb|carte)\b/i];
     const amount=/^\s*[:=]?\s*(?:CHF|EUR|GBP|USD|€)?\s*([0-9]+[.,][0-9]{2})(?:\s*(?:CHF|EUR|GBP|USD|€))?\s*$/i;
     for(const label of labels){
@@ -90,6 +90,7 @@
       const totals=matches.map(l=>{const m=l.match(label),rest=l.slice(m[0].length).replace(/^\s*(?:ttc|cb|eur|chf)\b/i,'');const v=rest.match(amount);try{return v?parseMinor(v[1]):null;}catch{return null;}});
       if(new Set(totals).size===1)result.amount=totals[0];break;
     }
+    // Count keyword occurrences across all OCR text; only a unique leader replaces "other".
     const rules={
       food:/croquettes|p[âa]t[ée]e|alimentation|friandise|kibble|pet food|futter|crocchette|pienso/i,
       transport:/carburant|essence|gazole|diesel|sp\s?9[58]|fuel|parking|stationnement|p[ée]age|autoroute|\b(?:sanef|aprr|cofiroute|vinci|indigo|effia|totalenergies|esso|shell|avia|sncf|ratp|taxi|uber)\b/i,

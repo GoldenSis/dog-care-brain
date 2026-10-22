@@ -72,7 +72,7 @@
     }
     return withCanvas({file,meta},3000,c=>[{width:c.width,height:c.height,page:1,regions:detect(c)}]);
   }
-  /* Suggest separate pale paper rectangles on darker tables; always user-correctable. */
+  /* Suggest light paper areas on darker surfaces with adaptive thresholds; always user-correctable. */
   function detect(source){
     const whole=[{page:1,x:0,y:0,width:1,height:1}];
     const width=400,height=Math.max(1,Math.round(source.height/source.width*width));if(height>1600)return whole;
@@ -95,6 +95,7 @@
     }
     let boxes=findBoxes(i=>grey[i]&&light[i]>Math.max(threshold,110));
     if(!boxes.length||boxes.length===1&&boxes[0].width*boxes[0].height>.85){
+      // A stricter pass must separate at least two areas; otherwise retain the whole image.
       const strict=findBoxes(i=>{const r=pixels[i*4],g=pixels[i*4+1],b=pixels[i*4+2];return Math.min(r,g,b)>195&&Math.max(r,g,b)-Math.min(r,g,b)<55;});
       if(strict.length<2)return whole;boxes=strict;
     }
