@@ -103,3 +103,10 @@ test('card-network headings leave supplier unknown without losing supported rece
   }
   for(const party of ['Visa Services','Mastercard Supplies','Fournisseur Démo'])assert.equal(M.propose(`${party}\nTOTAL EUR 12.50`).party,party);
 });
+test('French receipt wording proposes merchant, euro total, short date and category',()=>{
+  assert.deepEqual(M.propose('CARTE BANCAIRE\nSANS CONTACT\nTOTALENERGIES VERSAILLES\nLE 21/10/26 A 08:12\nMONTANT = 52,10 EUR'),{date:'2026-10-21',party:'TOTALENERGIES VERSAILLES',number:'',currency:'EUR',amount:5210,category:'transport'});
+  const p=M.propose('CARREFOUR MARKET\n19/10/2026\nSACS DEJECTIONS X4 6,90\nFRIANDISES CHIEN 4,35\nESSUIE-TOUT 3,20\nTOTAL TTC 14,45 €\nCB 14,45 €');
+  assert.equal(p.amount,1445);assert.equal(p.currency,'EUR');assert.equal(p.category,'supplies');
+  assert.equal(M.propose('TOTO TOILETTAGE\nNet à payer 35,00 €\nTOTAL 30,00 €').amount,3500);
+  assert.equal(M.propose('Fournisseur\nlaisse\ncroquettes').category,'other');
+});

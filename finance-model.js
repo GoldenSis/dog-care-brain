@@ -73,15 +73,32 @@
     const heading=lines[0]||'';
     // A payment network identifies the card, not the supplier. Leave review open.
     const cardNetwork=/^(?:master\s*card|visa(?:\s+(?:debit|credit|electron))?|maestro|amex|american\s+express|carte\s+bancaire|cb)[®™]?$/i;
-    result.party=cardNetwork.test(heading)?'':heading.slice(0,160);
-    const currencies=[...new Set(raw.match(/\b(?:CHF|EUR|GBP|USD)\b/g)||[])];if(currencies.length===1)result.currency=currencies[0];
+    // On a card slip the merchant is printed under the payment boilerplate; anything doubtful stays blank.
+    const boilerplate=/^(?:sans\s+contact|contactless|cb|debit|d[ée]bit|credit|cr[ée]dit|paiement\s+accept[ée]e?|ticket\s+client|carte\s+[*x\d\s]+|a\s*\d{6,}.*|.*\b(?:total|montant)\b.*)$/i;
+    result.party=cardNetwork.test(heading)?(lines.slice(1,5).find(l=>!boilerplate.test(l)&&!cardNetwork.test(l)&&/^[\p{L}][\p{L}'’&.\- ]{2,}$/u.test(l))||'').slice(0,160):heading.slice(0,160);
+    const currencies=[...new Set((raw.match(/\b(?:CHF|EUR|GBP|USD)\b|€/g)||[]).map(c=>c==='€'?'EUR':c))];if(currencies.length===1)result.currency=currencies[0];
     const dates=[...raw.matchAll(/\b(\d{2})[./](\d{2})[./](\d{4})\b/g)].map(m=>`${m[3]}-${m[2]}-${m[1]}`).filter(date);
-    const iso=[...raw.matchAll(/\b\d{4}-\d{2}-\d{2}\b/g)].map(m=>m[0]).filter(date);if(new Set([...dates,...iso]).size===1)result.date=[...dates,...iso][0];
+    const short=[...raw.matchAll(/\b(\d{2})[./](\d{2})[./](\d{2})(?![\d./])/g)].map(m=>`20${m[3]}-${m[2]}-${m[1]}`).filter(date);
+    const iso=[...raw.matchAll(/\b\d{4}-\d{2}-\d{2}\b/g)].map(m=>m[0]).filter(date);const found=new Set([...dates,...short,...iso]);if(found.size===1)result.date=[...found][0];
     result.number=proposeReference(lines);
-    const totals=lines.filter(l=>/\b(total|ttc|gesamt|totale|importe)\b/i.test(l)&&!/sous|sub|subtotal|hors|ht\b|tax/i.test(l)).map(l=>{const m=l.match(/^(?:total(?:\s+ttc)?|ttc|gesamt(?:betrag)?|totale|importe)\s*[:=]?\s*(?:CHF|EUR|GBP|USD|€)?\s*([0-9]+[.,][0-9]{2})(?:\s*(?:CHF|EUR|GBP|USD|€))?\s*$/i);try{return m?parseMinor(m[1]):null;}catch{return null;}}).filter(x=>x!==null);
-    if(new Set(totals).size===1)result.amount=totals[0];
-    const rules={food:/croquettes|alimentation|kibble|pet food/i,transport:/carburant|essence|fuel|parking|péage/i,health:/vétérin|veterin|vaccin/i,insurance:/assurance|insurance/i};
-    const found=Object.keys(rules).filter(k=>rules[k].test(raw));if(found.length===1)result.category=found[0];
+    // Strongest wording wins: what is due, then the stated total, then the card line that repeats it.
+    const labels=[/^(?:net\s+)?[àa]\s+payer\b/i,/^(?:total\s+ttc|montant(?:\s+ttc)?|gesamtbetrag|importe\s+total)\b/i,/^(?:totale|total|ttc|gesamt|importe)\b/i,/^(?:pay[ée]\s+)?(?:cb|carte)\b/i];
+    const amount=/^\s*[:=]?\s*(?:CHF|EUR|GBP|USD|€)?\s*([0-9]+[.,][0-9]{2})(?:\s*(?:CHF|EUR|GBP|USD|€))?\s*$/i;
+    for(const label of labels){
+      const totals=lines.filter(l=>!/sous|sub|subtotal|hors|\bht\b|tax|tva|rendu/i.test(l)).map(l=>{const m=l.match(label);if(!m)return null;const rest=l.slice(m[0].length).replace(/^\s*(?:ttc|cb|eur|chf)\b/i,'');const v=rest.match(amount);try{return v?parseMinor(v[1]):null;}catch{return null;}}).filter(x=>x!==null);
+      if(totals.length){if(new Set(totals).size===1)result.amount=totals[0];break;}
+    }
+    const rules={
+      food:/croquettes|p[âa]t[ée]e|alimentation|friandise|kibble|pet food|futter|crocchette|pienso/i,
+      transport:/carburant|essence|gazole|diesel|sp\s?9[58]|fuel|parking|stationnement|p[ée]age|autoroute|\b(?:sanef|aprr|cofiroute|vinci|indigo|effia|totalenergies|esso|shell|avia|sncf|ratp|taxi|uber)\b/i,
+      health:/v[ée]t[ée]rin|veterin|vaccin|pharmacie|vermifuge|antiparasit|tierarzt|veterinari/i,
+      insurance:/assurance|insurance|versicherung|assicurazion|seguro/i,
+      equipment:/laisse|harnais|collier|gamelle|panier|coussin|cage|caisse de transport|longe|manteau|jouet|leash|harness|decathlon/i,
+      supplies:/d[ée]jection|\bsacs?\b|essuie|shampo|lingette|liti[èe]re|nettoyant|d[ée]sinfect|serpill|\bgants\b/i,
+      service:/toilettage|pension|[ée]ducat|dressage|comportement|honoraires|prestation|grooming/i
+    };
+    const hits=Object.keys(rules).map(k=>[k,(raw.match(new RegExp(rules[k].source,'gi'))||[]).length]).filter(([,n])=>n).sort((a,b)=>b[1]-a[1]);
+    if(hits.length&&(hits.length===1||hits[0][1]>hits[1][1]))result.category=hits[0][0];
     return result;
   }
   function validateBookings(value,previous,bookings){
