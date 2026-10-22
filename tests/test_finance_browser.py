@@ -966,6 +966,128 @@ class FinanceBrowserTest(BrowserFixture):
         self.assertEqual(self.console_errors, [])
         self.assertEqual(self.page_errors, [])
 
+    async def batch_receipt_photo(self, hard=False):
+        # Owned raster fixture: twelve separate French receipts, including small
+        # grey papers, card boilerplate, competing totals and every category.
+        receipts = [
+            ('ANIMALERIE ALPHA', ['Croquettes pour chiens', 'Friandises'], 'Total TTC', '42,50', 'food'),
+            ('STATION BETA', ['Gazole diesel'], 'Montant', '52,10', 'transport'),
+            ('CLINIQUE GAMMA', ['Consultation veterinaire', 'Vaccin'], 'Net à payer', '68,00', 'health'),
+            ('ASSURANCE DELTA', ['Assurance professionnelle'], 'Total', '24,90', 'insurance'),
+            ('BOUTIQUE EPSILON', ['Harnais et laisse', 'Collier'], 'Total TTC', '31,80', 'equipment'),
+            ('MARCHE ZETA', ['Sacs dejections', 'Essuie-tout', 'Friandises'], 'Total TTC', '14,45', 'supplies'),
+            ('TOILETTAGE ETA', ['Prestation toilettage', 'TOTAL 30,00 EUR'], 'Net à payer', '35,00', 'service'),
+            ('CAFE THETA', ['Repas du midi'], 'Total', '12,60', 'other'),
+            ('PARKING IOTA', ['Stationnement'], 'Montant', '8,20', 'transport'),
+            ('ANIMALERIE KAPPA', ['Croquettes', 'Alimentation'], 'Total', '19,75', 'food'),
+            ('PHARMACIE LAMBDA', ['Vermifuge'], 'Total TTC', '17,30', 'health'),
+            ('BOUTIQUE OMEGA', ['Laisses', 'Croquettes'], 'Total', '22,40', 'other'),
+        ]
+        data = await self.page.evaluate('''({receipts,hard}) => {
+          const c=document.createElement('canvas');c.width=hard?3000:4000;c.height=hard?2250:3000;
+          const x=c.getContext('2d');x.scale(c.width/4000,c.height/3000);
+          x.fillStyle=hard?'#34302c':'#514a43';x.fillRect(0,0,4000,3000);
+          receipts.forEach(([party,items,label,total],i)=>{
+            const small=[3,8,10].includes(i),w=small?600:800,h=small?440:790;
+            x.save();x.translate(500+(i%4)*1000,500+Math.floor(i/4)*1000);
+            x.rotate((hard?[-7,6,-4,8][i%4]:[-1,1,0,2][i%4])*Math.PI/180);
+            x.fillStyle=hard?['#b8b6b1','#b0aeaa','#c1bfb8'][i%3]:['#f8f7f3','#d2d0cb','#bdbbb5'][i%3];
+            x.fillRect(-w/2,-h/2,w,h);x.fillStyle='#171717';x.font='32px Arial';
+            const lines=[...(i===1?['CARTE BANCAIRE','SANS CONTACT']:[]),party,
+              i%2?'21/10/26':'21/10/2026',...items,`${label} ${total} ${i%2?'EUR':'€'}`,
+              ...(i===5?[`CB ${total} €`]:[])];
+            lines.forEach((line,j)=>x.fillText(line,-w/2+30,-h/2+65+j*65,w-60));x.restore();
+          });return c.toDataURL('image/png').split(',')[1];
+        }''', {'receipts': receipts, 'hard': hard})
+        return base64.b64decode(data), receipts
+
+    async def check_receipt_batch(self, hard=False):
+        await self.page.select_option('#language-picker', 'fr')
+        photo, expected = await self.batch_receipt_photo(hard)
+        variant = 'dim-tilted' if hard else 'standard'
+        name = f'synthetic-twelve-receipts-{variant}.png'
+        evidence = Path(os.environ['DOGCARE_EVIDENCE_DIR']) if os.environ.get('DOGCARE_EVIDENCE_DIR') else None
+        if evidence:
+            evidence.mkdir(parents=True, exist_ok=True)
+            (evidence / name).write_bytes(photo)
+        requests = []
+        self.page.on('request', lambda req: requests.append(req.url))
+        await self.page.click('#finance-import')
+        await self.page.set_input_files('#finance-files', {'name': name, 'mimeType': 'image/png', 'buffer': photo})
+        await self.page.wait_for_selector('#finance-recognize')
+        self.assertEqual(await self.page.locator('.finance-region').count(), 12)
+        for width, height in ((1440, 1000), (390, 844)):
+            await self.page.set_viewport_size({'width': width, 'height': height})
+            await self.page.locator('[data-finance-canvas="0"]').scroll_into_view_if_needed()
+            await self.page.wait_for_function('document.querySelector("[data-finance-canvas]").width > 0')
+            self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth>innerWidth'))
+            if evidence:
+                await self.page.screenshot(path=str(evidence / f'batch-areas-{variant}-{width}-{self.api_mode}.png'), animations='disabled')
+        await self.page.click('#finance-recognize')
+        await self.page.wait_for_function('!savePending', timeout=180000)
+        saved = await self.snapshot()
+        if evidence:
+            (evidence / f'batch-proposals-{variant}-{self.api_mode}.json').write_text(json.dumps(saved, ensure_ascii=False, indent=2))
+        self.assertEqual(len(saved['entries']), 12)
+        self.assertEqual(len(saved['documents']), 1)
+        self.assertEqual({entry['status'] for entry in saved['entries']}, {'draft'})
+        # Entry order must match the papers' reading order, not OCR completion.
+        for entry, (party, _, _, total, category) in zip(saved['entries'], expected):
+            with self.subTest(variant=variant, party=party, raw=entry['raw']):
+                amount = int(total.replace(',', ''))
+                if hard:
+                    # The harder-photo contract is separation into review
+                    # drafts. Illegible fields may remain unknown, never wrong.
+                    self.assertIn(entry['lines'][0]['unitMinor'], (amount, None))
+                    self.assertIn(entry['date'], ('2026-10-21', ''))
+                    self.assertIn(entry['currency'], ('EUR', ''))
+                else:
+                    self.assertEqual(entry['lines'][0]['unitMinor'], amount)
+                    self.assertEqual(entry['date'], '2026-10-21')
+                    self.assertEqual(entry['party'], party)
+                    self.assertEqual(entry['currency'], 'EUR')
+                self.assertEqual(entry['category'], category)
+                self.assertEqual(entry['sourceId'], saved['documents'][0]['id'])
+                self.assertIsNotNone(entry['region'])
+        self.assertTrue(all(url.startswith(self.url + '/') or url.startswith('blob:') for url in requests), requests)
+        self.assertIn('(12)', await self.page.inner_text('[data-finance-tab="review"]'))
+        for width, height in ((1440, 1000), (390, 844)):
+            await self.page.set_viewport_size({'width': width, 'height': height})
+            self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth>innerWidth'))
+            await self.capture_evidence(f'batch-review-{variant}-{width}-{self.api_mode}.png')
+        await self.page.locator('[data-finance-edit]').first.click()
+        await self.page.fill('[name="party"]', 'Fournisseur relu')
+        await self.save_entry('draft')
+        saved = await self.snapshot()
+        await self.page.reload()
+        await self.wait_ready()
+        await self.open_route('business')
+        self.assertEqual(await self.snapshot(), saved)
+        self.assertEqual({entry['status'] for entry in saved['entries']}, {'draft'})
+        await self.page.locator('[data-finance-edit]').first.click()
+        self.assertEqual(await self.page.input_value('[name="party"]'), 'Fournisseur relu')
+        async with self.page.expect_download() as info:
+            await self.page.click('#finance-source')
+        self.assertEqual(Path(await (await info.value).path()).read_bytes(), photo)
+        async with self.page.expect_download() as info:
+            await self.page.click('#finance-export')
+        download = await info.value
+        if evidence:
+            await download.save_as(str(evidence / f'batch-export-{variant}-{self.api_mode}.zip'))
+        with zipfile.ZipFile(await download.path()) as archive:
+            self.assertEqual(json.loads(archive.read('records.json')), saved)
+            originals = [n for n in archive.namelist() if n.startswith('originals/')]
+            self.assertEqual(len(originals), 1)
+            self.assertEqual(archive.read(originals[0]), photo)
+        self.assertEqual(self.console_errors, [])
+        self.assertEqual(self.page_errors, [])
+
+    async def test_twelve_receipts_real_ocr_review_reload_and_export(self):
+        await self.check_receipt_batch()
+
+    async def test_twelve_dim_tilted_receipts_real_ocr_review_reload_and_export(self):
+        await self.check_receipt_batch(hard=True)
+
     async def receipt_photo(self):
         data = await self.page.evaluate('''() => {
           const c=document.createElement('canvas');c.width=1500;c.height=1000;const x=c.getContext('2d');x.fillStyle='#383838';x.fillRect(0,0,1500,1000);

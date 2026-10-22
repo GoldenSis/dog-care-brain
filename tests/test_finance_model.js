@@ -103,3 +103,20 @@ test('card-network headings leave supplier unknown without losing supported rece
   }
   for(const party of ['Visa Services','Mastercard Supplies','Fournisseur Démo'])assert.equal(M.propose(`${party}\nTOTAL EUR 12.50`).party,party);
 });
+test('French receipt wording proposes merchant, euro total, short date and category',()=>{
+  assert.deepEqual(M.propose('CARTE BANCAIRE\nSANS CONTACT\nTOTALENERGIES VERSAILLES\nLE 21/10/26 A 08:12\nMONTANT = 52,10 EUR'),{date:'2026-10-21',party:'TOTALENERGIES VERSAILLES',number:'',currency:'EUR',amount:5210,category:'transport'});
+  const p=M.propose('CARREFOUR MARKET\n19/10/2026\nSACS DEJECTIONS X4 6,90\nFRIANDISES CHIEN 4,35\nESSUIE-TOUT 3,20\nTOTAL TTC 14,45 €\nCB 14,45 €');
+  assert.equal(p.amount,1445);assert.equal(p.currency,'EUR');assert.equal(p.category,'supplies');
+  assert.equal(M.propose('TOTO TOILETTAGE\nNet à payer 35,00 €\nTOTAL 30,00 €').amount,3500);
+  assert.equal(M.propose('Fournisseur\nlaisse\ncroquettes').category,'other');
+});
+test('OCR keeps unresolved strongest totals unknown and rejects card boilerplate and phone dates',()=>{
+  for(const total of ['Net à payer 1 234,50 EUR','Net à payer illisible','Net à payer 35,00 EUR\nNet à payer 40,00 EUR','Net à payer 35,00 EUR\nNet à payer illisible','Total TTC illisible','TOTAL illisible','Net à payer 100,00 EUR TVA incluse','Net à payer 35,00 EUR\nNet à payer 40,00 EUR TVA incluse','Total TTC 100,00 EUR taxes incluses'])assert.equal(M.propose(`${total}\nCB 50,00 EUR`).amount,null,total);
+  for(const component of ['Total HT','Montant HT','Total hors taxes','Total taxes','Total TVA'])assert.equal(M.propose(`${component} 20,00 EUR\nTOTAL 120,00 EUR`).amount,12000,component);
+  for(const detail of ['PAIEMENT ACCEPTE SANS CONTACT',...['VISA','VISA ELECTRON','MASTERCARD','MASTER CARD','MAESTRO','AMEX','AMERICAN EXPRESS','CARTE BANCAIRE','CB'].map(n=>`${n} DEBIT SANS CONTACT`)])assert.equal(M.propose(`CARTE BANCAIRE\n${detail}\nFOURNISSEUR DEMO`).party,'FOURNISSEUR DEMO',detail);
+  for(const party of ['Visa Services','Mastercard Supplies'])assert.equal(M.propose(`CARTE BANCAIRE\n${party}`).party,party);
+  for(const number of ['01.02.03.04.05','01/02/03/04/05','1.02.03.04','02/03/04/5']){
+    assert.equal(M.propose(number).date,'',number);assert.equal(M.propose(`21/10/26\n${number}`).date,'2026-10-21',number);
+  }
+  for(const detail of ['CARTE **** 1234','CB **** 1234','CB DEBIT SANS CONTACT'])assert.equal(M.propose(`CARTE BANCAIRE\n${detail}\nFOURNISSEUR DEMO\nCB 50,00 EUR`).amount,5000);
+});
