@@ -74,19 +74,19 @@
     // A payment network identifies the card, not the supplier. Leave review open.
     const cardNetwork=/^(?:master\s*card|visa(?:\s+(?:debit|credit|electron))?|maestro|amex|american\s+express|carte\s+bancaire|cb)[®™]?$/i;
     // On a card slip the merchant is printed under the payment boilerplate; anything doubtful stays blank.
-    const boilerplate=/^(?:(?:sans\s+contact|contactless|cb|d[ée]bit|cr[ée]dit|paiement\s+accept[ée]e?|ticket\s+client)(?:\s+|$))+$/i;
+    const boilerplate=/^(?:(?:master\s*card|visa|maestro|amex|american\s+express|carte\s+bancaire|cb|electron|sans\s+contact|contactless|d[ée]bit|cr[ée]dit|paiement\s+accept[ée]e?|ticket\s+client)(?:\s+|$))+$/i;
     const cardDetails=/^(?:(?:carte|cb)\s+[*x\d\s]+|a\s*\d{6,}.*)$/i;
     result.party=cardNetwork.test(heading)?(lines.slice(1,5).find(l=>!boilerplate.test(l)&&!cardNetwork.test(l)&&!cardDetails.test(l)&&!/\b(?:total|montant)\b/i.test(l)&&/^[\p{L}][\p{L}'’&.\- ]{2,}$/u.test(l))||'').slice(0,160):heading.slice(0,160);
     const currencies=[...new Set((raw.match(/\b(?:CHF|EUR|GBP|USD)\b|€/g)||[]).map(c=>c==='€'?'EUR':c))];if(currencies.length===1)result.currency=currencies[0];
     const dates=[...raw.matchAll(/\b(\d{2})[./](\d{2})[./](\d{4})\b/g)].map(m=>`${m[3]}-${m[2]}-${m[1]}`).filter(date);
-    const short=[...raw.matchAll(/\b(\d{2})[./](\d{2})[./](\d{2})(?![\d./])/g)].map(m=>`20${m[3]}-${m[2]}-${m[1]}`).filter(date);
+    const short=[...raw.matchAll(/(?<!\d[./])\b(\d{2})[./](\d{2})[./](\d{2})(?![\d./])/g)].map(m=>`20${m[3]}-${m[2]}-${m[1]}`).filter(date);
     const iso=[...raw.matchAll(/\b\d{4}-\d{2}-\d{2}\b/g)].map(m=>m[0]).filter(date);const found=new Set([...dates,...short,...iso]);if(found.size===1)result.date=[...found][0];
     result.number=proposeReference(lines);
     // Strongest wording wins: what is due, then the stated total, then the card line that repeats it.
     const labels=[/^(?:net\s+)?[àa]\s+payer\b/i,/^(?:total\s+ttc|montant(?:\s+ttc)?|gesamtbetrag|importe\s+total)\b/i,/^(?:totale|total|ttc|gesamt|importe)\b/i,/^(?:pay[ée]\s+)?(?:cb|carte)\b/i];
     const amount=/^\s*[:=]?\s*(?:CHF|EUR|GBP|USD|€)?\s*([0-9]+[.,][0-9]{2})(?:\s*(?:CHF|EUR|GBP|USD|€))?\s*$/i;
     for(const label of labels){
-      const matches=lines.filter(l=>label.test(l)&&!cardNetwork.test(l)&&!boilerplate.test(l)&&!cardDetails.test(l)&&!/sous|sub|subtotal|hors|\bht\b|tax|tva|rendu/i.test(l));if(!matches.length)continue;
+      const matches=lines.filter(l=>label.test(l)&&!cardNetwork.test(l)&&!boilerplate.test(l)&&!cardDetails.test(l)&&!/^(?:montant|totale?|gesamt(?:betrag)?|importe(?:\s+total)?)\s+(?:sous|sub|hors|ht\b|tax|tva|rendu)/i.test(l));if(!matches.length)continue;
       const totals=matches.map(l=>{const m=l.match(label),rest=l.slice(m[0].length).replace(/^\s*(?:ttc|cb|eur|chf)\b/i,'');const v=rest.match(amount);try{return v?parseMinor(v[1]):null;}catch{return null;}});
       if(new Set(totals).size===1)result.amount=totals[0];break;
     }

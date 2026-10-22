@@ -110,8 +110,13 @@ test('French receipt wording proposes merchant, euro total, short date and categ
   assert.equal(M.propose('TOTO TOILETTAGE\nNet à payer 35,00 €\nTOTAL 30,00 €').amount,3500);
   assert.equal(M.propose('Fournisseur\nlaisse\ncroquettes').category,'other');
 });
-test('OCR keeps unresolved strongest totals unknown and skips combined card boilerplate',()=>{
-  for(const total of ['Net à payer 1 234,50 EUR','Net à payer illisible','Net à payer 35,00 EUR\nNet à payer 40,00 EUR','Net à payer 35,00 EUR\nNet à payer illisible','Total TTC illisible','TOTAL illisible'])assert.equal(M.propose(`${total}\nCB 50,00 EUR`).amount,null,total);
-  assert.equal(M.propose('CARTE BANCAIRE\nPAIEMENT ACCEPTE SANS CONTACT\nFOURNISSEUR DEMO').party,'FOURNISSEUR DEMO');
+test('OCR keeps unresolved strongest totals unknown and rejects card boilerplate and phone dates',()=>{
+  for(const total of ['Net à payer 1 234,50 EUR','Net à payer illisible','Net à payer 35,00 EUR\nNet à payer 40,00 EUR','Net à payer 35,00 EUR\nNet à payer illisible','Total TTC illisible','TOTAL illisible','Net à payer 100,00 EUR TVA incluse','Net à payer 35,00 EUR\nNet à payer 40,00 EUR TVA incluse','Total TTC 100,00 EUR taxes incluses'])assert.equal(M.propose(`${total}\nCB 50,00 EUR`).amount,null,total);
+  for(const component of ['Total HT','Montant HT','Total hors taxes','Total taxes','Total TVA'])assert.equal(M.propose(`${component} 20,00 EUR\nTOTAL 120,00 EUR`).amount,12000,component);
+  for(const detail of ['PAIEMENT ACCEPTE SANS CONTACT',...['VISA','VISA ELECTRON','MASTERCARD','MASTER CARD','MAESTRO','AMEX','AMERICAN EXPRESS','CARTE BANCAIRE','CB'].map(n=>`${n} DEBIT SANS CONTACT`)])assert.equal(M.propose(`CARTE BANCAIRE\n${detail}\nFOURNISSEUR DEMO`).party,'FOURNISSEUR DEMO',detail);
+  for(const party of ['Visa Services','Mastercard Supplies'])assert.equal(M.propose(`CARTE BANCAIRE\n${party}`).party,party);
+  for(const number of ['01.02.03.04.05','01/02/03/04/05','1.02.03.04','02/03/04/5']){
+    assert.equal(M.propose(number).date,'',number);assert.equal(M.propose(`21/10/26\n${number}`).date,'2026-10-21',number);
+  }
   for(const detail of ['CARTE **** 1234','CB **** 1234','CB DEBIT SANS CONTACT'])assert.equal(M.propose(`CARTE BANCAIRE\n${detail}\nFOURNISSEUR DEMO\nCB 50,00 EUR`).amount,5000);
 });
