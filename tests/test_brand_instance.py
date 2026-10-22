@@ -29,7 +29,7 @@ class BrandInstanceTest(BrowserFixture):
             self.assertEqual(self.console_errors, [])
             self.assertEqual(self.page_errors, [])
 
-    async def test_authored_observations_remain_literal(self):
+    async def test_records_keep_translation_without_rebranding(self):
         with patch.dict(os.environ, NICOLAS):
             await self.page.reload()
             await self.wait_ready()
@@ -39,7 +39,7 @@ class BrandInstanceTest(BrowserFixture):
             await self.page.click('#save-observation')
             await self.page.wait_for_function("state.page === 'dogs' && !savePending")
             self.assertEqual(await self.page.locator('.timeline-card > p').first.text_content(), note)
-            notes = [note, 'Hello, Adine-Sophie.', 'All good']
+            notes = ['Hello, Adine-Sophie.', 'All good', note]
             self.assertTrue(await self.page.evaluate('''async notes => {
                 const records = notes.map((text, i) => ({
                     id: Date.now() + i, date: localDay(), time: '12:00',
@@ -53,25 +53,58 @@ class BrandInstanceTest(BrowserFixture):
                 with self.subTest(locale=locale):
                     await self.page.select_option('#language-picker', locale)
                     await self.page.wait_for_function('!savePending')
+                    displayed = await self.page.evaluate('notes => notes.map(text => translations[state.language]?.[text] || text)', notes)
                     await self.open_route('dashboard')
-                    self.assertEqual(await self.page.locator('.activity-preview').text_content(), note)
+                    self.assertEqual(await self.page.locator('.activity-preview').text_content(), displayed[0])
+                    self.assertEqual(await self.page.locator('.activity-copy strong').first.text_content(), displayed[0])
                     await self.open_route('dogs')
-                    self.assertEqual(await self.page.locator('.timeline-card > p').all_text_contents(), notes)
-                    self.assertEqual(await self.page.locator('.timeline-top h4').all_text_contents(), notes)
+                    self.assertEqual(await self.page.locator('.timeline-card > p').all_text_contents(), displayed)
+                    self.assertEqual(await self.page.locator('.timeline-top h4').all_text_contents(), displayed)
                     self.assertEqual(await self.page.locator('.timeline-card .mini-tags').last.text_content(), 'Adine-Sophie')
-                    self.assertEqual(await self.page.evaluate('state.observations[state.dog].map(o => shareText(o).split("\\n\\n")[1])'), notes)
+                    self.assertEqual(await self.page.evaluate('state.observations[state.dog].map(o => shareText(o).split("\\n\\n")[1])'), displayed)
                     await self.open_route('handoff')
                     highlights = await self.page.locator('.highlight-list').text_content()
-                    for text in notes:
+                    for text in displayed:
                         self.assertIn(text, highlights)
-                    self.assertEqual(await self.page.locator('.evidence-row small').all_text_contents(), notes)
-                    self.assertEqual(await self.page.locator('.evidence-row strong').all_text_contents(), notes)
+                    self.assertEqual(await self.page.locator('.evidence-row small').all_text_contents(), displayed)
+                    self.assertEqual(await self.page.locator('.evidence-row strong').all_text_contents(), displayed)
                     await self.open_route('story')
-                    self.assertEqual((await self.page.locator('.story-copy').text_content()).strip(), note)
+                    self.assertEqual((await self.page.locator('.story-copy').text_content()).strip(), displayed[0])
                     self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
             self.assertEqual(await self.page.evaluate('state.observations[state.dog].map(o => o.text)'), notes)
+            self.assertEqual(await self.page.evaluate('state.observations[state.dog].map(o => o.title)'), notes)
             self.assertEqual(self.console_errors, [])
             self.assertEqual(self.page_errors, [])
+
+    async def test_generated_titles_localize_without_changing_saved_titles(self):
+        for brand in ({key: '' for key in NICOLAS}, NICOLAS):
+            with self.subTest(brand=brand['DC_BRAND_NAME']), patch.dict(os.environ, brand):
+                await self.page.reload()
+                await self.wait_ready()
+                await self.page.select_option('#language-picker', 'fr')
+                await self.page.wait_for_function('!savePending')
+                await self.open_route('capture')
+                await self.page.fill('#observation', 'Une belle journée.')
+                await self.page.click('#save-observation')
+                await self.page.wait_for_function("state.page === 'dogs' && !savePending")
+                self.assertEqual(await self.page.locator('.timeline-top h4').first.text_content(), 'Moment du quotidien')
+                await self.page.reload()
+                await self.wait_ready()
+                for locale, title in (('en', 'Care moment'), ('fr', 'Moment du quotidien'),
+                                      ('it', 'Momento di cura'), ('de', 'Pflegemoment'), ('es', 'Momento de cuidado')):
+                    with self.subTest(locale=locale):
+                        await self.page.select_option('#language-picker', locale)
+                        await self.page.wait_for_function('!savePending')
+                        await self.open_route('dashboard')
+                        self.assertEqual(await self.page.locator('.activity-copy strong').first.text_content(), title)
+                        await self.open_route('dogs')
+                        self.assertEqual(await self.page.locator('.timeline-top h4').first.text_content(), title)
+                        await self.open_route('handoff')
+                        self.assertEqual(await self.page.locator('.evidence-row strong').first.text_content(), title)
+                        self.assertEqual(await self.page.evaluate('state.observations[state.dog][0].title'), 'Care moment')
+                        self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+                self.assertEqual(self.console_errors, [])
+                self.assertEqual(self.page_errors, [])
 
     async def test_assistant_heading_uses_owner_in_every_locale(self):
         with patch.dict(os.environ, NICOLAS):
