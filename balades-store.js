@@ -43,7 +43,7 @@
     }catch{return stale?'conflict':'failed';}
     data=structuredClone(next);baseline=text;version++;return 'ok';
   }
-  // The recording draft never leaves this browser; it is keyed by account so a shared device keeps them apart.
+  // The draft stays in this browser, keyed by business (shared by its staff) or by static mode.
   async function draft(value,previous=null){
     const key=scope;
     try{

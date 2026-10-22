@@ -1,4 +1,4 @@
-# Dedicated site: do not import a global policy that disables mic/camera.
+# Dedicated site: retain same-origin microphone, camera and geolocation permissions.
 dogcare.plusdefun.ch {
     encode gzip
     header {
