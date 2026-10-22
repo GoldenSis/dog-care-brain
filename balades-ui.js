@@ -317,11 +317,16 @@
       e.preventDefault();if(busy)return;abandon();Object.assign(pending,readForm(save));const values=formValues(save);if(!values){render(false);return;}
       const id=pending.id||=uid(),source=pending.source,ref=link?{...link}:null,draft=pending;
       const made={id,name:values.name,date:values.date,dogs:values.dogs,points:pending.points,durationSec:pending.durationSec,source,walkRefs:[],spots:pending.spots};
-      await commit(next=>{const saved=next.tracks.find(t=>t.id===id);if(saved){Object.assign(saved,values);if(source==='record')Object.assign(saved,{points:made.points,durationSec:made.durationSec});saved.walkRefs=saved.walkRefs.filter(r=>saved.dogs.includes(r.dogId));}else next.tracks.push(structuredClone(made));if(ref)linkTo(id,next,ref);},()=>{
+      let geometryApplied=false;
+      await commit(next=>{
+        const saved=next.tracks.find(t=>t.id===id);
+        geometryApplied=source==='record'&&(!saved||(made.points.length>saved.points.length&&saved.points.every((p,i)=>p[0]===made.points[i][0]&&p[1]===made.points[i][1])));
+        if(saved){Object.assign(saved,values);if(geometryApplied)Object.assign(saved,{points:made.points,durationSec:made.durationSec});saved.walkRefs=saved.walkRefs.filter(r=>saved.dogs.includes(r.dogId));}else next.tracks.push(structuredClone(made));if(ref)linkTo(id,next,ref);
+      },()=>{
         if(ref){linked_done(ref);return;}
         current=id;view='track';showToast(text('saved'));render();
       },async()=>{
-        if(source==='record')await clearDraft(draft.draft);
+        if(geometryApplied)await clearDraft(draft.draft);
         if(pending===draft){pending=null;if(view==='save')view='list';}
       });
     };
