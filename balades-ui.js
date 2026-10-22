@@ -165,6 +165,7 @@
       const done=rec;rec=null;
       if(done.points.length<2){message={key:'tooShort',error:true};view='list';render();return;}
       pending={id:done.id,draft:done.saved,source:'record',points:done.points,spots:[],durationSec:Math.min(604800,Math.round((Date.now()-done.startedAt)/1000)),date:localDate(new Date(done.startedAt)),name:fill('defaultName',{date:dayText(localDate(new Date(done.startedAt)))})};
+      const saved=track(done.id);if(saved)Object.assign(pending,{name:saved.name,date:saved.date,dogs:[...saved.dogs]});
       message=reason?{key:reason,error:false}:null;view='save';render();
     }finally{busy=false;setBusy(false);}
   }
@@ -316,7 +317,7 @@
       e.preventDefault();if(busy)return;abandon();Object.assign(pending,readForm(save));const values=formValues(save);if(!values){render(false);return;}
       const id=pending.id||=uid(),source=pending.source,ref=link?{...link}:null,draft=pending;
       const made={id,name:values.name,date:values.date,dogs:values.dogs,points:pending.points,durationSec:pending.durationSec,source,walkRefs:[],spots:pending.spots};
-      await commit(next=>{const saved=next.tracks.find(t=>t.id===id);if(saved){Object.assign(saved,values);saved.walkRefs=saved.walkRefs.filter(r=>saved.dogs.includes(r.dogId));}else next.tracks.push(structuredClone(made));if(ref)linkTo(id,next,ref);},()=>{
+      await commit(next=>{const saved=next.tracks.find(t=>t.id===id);if(saved){Object.assign(saved,values);if(source==='record')Object.assign(saved,{points:made.points,durationSec:made.durationSec});saved.walkRefs=saved.walkRefs.filter(r=>saved.dogs.includes(r.dogId));}else next.tracks.push(structuredClone(made));if(ref)linkTo(id,next,ref);},()=>{
         if(ref){linked_done(ref);return;}
         current=id;view='track';showToast(text('saved'));render();
       },async()=>{
