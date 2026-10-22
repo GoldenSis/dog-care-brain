@@ -110,3 +110,8 @@ test('French receipt wording proposes merchant, euro total, short date and categ
   assert.equal(M.propose('TOTO TOILETTAGE\nNet à payer 35,00 €\nTOTAL 30,00 €').amount,3500);
   assert.equal(M.propose('Fournisseur\nlaisse\ncroquettes').category,'other');
 });
+test('OCR keeps unresolved strongest totals unknown and skips combined card boilerplate',()=>{
+  for(const total of ['Net à payer 1 234,50 EUR','Net à payer illisible','Net à payer 35,00 EUR\nNet à payer 40,00 EUR','Net à payer 35,00 EUR\nNet à payer illisible','Total TTC illisible','TOTAL illisible'])assert.equal(M.propose(`${total}\nCB 50,00 EUR`).amount,null,total);
+  assert.equal(M.propose('CARTE BANCAIRE\nPAIEMENT ACCEPTE SANS CONTACT\nFOURNISSEUR DEMO').party,'FOURNISSEUR DEMO');
+  for(const detail of ['CARTE **** 1234','CB **** 1234','CB DEBIT SANS CONTACT'])assert.equal(M.propose(`CARTE BANCAIRE\n${detail}\nFOURNISSEUR DEMO\nCB 50,00 EUR`).amount,5000);
+});

@@ -74,8 +74,9 @@
     // A payment network identifies the card, not the supplier. Leave review open.
     const cardNetwork=/^(?:master\s*card|visa(?:\s+(?:debit|credit|electron))?|maestro|amex|american\s+express|carte\s+bancaire|cb)[®™]?$/i;
     // On a card slip the merchant is printed under the payment boilerplate; anything doubtful stays blank.
-    const boilerplate=/^(?:sans\s+contact|contactless|cb|debit|d[ée]bit|credit|cr[ée]dit|paiement\s+accept[ée]e?|ticket\s+client|carte\s+[*x\d\s]+|a\s*\d{6,}.*|.*\b(?:total|montant)\b.*)$/i;
-    result.party=cardNetwork.test(heading)?(lines.slice(1,5).find(l=>!boilerplate.test(l)&&!cardNetwork.test(l)&&/^[\p{L}][\p{L}'’&.\- ]{2,}$/u.test(l))||'').slice(0,160):heading.slice(0,160);
+    const boilerplate=/^(?:(?:sans\s+contact|contactless|cb|d[ée]bit|cr[ée]dit|paiement\s+accept[ée]e?|ticket\s+client)(?:\s+|$))+$/i;
+    const cardDetails=/^(?:(?:carte|cb)\s+[*x\d\s]+|a\s*\d{6,}.*)$/i;
+    result.party=cardNetwork.test(heading)?(lines.slice(1,5).find(l=>!boilerplate.test(l)&&!cardNetwork.test(l)&&!cardDetails.test(l)&&!/\b(?:total|montant)\b/i.test(l)&&/^[\p{L}][\p{L}'’&.\- ]{2,}$/u.test(l))||'').slice(0,160):heading.slice(0,160);
     const currencies=[...new Set((raw.match(/\b(?:CHF|EUR|GBP|USD)\b|€/g)||[]).map(c=>c==='€'?'EUR':c))];if(currencies.length===1)result.currency=currencies[0];
     const dates=[...raw.matchAll(/\b(\d{2})[./](\d{2})[./](\d{4})\b/g)].map(m=>`${m[3]}-${m[2]}-${m[1]}`).filter(date);
     const short=[...raw.matchAll(/\b(\d{2})[./](\d{2})[./](\d{2})(?![\d./])/g)].map(m=>`20${m[3]}-${m[2]}-${m[1]}`).filter(date);
@@ -85,8 +86,9 @@
     const labels=[/^(?:net\s+)?[àa]\s+payer\b/i,/^(?:total\s+ttc|montant(?:\s+ttc)?|gesamtbetrag|importe\s+total)\b/i,/^(?:totale|total|ttc|gesamt|importe)\b/i,/^(?:pay[ée]\s+)?(?:cb|carte)\b/i];
     const amount=/^\s*[:=]?\s*(?:CHF|EUR|GBP|USD|€)?\s*([0-9]+[.,][0-9]{2})(?:\s*(?:CHF|EUR|GBP|USD|€))?\s*$/i;
     for(const label of labels){
-      const totals=lines.filter(l=>!/sous|sub|subtotal|hors|\bht\b|tax|tva|rendu/i.test(l)).map(l=>{const m=l.match(label);if(!m)return null;const rest=l.slice(m[0].length).replace(/^\s*(?:ttc|cb|eur|chf)\b/i,'');const v=rest.match(amount);try{return v?parseMinor(v[1]):null;}catch{return null;}}).filter(x=>x!==null);
-      if(totals.length){if(new Set(totals).size===1)result.amount=totals[0];break;}
+      const matches=lines.filter(l=>label.test(l)&&!cardNetwork.test(l)&&!boilerplate.test(l)&&!cardDetails.test(l)&&!/sous|sub|subtotal|hors|\bht\b|tax|tva|rendu/i.test(l));if(!matches.length)continue;
+      const totals=matches.map(l=>{const m=l.match(label),rest=l.slice(m[0].length).replace(/^\s*(?:ttc|cb|eur|chf)\b/i,'');const v=rest.match(amount);try{return v?parseMinor(v[1]):null;}catch{return null;}});
+      if(new Set(totals).size===1)result.amount=totals[0];break;
     }
     const rules={
       food:/croquettes|p[âa]t[ée]e|alimentation|friandise|kibble|pet food|futter|crocchette|pienso/i,

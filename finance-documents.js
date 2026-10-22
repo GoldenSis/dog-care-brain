@@ -77,23 +77,31 @@
     const whole=[{page:1,x:0,y:0,width:1,height:1}];
     const width=400,height=Math.max(1,Math.round(source.height/source.width*width));if(height>1600)return whole;
     const c=canvas(width,height),ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(source,0,0,width,height);const pixels=ctx.getImageData(0,0,width,height).data;release(c);
-    const n=width*height,light=new Uint8Array(n),grey=new Uint8Array(n),histogram=new Array(256).fill(0),visited=new Uint8Array(n),boxes=[];
+    const n=width*height,light=new Uint8Array(n),grey=new Uint8Array(n),histogram=new Array(256).fill(0);
     for(let i=0;i<n;i++){const r=pixels[i*4],g=pixels[i*4+1],b=pixels[i*4+2];light[i]=Math.round(.299*r+.587*g+.114*b);grey[i]=Math.max(r,g,b)-Math.min(r,g,b)<70;histogram[light[i]]++;}
     // Otsu's threshold adapts to the room's lighting; paper is the light, colourless side of it.
     let sum=0,sumBelow=0,below=0,best=0,threshold=128;for(let v=0;v<256;v++)sum+=v*histogram[v];
     for(let v=0;v<256;v++){below+=histogram[v];if(!below||below===n)continue;sumBelow+=v*histogram[v];const a=sumBelow/below,b=(sum-sumBelow)/(n-below),spread=below*(n-below)*(a-b)**2;if(spread>best){best=spread;threshold=v;}}
-    const paper=i=>grey[i]&&light[i]>Math.max(threshold,110);
-    for(let i=0;i<n;i++){
-      if(visited[i]||!paper(i))continue;const stack=[i];visited[i]=1;let minX=width,maxX=0,minY=height,maxY=0,count=0;
-      while(stack.length){const p=stack.pop(),x=p%width,y=Math.floor(p/width);count++;minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);
-        for(const q of [x>0?p-1:-1,x+1<width?p+1:-1,y>0?p-width:-1,y+1<height?p+width:-1])if(q>=0&&!visited[q]&&paper(q)){visited[q]=1;stack.push(q);}}
-      const w=maxX-minX+1,h=maxY-minY+1;
-      if(count>n*.004&&w>12&&h>12&&count/(w*h)>.45){const x=Math.max(0,(minX-2)/width),y=Math.max(0,(minY-2)/height);boxes.push({page:1,x,y,width:Math.min(1-x,(w+4)/width),height:Math.min(1-y,(h+4)/height)});}
+    function findBoxes(paper){
+      const visited=new Uint8Array(n),boxes=[];
+      for(let i=0;i<n;i++){
+        if(visited[i]||!paper(i))continue;const stack=[i];visited[i]=1;let minX=width,maxX=0,minY=height,maxY=0,count=0;
+        while(stack.length){const p=stack.pop(),x=p%width,y=Math.floor(p/width);count++;minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);
+          for(const q of [x>0?p-1:-1,x+1<width?p+1:-1,y>0?p-width:-1,y+1<height?p+width:-1])if(q>=0&&!visited[q]&&paper(q)){visited[q]=1;stack.push(q);}}
+        const w=maxX-minX+1,h=maxY-minY+1;
+        if(count>n*.004&&w>12&&h>12&&count/(w*h)>.45){const x=Math.max(0,(minX-2)/width),y=Math.max(0,(minY-2)/height);boxes.push({page:1,x,y,width:Math.min(1-x,(w+4)/width),height:Math.min(1-y,(h+4)/height)});}
+      }
+      return boxes;
     }
-    if(!boxes.length||boxes.length===1&&boxes[0].width*boxes[0].height>.85)return whole;
+    let boxes=findBoxes(i=>grey[i]&&light[i]>Math.max(threshold,110));
+    if(!boxes.length||boxes.length===1&&boxes[0].width*boxes[0].height>.85){
+      const strict=findBoxes(i=>{const r=pixels[i*4],g=pixels[i*4+1],b=pixels[i*4+2];return Math.min(r,g,b)>195&&Math.max(r,g,b)-Math.min(r,g,b)<55;});
+      if(strict.length<2)return whole;boxes=strict;
+    }
     // Reading order: rows top to bottom, then left to right within a row.
-    const row=Math.min(...boxes.map(b=>b.height))/2;
-    return boxes.sort((a,b)=>Math.abs(a.y-b.y)<row?a.x-b.x:a.y-b.y);
+    const tolerance=Math.min(...boxes.map(b=>b.height))/2,rows=[];
+    for(const box of boxes.sort((a,b)=>a.y-b.y||a.x-b.x)){const row=rows[rows.length-1];if(row&&box.y-row[0].y<tolerance)row.push(box);else rows.push([box]);}
+    return rows.flatMap(row=>row.sort((a,b)=>a.x-b.x));
   }
   async function recognize(items,language,onProgress){
     await script('tesseract.js/tesseract.min.js');
