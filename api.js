@@ -323,6 +323,22 @@
       try{const response=await fetch(url('/finance-documents/'+id),{credentials:'include',signal:controller.signal});return response.ok?await response.blob():null;}
       catch{return null;}finally{clearTimeout(timer);}
     },
+    // Balades carry their own revision: a walk save never blocks or is blocked by care writes.
+    async balades(value, baladesRevision) {
+      if (!hydrated || businessId === null) return {ok:false};
+      const writing = value !== undefined, expectedBusiness = businessId;
+      const controller = new AbortController(), timer = setTimeout(() => controller.abort(), requestTimeout);
+      try {
+        const response = await fetch(url('/balades'), {credentials:'include', signal:controller.signal,
+          ...(writing ? {method:'PUT', body:JSON.stringify({balades:value}),
+            headers:{'Content-Type':'application/json','X-DogCare-Business':String(expectedBusiness),'If-Match':`"${baladesRevision}"`}} : {})});
+        const data = await response.json();
+        if (!response.ok || data.business_id !== expectedBusiness || !Number.isSafeInteger(data.revision) || !data.balades)
+          return {ok:false, conflict:!!data.conflict || data.reload_required === true, status:response.status};
+        return {ok:true, revision:data.revision, balades:data.balades, businessId:data.business_id};
+      } catch { return {ok:false}; }
+      finally { clearTimeout(timer); }
+    },
     getKnowledge() { return JSON.parse(JSON.stringify(cache.knowledge)); },
     saveKnowledge(knowledge) {
       const snapshot = JSON.parse(JSON.stringify(knowledge));

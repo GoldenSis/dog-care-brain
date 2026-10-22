@@ -16,7 +16,7 @@ No install or build step is required. Bookings, base rates/stay extensions, per-
 
 To [register a dog](docs/daily-workflows.md#registering-a-dog) without a booking or care note, open **Dogs / Chiens → ＋ Add a dog / Ajouter un chien**. Only the dog name is required; the owner can remain unknown. **All dogs / Tous les chiens** opens the saved profiles.
 
-Static mode stores observations, pending invite previews, and language in the browser's `localStorage` (`dogcare-observations`, `dogcare-invites`, and `dogcare-language`), with operational records and documents in `dogcare-daily-v1` (version-2 snapshots under the unchanged key; see [migration](docs/daily-workflows.md#storage-and-migration)) and [private experience drafts](docs/maison-sante.md) in `dogcare-knowledge-v1`. [Accounting records and originals](docs/comptabilite.md) use a separate IndexedDB database, `dogcare-finance-v1`. Browser quota limits apply; no cloud synchronization is implied. **Reset demo observations** in Settings restores sample observations while retaining saved notes, registered dogs, daily records, experiences, accounting records and originals, invites and language.
+Static mode stores observations, pending invite previews, and language in the browser's `localStorage` (`dogcare-observations`, `dogcare-invites`, and `dogcare-language`), with operational records and documents in `dogcare-daily-v1` (version-2 snapshots under the unchanged key; see [migration](docs/daily-workflows.md#storage-and-migration)) and [private experience drafts](docs/maison-sante.md) in `dogcare-knowledge-v1`. [Accounting records and originals](docs/comptabilite.md) use a separate IndexedDB database, `dogcare-finance-v1`; [walk tracks](docs/balades.md) use `dogcare-balades-v1`. Browser quota limits apply; no cloud synchronization is implied. **Reset demo observations** in Settings restores sample observations while retaining saved notes, registered dogs, daily records, experiences, accounting records and originals, invites and language.
 
 Account mode (SQLite, zero pip dependencies) opens on the public welcome. For an isolated local demo:
 
@@ -98,6 +98,7 @@ The API uses JSON objects and a `dc_s` session cookie. JSON responses, protected
 | `GET /api/state` | Full snapshot: `ok`, `business_id`, `imported`, `revision`, `email`, `role`, `language`, `dogs`, `observations`, `invites`, `daily`, `knowledge`, `finance`, `portal`, `media`; contents are projected by role. |
 | `PUT /api/daily` | `{ "daily": <snapshot> }`; replaces the full operational snapshot, preserving uploaded document identities. Returns full account state; see the [daily contract](docs/daily-workflows.md#api-contract). |
 | `PUT /api/knowledge` | `{ "knowledge": <snapshot> }`; replaces all private experience drafts. Returns full account state; see the [experience contract](docs/maison-sante.md#api-contract). |
+| `GET` / `PUT /api/balades` | Owner and trusted carer only. Full walk-track snapshot with its own revision in `If-Match`; see the [Balades contract](docs/balades.md#storage-and-api-contract). |
 | `PUT /api/finance` | `{ "finance": <snapshot>, "uploads": [] }`; saves the full accounting snapshot and any new originals atomically. Returns full account state; see the [accounting contract](docs/comptabilite.md#api-contract). |
 | `GET /api/finance-documents/<sha256>` | Business-scoped private accounting original; owner session required. |
 | `POST /api/documents` | Dog, label, renewal (`""` when unset), filename, supported MIME type and base64 file; returns full state. See [daily contract](docs/daily-workflows.md#api-contract). |
@@ -157,6 +158,8 @@ The static workspace uses the owner navigation. Both modes support French, Engli
 ## Comptabilité
 
 Invoices, expense claims, billed extras, local receipt recognition and accountant export are available under **Accounting** (**Comptabilité** in French). Planned monthly booking totals and base rates remain in its **Bookings & rates / Réservations et tarifs** tab, also reached directly from the **Base rates / Tarifs de base** shortcuts on home and Planning. See [Comptabilité](docs/comptabilite.md) for review, payments, print/PDF, original documents, workbook export and storage boundaries. OCR/PDF/ZIP libraries are bundled locally and loaded only for intake/export; no install or external document service is required.
+
+Walk tracks with spots (water, danger, no dogs, lead required, tolerated) live in their own space, **Balades**, under **Tous mes outils**; a walk saved in Planning can carry its track. See [Balades](docs/balades.md) for recording limits (the screen must stay on), GPX import/export, the map provider and the storage/API contract.
 
 **Monthly walks / Promenades du mois** shows actual daily attendance per dog, totals at each walk's recorded tariff, and unpriced walks. Set **Tarif par promenade** on the dog's profile, tick attendance in **Planning → Promenades du jour**, then save. Tariffs start empty and use the accounting currency, or EUR when accounting has none. The [walk workflow](docs/daily-workflows.md#daily-walks-and-per-dog-tariffs) preserves earlier prices and creates no invoice, charge or payment.
 
@@ -229,7 +232,7 @@ Account photo/video albums and owner artwork settings are documented in [Photos,
 For focused API checks, all Node regressions and JavaScript syntax checks:
 
 ```bash
-python3 -m unittest tests.test_api_server tests.test_tenant_isolation tests.test_daily_api tests.test_knowledge_api tests.test_finance_api tests.test_crawl_site -v
+python3 -m unittest tests.test_api_server tests.test_tenant_isolation tests.test_daily_api tests.test_knowledge_api tests.test_finance_api tests.test_balades_api tests.test_crawl_site -v
 node --test tests/*.js
 for file in *.js; do node --check "$file" || exit 1; done
 ```
@@ -251,7 +254,7 @@ Knowledge checks cover guide search and provider links, topic choices, five loca
 
 Accounting checks cover invoice/extra/payment save/reload, local receipt OCR and PDF/manual intake, immutable originals, duplicate rejection, ZIP/XLSX contents, literal cells, failed-save recovery and stale-tab protection in both storage modes. Synthetic raster OCR checks also cover sparse card slips with no supplier, conservative invoice references, reviewed values after reload, numeric workbook cells and links to byte-identical originals. Camera file inputs are exercised with synthetic files; physical-camera operation remains unverified. See [accounting checks](docs/comptabilite.md#local-readers-and-checks) for focused commands; the full Python discovery command above includes the finance browser suite.
 
-Navigation checks reach all 12 owner destinations through the primary buttons and tools dialog, in five locales at 1440 × 900, 1024 × 768, and 390 × 844. They cover keyboard activation, active state, 44px targets, a single business brand, heading visibility after switching from scrolled content, and return to the selected tool.
+Navigation checks reach all 13 owner destinations through the primary buttons and tools dialog, in five locales at 1440 × 900, 1024 × 768, and 390 × 844. They cover keyboard activation, active state, 44px targets, a single business brand, heading visibility after switching from scrolled content, and return to the selected tool.
 
 Professional-access checks cover individual grants and file denial, shared note versions, stale selections, dog reassignment/removal, revocation and concurrent authorization changes. The browser journey checks owner selection/review, professional self-login, reload and revocation at desktop and phone widths; see [selected professional access](docs/client-portal.md#selected-professional-access).
 

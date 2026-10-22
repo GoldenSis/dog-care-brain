@@ -135,6 +135,14 @@ CREATE TABLE IF NOT EXISTS finance_document (
   PRIMARY KEY (business_id, id)
 );
 
+-- Walk tracks and spots stay private to the business; their own revision keeps a walk
+-- recording independent of Planning edits.
+CREATE TABLE IF NOT EXISTS business_balades (
+  business_id INTEGER PRIMARY KEY REFERENCES business(id),
+  snapshot TEXT NOT NULL,
+  revision INTEGER NOT NULL DEFAULT 0
+);
+
 -- Client membership is explicit; old accounts and care records stay internal.
 CREATE TABLE IF NOT EXISTS client_access (
   user_id INTEGER PRIMARY KEY REFERENCES user(id),

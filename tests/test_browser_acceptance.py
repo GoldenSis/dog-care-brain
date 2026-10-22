@@ -24,6 +24,7 @@ ROOT = Path(__file__).resolve().parents[1]
 @unittest.skipIf(async_playwright is None, "run uv run --python 3.12 --with playwright python -m unittest discover -s tests -v")
 class BrowserFixture(unittest.IsolatedAsyncioTestCase, ApiServerTestCase):
     api_mode = True
+    launch_args = ()
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -43,7 +44,7 @@ class BrowserFixture(unittest.IsolatedAsyncioTestCase, ApiServerTestCase):
     async def asyncSetUp(self):
         self.playwright = await async_playwright().start()
         self.addAsyncCleanup(self.playwright.stop)
-        self.browser = await self.playwright.chromium.launch(headless=True)
+        self.browser = await self.playwright.chromium.launch(headless=True, args=list(self.launch_args))
         self.addAsyncCleanup(self.browser.close)
         self.context = await self.browser.new_context(viewport={"width": 390, "height": 844}, timezone_id='Europe/Paris')
         self.addAsyncCleanup(self.context.close)
@@ -142,7 +143,7 @@ class BrowserAcceptanceTest(BrowserFixture):
         self.assertEqual(self.console_errors,[])
 
     async def test_all_destinations_keep_selection_and_touch_targets(self):
-        routes=('dashboard','dogs','capture','handoff','gallery','assistant','story','invite','schedule','business','settings','health')
+        routes=('dashboard','dogs','capture','handoff','gallery','assistant','story','invite','schedule','balades','business','settings','health')
         for width,height in ((1440,900),(1024,768),(390,844)):
             await self.page.set_viewport_size({'width':width,'height':height})
             for route in routes:

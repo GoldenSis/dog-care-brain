@@ -6,7 +6,7 @@ dogcare.plusdefun.ch {
         X-Content-Type-Options "nosniff"
         Referrer-Policy "strict-origin-when-cross-origin"
         X-Frame-Options "SAMEORIGIN"
-        Permissions-Policy "camera=(self), microphone=(self), geolocation=(), payment=()"
+        Permissions-Policy "camera=(self), microphone=(self), geolocation=(self), payment=()"
     }
     reverse_proxy 127.0.0.1:18847 {
         header_up X-DogCare-Client-IP {http.request.remote.host}

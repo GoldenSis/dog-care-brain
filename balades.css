@@ -1,0 +1,56 @@
+/* Balades: map, recording and spots. Marker colours carry meaning; each also has an icon and a label. */
+:root {--spot-pause:#1f6fa8;--spot-danger:#b8430a;--spot-interdit:#a3162b;--spot-laisse:#5b3fa6;--spot-tolere:#22764a}
+.balades {min-width:0;display:flex;flex-direction:column}
+.balades > * {min-width:0}
+/* While recording, the numbers and the finish button come before the map. */
+.balades[data-view=record] #balades-panel {order:1}
+.balades[data-view=record] .balades-map,.balades[data-view=record] .balades-map-note,.balades[data-view=record] .balades-legend {order:2}
+.balades-privacy {order:3}
+.balades-intro {margin:0 0 10px;font-size:15px;line-height:1.5}
+.balades-map {height:440px;border:1px solid var(--line);border-radius:6px;overflow:hidden;margin:12px 0 8px;background:var(--cream)}
+.balades-map[hidden],.balades-legend[hidden],.balades-map-note[hidden] {display:none}
+.balades-legend {display:flex;flex-wrap:wrap;gap:6px 14px;list-style:none;margin:0 0 12px;padding:0;font-size:13px}
+.balades-legend li {display:flex;align-items:center;gap:6px}
+.balade-marker {display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);font-size:15px;line-height:1;flex-shrink:0;padding:0;color:#fff}
+button.balade-marker {cursor:pointer;width:44px;height:44px;font-size:18px}
+.balade-pause {background:var(--spot-pause)} .balade-danger {background:var(--spot-danger)} .balade-interdit {background:var(--spot-interdit)}
+.balade-laisse {background:var(--spot-laisse)} .balade-tolere {background:var(--spot-tolere)}
+.balades-toolbar {justify-content:flex-start}
+.balades-file {display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 18px;cursor:pointer;box-sizing:border-box}
+.balades-file input {position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.balades-file:focus-within {outline:3px solid var(--text-orange);outline-offset:2px}
+.balades-heading {font:700 24px/1.2 var(--display);margin:22px 0 10px}
+.balades-info {padding:12px;border:1px solid var(--line);background:var(--orange-surface);font-size:14px;margin:10px 0;overflow-wrap:anywhere}
+.balades-info[hidden],#balades-message[hidden] {display:none}
+.balades-warning {padding:12px;border-left:4px solid var(--spot-danger);background:#fff3e8;font-size:14px;line-height:1.5;margin:0 0 10px}
+.balades-stats {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:14px 0}
+.balades-stats div {background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:10px;min-width:0}
+.balades-stats dt {font-size:12px;color:var(--muted)}
+.balades-stats dd {margin:4px 0 0;font:700 22px/1.1 var(--display);overflow-wrap:anywhere}
+.balades-confirm {margin:12px 0;padding:12px;border:1px solid #99451d;background:#fff0e6}
+.balades .card h2 {font:700 26px/1.15 var(--display);margin:0 0 10px;overflow-wrap:anywhere}
+.balades-track h3 {font-size:16px;margin:20px 0 8px}
+.balades-actions {margin:12px 0}
+.balades-walks,.balades-spots {list-style:none;margin:0;padding:0}
+.balades-walks li {display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:14px;padding:4px 0}
+.balade-spot {border-top:1px solid var(--line);padding:12px 0;overflow-wrap:anywhere}
+.balade-spot:focus {outline:3px solid var(--text-orange);outline-offset:2px}
+.balade-spot-head {display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.balade-spot-head small {color:var(--muted);font-size:12px}
+.balade-spot p {margin:8px 0;font-size:14px}
+.balade-rule-pair {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:8px}
+.balade-rule-pair > div {background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:10px;min-width:0}
+.balade-rule-pair h4 {margin:0;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.balades-types {border:0;padding:0;margin:0 0 14px;display:grid;gap:8px}
+.balades-types legend {font-size:13px;font-weight:600;margin-bottom:8px}
+.balades-type {display:flex;align-items:center;gap:10px;min-height:44px;padding:8px 12px;background:var(--paper);border:1px solid var(--line);border-radius:4px;cursor:pointer}
+.balades-type:has(input:checked) {border-color:var(--text-orange);background:var(--orange-surface)}
+.balades-type input {width:20px;height:20px;margin:0;flex-shrink:0;accent-color:var(--text-orange)}
+.balades-type small {display:block;font-size:12px;color:var(--muted)}
+#spot-form textarea {box-sizing:border-box;width:100%;min-height:80px;padding:10px 12px;border:1px solid var(--line);border-radius:4px;background:var(--paper);color:var(--ink);font:inherit;font-size:16px}
+.balades-privacy {margin-top:24px}
+.walk-tracks {margin-top:16px;border-top:1px solid var(--line);padding-top:10px}
+.walk-tracks h3 {font-size:15px;margin:0 0 6px}
+.walk-track {display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;min-height:44px;font-size:14px;overflow-wrap:anywhere}
+.walk-track button,.balades button {min-height:44px}
+@media(max-width:700px){.balades-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.balades-map{height:340px}.balades-toolbar>*{flex:1 1 100%}}
