@@ -1,7 +1,7 @@
 /* Balades: walk tracks with spots. One validator for browser and Node; GPX in and out without a DOM. */
 (function(root,factory){const m=factory();if(typeof module==='object'&&module.exports)module.exports=m;else root.BaladesModel=m;}(typeof window==='undefined'?globalThis:window,()=>{
   'use strict';
-  const LIMITS={fileBytes:2*1024*1024,points:20000,spots:200,tracks:500,totalPoints:600000,dogs:50,walkRefs:50,name:120,note:500,maxAccuracy:35,minMove:4};
+  const LIMITS={fileBytes:2*1024*1024,snapshotBytes:30*1024*1024,points:20000,spots:200,tracks:500,totalPoints:600000,dogs:50,walkRefs:50,name:120,note:500,maxAccuracy:35,minMove:4};
   const TYPES=['pause','danger','interdit','laisse','tolere'];
   class BaladeError extends Error{constructor(code){super(code);this.code=code;}}
   const fail=code=>{throw new BaladeError(code);};
@@ -38,6 +38,7 @@
         check(TYPES.includes(s.type)&&lat(s.lat)&&lon(s.lon)&&text(s.note,LIMITS.note)&&text(s.rule,LIMITS.note)&&(s.type==='tolere'||s.rule==='')&&date(s.noted));
       }
     }
+    if(new TextEncoder().encode(JSON.stringify(value)).length>LIMITS.snapshotBytes)fail('tooLarge');
     return value;
   }
   function meters(a,b){

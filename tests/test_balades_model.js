@@ -3,6 +3,16 @@ const M=require('../balades-model.js');
 const track=(over={})=>({id:'walk-1',name:'Parc de Saint-Cloud',date:'2026-10-21',dogs:['billie'],points:[[48.8402,2.2190,1792900000],[48.8411,2.2205,1792900060]],durationSec:60,source:'record',walkRefs:[],spots:[],...over});
 const spot=(over={})=>({id:'s1',type:'tolere',lat:48.84,lon:2.22,note:'Chiens calmes sans laisse tôt le matin',rule:'Laisse obligatoire dans tout le parc',noted:'2026-10-20',...over});
 
+test('aggregate UTF-8 capacity includes spot text, below all count limits',()=>{
+  const spots=Array.from({length:200},(_,i)=>spot({id:'s'+i,note:'é'.repeat(500),rule:'é'.repeat(500)}));
+  const value={version:1,tracks:Array.from({length:80},(_,i)=>track({id:'t'+i,spots}))};
+  assert.ok(JSON.stringify(value).length<30*1024*1024);
+  assert.ok(Buffer.byteLength(JSON.stringify(value))>30*1024*1024);
+  assert.throws(()=>M.validate(value),{code:'tooLarge'});
+  value.tracks.length=40;
+  assert.doesNotThrow(()=>M.validate(value));
+});
+
 test('validation keeps limits, spot rules and one track per walk',()=>{
   assert.doesNotThrow(()=>M.validate({version:1,tracks:[track({spots:[spot()],walkRefs:[{date:'2026-10-21',dogId:'billie'}]})]}));
   const bad=[

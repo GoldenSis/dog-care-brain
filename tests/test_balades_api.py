@@ -1,5 +1,6 @@
 """Balades: staff-only access, own revision guard, shared validation limits."""
 import copy
+import json
 import uuid
 
 from tests.test_tenant_isolation import ApiServerTestCase, _http
@@ -85,3 +86,15 @@ class BaladesApiTest(ApiServerTestCase):
         self.assertEqual(self.get(other)[1]['balades'], {'version': 1, 'tracks': []})
         changed = copy.deepcopy(value)
         self.assertEqual(_http(self.port, 'PUT', '/api/balades', {'balades': changed}, other, {'X-DogCare-Business': self.business, 'If-Match': '"1"'})[0], 409)
+
+    def test_aggregate_utf8_capacity_includes_spot_text(self):
+        import balades
+        spots = [dict(track()['spots'][0], id=f's{i}', note='é' * 500, rule='é' * 500) for i in range(200)]
+        value = {'version': 1, 'tracks': [track(id=f't{i}', walkRefs=[], spots=spots) for i in range(80)]}
+        encoded = json.dumps(value, ensure_ascii=False, separators=(',', ':'))
+        self.assertLess(len(encoded), 30 * 1024 * 1024)
+        self.assertGreater(len(encoded.encode('utf-8')), 30 * 1024 * 1024)
+        with self.assertRaisesRegex(ValueError, 'tooLarge'):
+            balades.validate(value)
+        value['tracks'] = value['tracks'][:40]
+        self.assertEqual(balades.validate(value), value)

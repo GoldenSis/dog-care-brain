@@ -4,7 +4,8 @@
   const M=w.BaladesModel, S=w.BaladesStore, STYLE='https://tiles.openfreemap.org/styles/liberty';
   const ICONS={pause:'💧',danger:'⚠️',interdit:'⛔',laisse:'🦮',tolere:'🤝'};
   let view='list', current=null, link=null, pending=null, spot=null, placing=false, confirmDelete=false, editing=false;
-  let ready=false, message=null, retry=null, busy=false, draftFound=null, rec=null, map=null, mapLib=null, mapFailed=false, markers=[];
+  let ready=false, message=null, retry=null, busy=false, draftFound=null, draftWarning=false, rec=null, map=null, mapLib=null, mapFailed=false, markers=[];
+  let operation=0, drawing=0, mapReady=null, mapBox=null, trackVersion=-1, trackCache=[];
   const text=key=>(w.BaladesCopy[state.language]||w.BaladesCopy.fr)[key]??w.BaladesCopy.fr[key]??key;
   const fill=(key,values)=>text(key).replace(/\{(\w+)\}/g,(_,name)=>values[name]??'');
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -14,7 +15,7 @@
   const clock=s=>{if(s===null||s===undefined)return '—';const h=Math.floor(s/3600),m=Math.floor(s%3600/60);return h?`${h} h ${String(m).padStart(2,'0')}`:m?`${m} min`:`${s % 60} s`;};
   const dogName=id=>(typeof dogs!=='undefined'&&dogs[id]?.name)||text('unknownDog');
   const dogList=ids=>ids.length?ids.map(dogName).join(', '):text('noDogs');
-  const tracks=()=>S.snapshot().tracks;
+  const tracks=()=>{if(trackVersion!==S.version()){trackCache=S.snapshot().tracks;trackVersion=S.version();}return trackCache;};
   const track=id=>tracks().find(t=>t.id===id)||null;
   const linked=(date,dogId)=>tracks().find(t=>t.walkRefs.some(r=>r.date===date&&r.dogId===dogId))||null;
   const uid=()=>crypto.randomUUID();
@@ -28,32 +29,34 @@
     return mapLib=await import(new URL('assets/vendor/balades/maplibre-gl/maplibre-gl.mjs',document.baseURI).href);
   }
   function mapNote(key){const note=$('#balades-map-note');if(note){note.hidden=!key;note.textContent=key?text(key):'';}}
-  async function ensureMap(){
+  function ensureMap(){
     const box=$('#balades-map');if(!box||mapFailed)return null;
-    if(map&&map.getContainer()===box)return map;
+    if(mapBox===box&&mapReady)return mapReady;
     if(map){map.remove();map=null;}
-    try{
-      const lib=await library();if(!box.isConnected)return null;
+    mapBox=box;
+    return mapReady=(async()=>{try{
+      const lib=await library();if(!box.isConnected||mapBox!==box)return null;
       const created=new lib.Map({container:box,style:STYLE,center:[2.13,48.80],zoom:12,attributionControl:{compact:true},cooperativeGestures:false});
       map=created;
-      created.on('error',()=>mapNote('tilesError'));
+      created.on('error',()=>{if(map===created)mapNote('tilesError');});
       created.on('click',e=>{if(placing)openSpot({lat:e.lngLat.lat,lon:e.lngLat.lng});});
-      await new Promise(resolve=>created.once('load',resolve));
+      await new Promise(resolve=>{created.once('load',resolve);created.once('remove',resolve);});
       if(map!==created)return null;
       created.addSource('balade',{type:'geojson',data:line([])});
       created.addLayer({id:'balade-casing',type:'line',source:'balade',paint:{'line-color':'#ffffff','line-width':7},layout:{'line-cap':'round','line-join':'round'}});
       created.addLayer({id:'balade-line',type:'line',source:'balade',paint:{'line-color':'#c4580b','line-width':4},layout:{'line-cap':'round','line-join':'round'}});
       return created;
-    }catch{mapFailed=true;mapNote('mapUnavailable');return null;}
+    }catch{if(mapBox===box){mapFailed=true;mapNote('mapUnavailable');}return null;}})();
   }
   const line=points=>({type:'Feature',properties:{},geometry:{type:'LineString',coordinates:points.map(p=>[p[1],p[0]])}});
   async function drawMap(fit=true){
+    const draw=++drawing;
     const box=$('#balades-map');if(!box)return;
     const points=view==='record'?rec?.points||[]:pending&&view==='save'?pending.points:current&&track(current)?track(current).points:[];
     const spots=view==='record'||view==='save'?pending?.spots||[]:track(current)?.spots||[];
     const visible=['record','save','track','spot'].includes(view);box.hidden=!visible;$('#balades-root').dataset.view=view;$('#balades-legend')?.toggleAttribute('hidden',!visible);
     if(!visible)return;
-    const m=await ensureMap();if(!m||!onPage())return;
+    const m=await ensureMap();if(!m||!onPage()||draw!==drawing||m!==map)return;
     m.resize();m.getSource('balade')?.setData(line(points));
     markers.forEach(x=>x.remove());markers=spots.map(s=>{
       const el=document.createElement('button');el.type='button';el.className=`balade-marker balade-${s.type}`;
@@ -70,23 +73,28 @@
   }
 
   // ---- saving: a change is a function of the latest snapshot, so a conflict can reload and replay it ----
-  async function commit(change,done){
-    if(busy)return false;busy=true;setBusy(true);
+  function abandon(){operation++;if(retry)message=null;retry=null;}
+  const target=(next,id)=>{const t=next.tracks.find(x=>x.id===id);if(!t)throw new M.BaladeError('missingTrack');return t;};
+  async function commit(change,done,cleanup=null,reload=false){
+    if(busy)return false;const started=operation;busy=true;setBusy(true);
     try{
+      if(reload){const ok=await S.reload();if(started!==operation)return false;if(!ok)throw new M.BaladeError('loadError');}
       const next=S.snapshot();change(next);
       const result=await S.save(next);
-      if(result==='ok'){message=null;retry=null;done?.();return true;}
+      if(result==='ok'){
+        await cleanup?.();
+        if(started===operation){message=null;retry=null;await done?.();}else{render(false);refreshPlanning();}
+        return true;
+      }
+      if(started!==operation)return false;
       message={key:result==='conflict'?'conflict':result==='invalid'?'tooLarge':'saveError',error:true};
-      retry=result==='conflict'?{change,done}:null;render();return false;
+      retry=result==='conflict'?{change,done,cleanup}:null;render();return false;
+    }catch(error){
+      if(started===operation){message={key:error instanceof M.BaladeError?error.code:'saveError',error:true};if(message.key!=='loadError')retry=null;render(false);}return false;
     }finally{busy=false;setBusy(false);}
   }
-  function setBusy(on){document.querySelectorAll('#balades-panel button,#balades-panel input,#balades-panel textarea').forEach(el=>{if(on)el.dataset.busy=el.disabled?'1':'';el.disabled=on||el.dataset.busy==='1';});}
-  async function replay(){
-    const pendingChange=retry;retry=null;message=null;
-    if(!await S.reload()){message={key:'loadError',error:true};render();return;}
-    if(pendingChange)await commit(pendingChange.change,pendingChange.done);
-    render();
-  }
+  function setBusy(on){document.querySelectorAll('#balades-panel button,#balades-panel input,#balades-panel textarea').forEach(el=>{if(on){if(!Object.hasOwn(el.dataset,'busy'))el.dataset.busy=el.disabled?'1':'';el.disabled=true;}else if(Object.hasOwn(el.dataset,'busy')){el.disabled=el.dataset.busy==='1';delete el.dataset.busy;}});}
+  const replay=()=>retry&&commit(retry.change,retry.done,retry.cleanup,true);
 
   // ---- recording ----
   function stats(){
@@ -95,7 +103,15 @@
     set('rec-distance',km(M.distance(rec.points)));set('rec-time',clock(Math.round((Date.now()-rec.startedAt)/1000)));
     set('rec-points',String(rec.points.length));set('rec-accuracy',rec.accuracy===null?'—':`± ${Math.round(rec.accuracy)} m`);
   }
-  const persist=()=>rec&&S.draft({startedAt:rec.startedAt,points:rec.points,savedAt:Date.now()});
+  const draftHtml=()=>`<p id="balades-draft-warning" class="daily-error" role="alert" ${draftWarning?'':'hidden'}>${draftWarning?esc(text('draftError')):''}</p>`;
+  const draftStatus=()=>{const el=$('#balades-draft-warning');if(el)el.outerHTML=draftHtml();};
+  async function persist(){
+    if(!rec)return;
+    const value={startedAt:rec.startedAt,points:rec.points.slice(),savedAt:Date.now()};draftFound=value;
+    const ok=await S.draft(value);if(draftFound!==value)return;
+    draftWarning=!ok;draftStatus();
+  }
+  async function clearDraft(){if(await S.draft(null)){draftFound=null;draftWarning=false;}else draftWarning=true;draftStatus();}
   async function wake(){
     if(!rec)return;
     try{rec.lock=await navigator.wakeLock.request('screen');rec.lockState='wakeOn';rec.lock.addEventListener?.('release',()=>{if(rec&&!document.hidden){rec.lockState='wakeOff';status();}});}
@@ -105,10 +121,11 @@
   function status(){const el=$('#rec-wake');if(el&&rec)el.textContent=text(rec.lockState||'wakeOff');const g=$('#rec-gps');if(g&&rec)g.textContent=rec.gps?text(rec.gps):'';}
   const visible=()=>{if(rec&&!document.hidden)wake();};
   function start(resume){
+    if(rec||(!resume&&draftFound))return;
     if(!navigator.geolocation){message={key:'noGps',error:true};render();return;}
     if(!resume&&tracks().length>=M.LIMITS.tracks){message={key:'tooManyTracks',error:true};render();return;}
     rec={startedAt:resume?.startedAt||Date.now(),points:resume?.points||[],accuracy:null,lock:null,lockState:'wakeOff',gps:'gpsWaiting'};
-    draftFound=null;message=null;pending={spots:[]};
+    message=null;pending={spots:[]};
     rec.watch=navigator.geolocation.watchPosition(fix,gpsError,{enableHighAccuracy:true,maximumAge:0,timeout:30000});
     rec.tick=setInterval(stats,1000);rec.save=setInterval(persist,10000);persist();
     document.addEventListener('visibilitychange',visible);
@@ -135,21 +152,25 @@
     document.removeEventListener('visibilitychange',visible);rec.lock?.release?.().catch(()=>{});
   }
   async function finish(reason){
-    halt();await persist();
-    const done=rec;rec=null;
-    if(done.points.length<2){message={key:'tooShort',error:true};draftFound=await S.draft();view='list';render();return;}
-    pending={source:'record',points:done.points,spots:[],durationSec:Math.min(604800,Math.round((Date.now()-done.startedAt)/1000)),date:localDate(new Date(done.startedAt)),name:fill('defaultName',{date:dayText(localDate(new Date(done.startedAt)))})};
-    message=reason?{key:reason,error:false}:null;view='save';render();
+    if(!rec||busy)return;busy=true;setBusy(true);
+    try{
+      halt();await persist();
+      const done=rec;rec=null;
+      if(done.points.length<2){message={key:'tooShort',error:true};view='list';render();return;}
+      pending={source:'record',points:done.points,spots:[],durationSec:Math.min(604800,Math.round((Date.now()-done.startedAt)/1000)),date:localDate(new Date(done.startedAt)),name:fill('defaultName',{date:dayText(localDate(new Date(done.startedAt)))})};
+      message=reason?{key:reason,error:false}:null;view='save';render();
+    }finally{busy=false;setBusy(false);}
   }
-  async function discard(){halt();rec=null;await S.draft(null);draftFound=null;pending=null;view='list';render();}
+  async function discard(){if(busy)return;busy=true;setBusy(true);try{halt();rec=null;await clearDraft();pending=null;view='list';render();}finally{busy=false;setBusy(false);}}
 
   // ---- import / export ----
   async function importFile(file){
-    message=null;
+    const started=operation;message=null;
     if(tracks().length>=M.LIMITS.tracks){message={key:'tooManyTracks',error:true};render();return;}
     if(file.size>M.LIMITS.fileBytes){message={key:'tooBig',error:true};render();return;}
     try{
-      const parsed=M.parseGpx(await file.text(),localDate()),first=parsed.points.find(p=>p[2]!==null);
+      const content=await file.text();if(started!==operation)return;
+      const parsed=M.parseGpx(content,localDate()),first=parsed.points.find(p=>p[2]!==null);
       const date=first?localDate(new Date(first[2]*1000)):localDate();
       pending={source:'import',points:parsed.points,spots:parsed.spots,durationSec:M.timeSpan(parsed.points),date,
         name:M.clean(parsed.name||file.name.replace(/\.gpx$/i,''),M.LIMITS.name)||fill('defaultName',{date:dayText(date)})};
@@ -165,6 +186,7 @@
 
   // ---- spots ----
   function openSpot(at,existing=null){
+    if(busy)return;abandon();
     const t=track(current);if(!t)return;
     if(!existing&&t.spots.length>=M.LIMITS.spots){message={key:'tooManySpots',error:true};render();return;}
     placing=false;
@@ -174,13 +196,13 @@
   function placeWithoutMap(){const t=track(current),p=t.points[Math.floor(t.points.length/2)];openSpot({lat:p[0],lon:p[1]});}
 
   // ---- linking to a walk ticked in Planning ----
-  function linkTo(t,next){
-    const target=next.tracks.find(x=>x.id===t);if(!target||!link)return;
-    for(const other of next.tracks)other.walkRefs=other.walkRefs.filter(r=>!(r.date===link.date&&r.dogId===link.dogId));
-    if(!target.dogs.includes(link.dogId))target.dogs.push(link.dogId);
-    target.walkRefs.push({date:link.date,dogId:link.dogId});
+  function linkTo(id,next,ref){
+    const t=target(next,id);if(!ref)return;
+    for(const other of next.tracks)other.walkRefs=other.walkRefs.filter(r=>!(r.date===ref.date&&r.dogId===ref.dogId));
+    if(!t.dogs.includes(ref.dogId))t.dogs.push(ref.dogId);
+    t.walkRefs.push({...ref});
   }
-  function linked_done(){const target=link;link=null;showToast(fill('linkedToast',{dog:dogName(target.dogId)}));view='list';navigate('schedule');}
+  function linked_done(ref){link=null;showToast(fill('linkedToast',{dog:dogName(ref.dogId)}));view='list';navigate('schedule');}
 
   // ---- views ----
   const messageHtml=()=>message?`<div id="balades-message" class="${message.error?'daily-error':'balades-info'}" role="${message.error?'alert':'status'}">${esc(text(message.key))}${retry?` <button class="ghost" type="button" data-b="replay">${esc(text('reloadRetry'))}</button>`:''}</div>`:'<div id="balades-message" hidden></div>';
@@ -206,15 +228,15 @@
   }
   function saveView(){
     const summary=`<p class="daily-help">${esc(km(M.distance(pending.points)))} · ${esc(clock(pending.durationSec))} · ${esc(fill('pointCount',{count:pending.points.length}))}${pending.spots.length?' · '+esc(fill('spotCount',{count:pending.spots.length})):''}</p>`;
-    return `${linkBanner()}${trackForm('track-form',{name:pending.name,date:pending.date,dogs:[],summary},text(pending.source==='record'?'saveRecorded':'saveImported'),text('save'),'cancel-save')}`;
+    return `${linkBanner()}${trackForm('track-form',{name:pending.name,date:pending.date,dogs:pending.dogs||[],summary},text(pending.source==='record'?'saveRecorded':'saveImported'),text('save'),'cancel-save')}`;
   }
   function spotItem(s){
     const rule=s.type==='tolere'?`<div class="balade-rule-pair"><div><h4>${esc(text('practice'))}</h4><p>${esc(s.note||'—')}</p></div><div><h4>${esc(text('officialRule'))}</h4><p>${esc(s.rule||'—')}</p></div></div><p class="daily-help">${esc(text('tolereNotice'))}</p>`:`<p>${esc(s.note||'—')}</p>`;
     return `<li class="balade-spot" id="spot-${esc(s.id)}" tabindex="-1"><div class="balade-spot-head"><span class="balade-marker balade-${s.type}" aria-hidden="true">${ICONS[s.type]}</span><strong>${esc(text(s.type))}</strong><small>${esc(fill('notedOn',{date:dayText(s.noted)}))}</small></div>${rule}<div class="daily-actions"><button class="link-button" type="button" data-b="edit-spot" data-id="${esc(s.id)}">${esc(text('edit'))}</button><button class="link-button" type="button" data-b="delete-spot" data-id="${esc(s.id)}">${esc(text('delete'))}</button></div></li>`;
   }
   function trackView(){
+    if(editing)return trackForm('edit-form',editing,text('editTrack'),text('save'),'cancel-edit');
     const t=track(current);if(!t){view='list';return listView();}
-    if(editing)return trackForm('edit-form',{name:t.name,date:t.date,dogs:t.dogs},text('editTrack'),text('save'),'cancel-edit');
     const walks=t.walkRefs.length?`<ul class="balades-walks">${t.walkRefs.map(r=>`<li><span translate="no">${esc(dogName(r.dogId))}</span> · ${esc(dayText(r.date))} <button class="link-button" type="button" data-b="unlink" data-date="${esc(r.date)}" data-dog="${esc(r.dogId)}">${esc(text('unlink'))}</button></li>`).join('')}</ul>`:'';
     const place=placing?`<div class="balades-info" role="status">${esc(text(mapFailed?'placeNoMap':'placeHelp'))}<div class="daily-actions">${mapFailed?'':`<button class="ghost" type="button" data-b="place-center">${esc(text('placeCenter'))}</button>`}<button class="link-button" type="button" data-b="place-cancel">${esc(text('cancel'))}</button></div></div>`:'';
     const remove=confirmDelete?`<div class="balades-confirm" role="alert"><p>${esc(fill('deleteConfirm',{name:t.name}))}</p><div class="daily-actions"><button class="primary" type="button" data-b="delete">${esc(text('deleteYes'))}</button><button class="ghost" type="button" data-b="delete-no">${esc(text('cancel'))}</button></div></div>`:'';
@@ -222,20 +244,20 @@
   }
   function spotView(){
     const hint=type=>`<small>${esc(text(type+'Hint'))}</small>`;
-    return `<form id="spot-form" class="card daily-form" novalidate><h2>${esc(text(spot.id?'editSpot':'newSpot'))}</h2><fieldset class="balades-types"><legend>${esc(text('spotType'))}</legend>${M.TYPES.map(type=>`<label class="balades-type"><input type="radio" name="type" value="${type}" ${spot.type===type?'checked':''}><span class="balade-marker balade-${type}" aria-hidden="true">${ICONS[type]}</span><span><strong>${esc(text(type))}</strong>${hint(type)}</span></label>`).join('')}</fieldset><label class="daily-field">${esc(text(spot.type==='tolere'?'practice':'note'))}<textarea name="note" maxlength="${M.LIMITS.note}" rows="3" placeholder="${esc(text(spot.type+'Placeholder'))}">${esc(spot.note)}</textarea></label><label class="daily-field" id="spot-rule" ${spot.type==='tolere'?'':'hidden'}>${esc(text('officialRule'))}<textarea name="rule" maxlength="${M.LIMITS.note}" rows="3" placeholder="${esc(text('rulePlaceholder'))}">${esc(spot.rule)}</textarea></label><div class="daily-fields"><label class="daily-field">${esc(text('noted'))}<input name="noted" type="date" required value="${esc(spot.noted)}" max="${localDate()}"></label></div><details class="daily-help"><summary>${esc(text('position'))}</summary><div class="daily-fields"><label class="daily-field">${esc(text('latitude'))}<input name="lat" inputmode="decimal" value="${spot.lat}"></label><label class="daily-field">${esc(text('longitude'))}<input name="lon" inputmode="decimal" value="${spot.lon}"></label></div></details>${messageHtml()}<div class="daily-actions"><button class="primary" type="submit">${esc(text('saveSpot'))}</button><button class="ghost" type="button" data-b="cancel-spot">${esc(text('cancel'))}</button></div></form>`;
+    return `<form id="spot-form" class="card daily-form" novalidate><h2>${esc(text(spot.id?'editSpot':'newSpot'))}</h2><fieldset class="balades-types"><legend>${esc(text('spotType'))}</legend>${M.TYPES.map(type=>`<label class="balades-type"><input type="radio" name="type" value="${type}" ${spot.type===type?'checked':''}><span class="balade-marker balade-${type}" aria-hidden="true">${ICONS[type]}</span><span><strong>${esc(text(type))}</strong>${hint(type)}</span></label>`).join('')}</fieldset><label class="daily-field">${esc(text(spot.type==='tolere'?'practice':'note'))}<textarea name="note" maxlength="${M.LIMITS.note}" rows="3" placeholder="${esc(text(spot.type+'Placeholder'))}">${esc(spot.note)}</textarea></label><label class="daily-field" id="spot-rule" ${spot.type==='tolere'?'':'hidden'}>${esc(text('officialRule'))}<textarea name="rule" maxlength="${M.LIMITS.note}" rows="3" placeholder="${esc(text('rulePlaceholder'))}">${esc(spot.rule)}</textarea></label><div class="daily-fields"><label class="daily-field">${esc(text('noted'))}<input name="noted" type="date" required value="${esc(spot.noted)}" max="${localDate()}"></label></div><details class="daily-help"><summary>${esc(text('position'))}</summary><div class="daily-fields"><label class="daily-field">${esc(text('latitude'))}<input name="lat" inputmode="decimal" value="${esc(spot.lat)}"></label><label class="daily-field">${esc(text('longitude'))}<input name="lon" inputmode="decimal" value="${esc(spot.lon)}"></label></div></details>${messageHtml()}<div class="daily-actions"><button class="primary" type="submit">${esc(text('saveSpot'))}</button><button class="ghost" type="button" data-b="cancel-spot">${esc(text('cancel'))}</button></div></form>`;
   }
   function panel(){
     if(rec&&view!=='record')view='record';
     return view==='record'?recordView():view==='save'&&pending?.points?saveView():view==='spot'&&spot?spotView():view==='track'?trackView():(view='list',listView());
   }
   function view_(){
-    const failed=ready&&S.unavailable();
-    return `<div class="balades" id="balades-root"><p class="balades-intro">${esc(text('intro'))}</p>${w.DogCareAPI?'':`<p class="daily-storage">${esc(text('browserOnly'))}</p>`}<div id="balades-map" class="balades-map" role="region" aria-label="${esc(text('map'))}" hidden></div><p class="daily-help balades-map-note" id="balades-map-note" ${mapFailed?'':'hidden'}>${mapFailed?esc(text('mapUnavailable')):''}</p>${legend().replace('<ul ','<ul hidden ')}<div id="balades-panel">${!ready?`<p class="daily-help" role="status">${esc(text('loading'))}</p>`:failed?`<p class="daily-error" role="alert">${esc(text('loadError'))}</p><button class="primary" type="button" data-b="retry-load">${esc(text('retry'))}</button>`:panel()}</div><p class="daily-help balades-privacy">${esc(text('privacy'))}</p></div>`;
+    const failed=ready&&S.unavailable()&&!retry;
+    return `<div class="balades" id="balades-root"><p class="balades-intro">${esc(text('intro'))}</p>${w.DogCareAPI?'':`<p class="daily-storage">${esc(text('browserOnly'))}</p>`}<div id="balades-map" class="balades-map" role="region" aria-label="${esc(text('map'))}" hidden></div><p class="daily-help balades-map-note" id="balades-map-note" ${mapFailed?'':'hidden'}>${mapFailed?esc(text('mapUnavailable')):''}</p>${legend().replace('<ul ','<ul hidden ')}${draftHtml()}<div id="balades-panel">${!ready?`<p class="daily-help" role="status">${esc(text('loading'))}</p>`:failed?`<p class="daily-error" role="alert">${esc(text('loadError'))}</p><button class="primary" type="button" data-b="retry-load">${esc(text('retry'))}</button>`:panel()}</div><p class="daily-help balades-privacy">${esc(text('privacy'))}</p></div>`;
   }
   function render(fit=true){
     if(!onPage()||!ready)return;
-    $('#balades-panel').innerHTML=S.unavailable()?`<p class="daily-error" role="alert">${esc(text('loadError'))}</p><button class="primary" type="button" data-b="retry-load">${esc(text('retry'))}</button>`:panel();
-    bindPanel();drawMap(fit);
+    $('#balades-panel').innerHTML=S.unavailable()&&!retry?`<p class="daily-error" role="alert">${esc(text('loadError'))}</p><button class="primary" type="button" data-b="retry-load">${esc(text('retry'))}</button>`:panel();
+    bindPanel();if(busy)setBusy(true);draftStatus();drawMap(fit);
     if(fit)window.scrollTo({top:0,behavior:'instant'});
   }
 
@@ -248,65 +270,71 @@
     'discard-ask':()=>{confirmDelete=true;render(false);},
     'discard-no':()=>{confirmDelete=false;render(false);},
     discard:()=>{confirmDelete=false;discard();},
-    'cancel-save':async()=>{const wasRecord=pending?.source==='record';pending=null;message=null;view='list';if(wasRecord)draftFound=await S.draft();render();},
+    'cancel-save':()=>{pending=null;message=null;view='list';render();},
     'cancel-link':()=>{link=null;render(false);},
     open:el=>{current=el.dataset.id;view='track';message=null;placing=false;confirmDelete=false;editing=false;render();},
     back:()=>{view='list';current=null;placing=false;confirmDelete=false;editing=false;message=null;render();},
-    link:el=>commit(next=>linkTo(el.dataset.id,next),linked_done),
-    unlink:el=>commit(next=>{const t=next.tracks.find(x=>x.id===current);t.walkRefs=t.walkRefs.filter(r=>!(r.date===el.dataset.date&&r.dogId===el.dataset.dog));},()=>render(false)),
+    link:el=>{const id=el.dataset.id,ref={...link};return commit(next=>linkTo(id,next,ref),()=>linked_done(ref));},
+    unlink:el=>{const id=current,{date,dog}=el.dataset;return commit(next=>{const t=target(next,id);t.walkRefs=t.walkRefs.filter(r=>!(r.date===date&&r.dogId===dog));},()=>render(false));},
     'add-spot':()=>{message=null;if(mapFailed||!map){placeWithoutMap();return;}placing=!placing;render(false);if(placing)$('#balades-map').scrollIntoView({block:'center',behavior:'instant'});},
     'place-center':()=>{const c=map.getCenter();openSpot({lat:c.lat,lon:c.lng});},
     'place-cancel':()=>{placing=false;render(false);},
-    edit:()=>{editing=true;message=null;render(false);},
+    edit:()=>{const t=track(current);if(!t)return;editing={name:t.name,date:t.date,dogs:[...t.dogs]};message=null;render(false);},
     'cancel-edit':()=>{editing=false;message=null;render(false);},
     export:()=>exportTrack(track(current)),
     'delete-ask':()=>{confirmDelete=true;render(false);},
     'delete-no':()=>{confirmDelete=false;render(false);},
-    delete:()=>commit(next=>{next.tracks=next.tracks.filter(t=>t.id!==current);},()=>{confirmDelete=false;current=null;view='list';showToast(text('deleted'));render();}),
+    delete:()=>{const id=current;return commit(next=>{next.tracks=next.tracks.filter(t=>t.id!==id);},()=>{confirmDelete=false;current=null;view='list';showToast(text('deleted'));render();});},
     'edit-spot':el=>openSpot(null,track(current).spots.find(s=>s.id===el.dataset.id)),
-    'delete-spot':el=>commit(next=>{const t=next.tracks.find(x=>x.id===current);t.spots=t.spots.filter(s=>s.id!==el.dataset.id);},()=>render(false)),
+    'delete-spot':el=>{const id=current,spotId=el.dataset.id;return commit(next=>{const t=target(next,id);t.spots=t.spots.filter(s=>s.id!==spotId);},()=>render(false));},
     'cancel-spot':()=>{spot=null;message=null;view='track';render(false);},
     replay:()=>replay(),
-    'retry-load':async()=>{await S.reload();draftFound=S.unavailable()?null:await S.draft();render();}
+    'retry-load':async()=>{await S.reload();if(!draftFound&&!S.unavailable())draftFound=await S.draft();render();}
   };
+  const readForm=form=>({name:form.elements.name.value,date:form.elements.date.value,dogs:[...form.querySelectorAll('[name=dog]')].filter(b=>b.checked).map(b=>b.value)});
   function formValues(form){
     const name=form.elements.name.value.trim(),date=form.elements.date.value;
-    const chosen=[...form.querySelectorAll('[name=dog]')].filter(b=>b.checked||b.disabled).map(b=>b.value);
+    const chosen=readForm(form).dogs;
     if(!name){message={key:'nameRequired',error:true};return null;}
     if(!M.date(date)||date>localDate()){message={key:'dateInvalid',error:true};return null;}
     return {name:M.clean(name,M.LIMITS.name),date,dogs:chosen};
   }
   function bindPanel(){
-    document.querySelectorAll('#balades-panel [data-b]').forEach(el=>el.onclick=e=>{e.preventDefault();if(!busy)actions[el.dataset.b]?.(el);});
-    const file=$('#balades-import');if(file)file.onchange=()=>{const f=file.files[0];file.value='';if(f)importFile(f);};
+    document.querySelectorAll('#balades-panel [data-b]').forEach(el=>el.onclick=e=>{e.preventDefault();if(!busy){if(el.dataset.b!=='replay')abandon();actions[el.dataset.b]?.(el);}});
+    const file=$('#balades-import');if(file)file.onchange=()=>{if(busy)return;const f=file.files[0];file.value='';if(f){abandon();importFile(f);}};
     const save=$('#track-form');
+    if(save)save.oninput=()=>{Object.assign(pending,readForm(save));abandon();};
     if(save)save.onsubmit=async e=>{
-      e.preventDefault();const values=formValues(save);if(!values){render(false);return;}
-      const id=uid(),source=pending.source,refs=link?[{date:link.date,dogId:link.dogId}]:[];
+      e.preventDefault();if(busy)return;abandon();Object.assign(pending,readForm(save));const values=formValues(save);if(!values){render(false);return;}
+      const id=uid(),source=pending.source,ref=link?{...link}:null,draft=pending;
       const made={id,name:values.name,date:values.date,dogs:values.dogs,points:pending.points,durationSec:pending.durationSec,source,walkRefs:[],spots:pending.spots};
-      await commit(next=>{next.tracks.push(structuredClone(made));if(refs.length)linkTo(id,next);},async()=>{
-        if(source==='record')await S.draft(null);
-        pending=null;draftFound=null;
-        if(link){linked_done();return;}
+      await commit(next=>{next.tracks.push(structuredClone(made));if(ref)linkTo(id,next,ref);},()=>{
+        if(ref){linked_done(ref);return;}
         current=id;view='track';showToast(text('saved'));render();
+      },async()=>{
+        if(source==='record')await clearDraft();
+        if(pending===draft){pending=null;if(view==='save')view='list';}
       });
     };
     const edit=$('#edit-form');
+    if(edit)edit.oninput=()=>{editing=readForm(edit);abandon();};
     if(edit)edit.onsubmit=async e=>{
-      e.preventDefault();const values=formValues(edit);if(!values){render(false);return;}
-      await commit(next=>{const t=next.tracks.find(x=>x.id===current);Object.assign(t,values);t.walkRefs=t.walkRefs.filter(r=>t.dogs.includes(r.dogId));},()=>{editing=false;showToast(text('saved'));render(false);});
+      e.preventDefault();if(busy)return;abandon();editing=readForm(edit);const values=formValues(edit);if(!values){render(false);return;}
+      const id=current;await commit(next=>{const t=target(next,id);Object.assign(t,values);t.walkRefs=t.walkRefs.filter(r=>t.dogs.includes(r.dogId));},()=>{editing=false;showToast(text('saved'));render(false);});
     };
     const form=$('#spot-form');
     if(form){
+      const remember=()=>{for(const key of ['type','lat','lon','note','rule','noted'])spot[key]=form.elements[key].value;};
+      form.oninput=()=>{remember();abandon();};
       form.querySelectorAll('[name=type]').forEach(r=>r.onchange=()=>{const tolere=form.elements.type.value==='tolere';$('#spot-rule').hidden=!tolere;
         const note=form.elements.note;note.placeholder=text(form.elements.type.value+'Placeholder');note.closest('label').firstChild.nodeValue=text(tolere?'practice':'note');});
       form.onsubmit=async e=>{
-        e.preventDefault();
+        e.preventDefault();if(busy)return;abandon();remember();
         const type=form.elements.type.value,lat=Number(String(form.elements.lat.value).replace(',','.')),lon=Number(String(form.elements.lon.value).replace(',','.')),noted=form.elements.noted.value;
         if(!M.date(noted)||noted>localDate()){message={key:'dateInvalid',error:true};render(false);return;}
         if(!(Number.isFinite(lat)&&lat>=-90&&lat<=90&&Number.isFinite(lon)&&lon>=-180&&lon<=180)){message={key:'positionInvalid',error:true};render(false);return;}
         const value={id:spot.id||uid(),type,lat,lon,note:M.clean(form.elements.note.value,M.LIMITS.note),rule:type==='tolere'?M.clean(form.elements.rule.value,M.LIMITS.note):'',noted};
-        await commit(next=>{const t=next.tracks.find(x=>x.id===current),at=t.spots.findIndex(s=>s.id===value.id);if(at<0)t.spots.push(value);else t.spots[at]=value;},()=>{spot=null;view='track';showToast(text('spotSaved'));render(false);});
+        const id=current;await commit(next=>{const t=target(next,id),at=t.spots.findIndex(s=>s.id===value.id);if(at<0)t.spots.push(value);else t.spots[at]=value;},()=>{spot=null;view='track';showToast(text('spotSaved'));render(false);});
       };
     }
   }
@@ -319,8 +347,8 @@
   }
   document.addEventListener('click',e=>{
     const add=e.target.closest('[data-balade-link]'),show=e.target.closest('[data-balade-open]');
-    if(add){link={date:add.dataset.baladeDate,dogId:add.dataset.baladeLink};view=rec?'record':'list';current=null;message=null;navigate('balades');}
-    else if(show&&track(show.dataset.baladeOpen)){link=null;current=show.dataset.baladeOpen;view=rec?'record':'track';message=null;navigate('balades');}
+    if(add){abandon();link={date:add.dataset.baladeDate,dogId:add.dataset.baladeLink};view=rec?'record':'list';current=null;message=null;navigate('balades');}
+    else if(show&&track(show.dataset.baladeOpen)){abandon();link=null;current=show.dataset.baladeOpen;view=rec?'record':'track';editing=false;confirmDelete=false;message=null;navigate('balades');}
   });
   function refreshPlanning(){
     const box=$('#walk-tracks'),form=$('#walk-form');if(!box||!form||state.page!=='schedule')return;
@@ -329,14 +357,14 @@
   }
   async function load(){
     await S.load();ready=true;
-    if(!S.unavailable())draftFound=await S.draft();
+    if(!draftFound&&!S.unavailable())draftFound=await S.draft();
     refreshPlanning();if(onPage())render();
   }
   function bind(){
     placing=false;
     if(!ready)return;
-    bindPanel();drawMap();
+    bindPanel();if(busy)setBusy(true);drawMap();
   }
-  function leave(){if(map){map.remove();map=null;markers=[];}placing=false;}
+  function leave(){abandon();drawing++;mapReady=null;mapBox=null;if(map){map.remove();map=null;markers=[];}placing=false;}
   w.BaladesUI={text,load,view:view_,bind,leave,walkLinks,recording:()=>!!rec};
 })(window);

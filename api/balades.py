@@ -7,6 +7,7 @@ import finance
 
 TYPES = ('pause', 'danger', 'interdit', 'laisse', 'tolere')
 TRACKS, POINTS, TOTAL_POINTS, SPOTS, DOGS, WALK_REFS, NAME, NOTE = 500, 20000, 600000, 200, 50, 50, 120, 500
+SNAPSHOT_BYTES = 30 * 1024 * 1024
 
 
 def empty():
@@ -70,6 +71,8 @@ def validate(value):
             finance.text(s['rule'], NOTE)
             require(s['type'] == 'tolere' or s['rule'] == '')
             finance.calendar(s['noted'])
+    if len(json.dumps(value, ensure_ascii=False, separators=(',', ':')).encode('utf-8')) > SNAPSHOT_BYTES:
+        raise ValueError('tooLarge')
     return value
 
 
