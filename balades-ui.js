@@ -164,7 +164,8 @@
       halt();await persist();
       const done=rec;rec=null;
       if(done.points.length<2){message={key:'tooShort',error:true};view='list';render();return;}
-      pending={draft:done.saved,source:'record',points:done.points,spots:[],durationSec:Math.min(604800,Math.round((Date.now()-done.startedAt)/1000)),date:localDate(new Date(done.startedAt)),name:fill('defaultName',{date:dayText(localDate(new Date(done.startedAt)))})};
+      pending={id:done.id,draft:done.saved,source:'record',points:done.points,spots:[],durationSec:Math.min(604800,Math.round((Date.now()-done.startedAt)/1000)),date:localDate(new Date(done.startedAt)),name:fill('defaultName',{date:dayText(localDate(new Date(done.startedAt)))})};
+      const saved=track(done.id);if(saved)Object.assign(pending,{name:saved.name,date:saved.date,dogs:[...saved.dogs]});
       message=reason?{key:reason,error:false}:null;view='save';render();
     }finally{busy=false;setBusy(false);}
   }
@@ -316,11 +317,16 @@
       e.preventDefault();if(busy)return;abandon();Object.assign(pending,readForm(save));const values=formValues(save);if(!values){render(false);return;}
       const id=pending.id||=uid(),source=pending.source,ref=link?{...link}:null,draft=pending;
       const made={id,name:values.name,date:values.date,dogs:values.dogs,points:pending.points,durationSec:pending.durationSec,source,walkRefs:[],spots:pending.spots};
-      await commit(next=>{const saved=next.tracks.find(t=>t.id===id);if(saved){Object.assign(saved,values);saved.walkRefs=saved.walkRefs.filter(r=>saved.dogs.includes(r.dogId));}else next.tracks.push(structuredClone(made));if(ref)linkTo(id,next,ref);},()=>{
+      let geometryApplied=false;
+      await commit(next=>{
+        const saved=next.tracks.find(t=>t.id===id);
+        geometryApplied=source==='record'&&(!saved||(made.points.length>saved.points.length&&saved.points.every((p,i)=>p[0]===made.points[i][0]&&p[1]===made.points[i][1])));
+        if(saved){Object.assign(saved,values);if(geometryApplied)Object.assign(saved,{points:made.points,durationSec:made.durationSec});saved.walkRefs=saved.walkRefs.filter(r=>saved.dogs.includes(r.dogId));}else next.tracks.push(structuredClone(made));if(ref)linkTo(id,next,ref);
+      },()=>{
         if(ref){linked_done(ref);return;}
         current=id;view='track';showToast(text('saved'));render();
       },async()=>{
-        if(source==='record')await clearDraft(draft.draft);
+        if(geometryApplied)await clearDraft(draft.draft);
         if(pending===draft){pending=null;if(view==='save')view='list';}
       });
     };
@@ -338,8 +344,9 @@
         const note=form.elements.note;note.placeholder=text(form.elements.type.value+'Placeholder');note.closest('label').firstChild.nodeValue=text(tolere?'practice':'note');});
       form.onsubmit=async e=>{
         e.preventDefault();if(busy)return;abandon();remember();
-        const type=form.elements.type.value,lat=Number(String(form.elements.lat.value).replace(',','.')),lon=Number(String(form.elements.lon.value).replace(',','.')),noted=form.elements.noted.value;
+        const type=form.elements.type.value,rawLat=String(form.elements.lat.value).trim(),rawLon=String(form.elements.lon.value).trim(),lat=Number(rawLat.replace(',','.')),lon=Number(rawLon.replace(',','.')),noted=form.elements.noted.value;
         if(!M.date(noted)||noted>localDate()){message={key:'dateInvalid',error:true};render(false);return;}
+        if(!rawLat||!rawLon){message={key:'positionRequired',error:true};render(false);return;}
         if(!(Number.isFinite(lat)&&lat>=-90&&lat<=90&&Number.isFinite(lon)&&lon>=-180&&lon<=180)){message={key:'positionInvalid',error:true};render(false);return;}
         const value={id:spot.id||=uid(),type,lat,lon,note:M.clean(form.elements.note.value,M.LIMITS.note),rule:type==='tolere'?M.clean(form.elements.rule.value,M.LIMITS.note):'',noted};
         const id=current;await commit(next=>{const t=target(next,id),at=t.spots.findIndex(s=>s.id===value.id);if(at<0)t.spots.push(value);else t.spots[at]=value;},()=>{spot=null;view='track';showToast(text('spotSaved'));render(false);});

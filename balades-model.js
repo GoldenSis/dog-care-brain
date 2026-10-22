@@ -101,7 +101,7 @@
     const spots=wpts.map((n,i)=>{
       const [a,b]=coords(n),kind=child(n,'type').toLowerCase(),ours=TYPES.includes(kind),stampValue=seconds(child(n,'time'));
       const noted=stampValue===null?today:new Date(stampValue*1000).toISOString().slice(0,10);
-      return {id:'spot-'+(i+1),type:ours?kind:'pause',lat:a,lon:b,note:clean(ours?(child(n,'desc')||child(n,'name')):(child(n,'name')||child(n,'desc')),LIMITS.note),rule:ours&&kind==='tolere'?clean(child(n,'cmt'),LIMITS.note):'',noted:date(noted)?noted:today};
+      return {id:'spot-'+(i+1),type:ours?kind:'pause',lat:a,lon:b,note:clean(ours?child(n,'desc'):(child(n,'name')||child(n,'desc')),LIMITS.note),rule:ours&&kind==='tolere'?clean(child(n,'cmt'),LIMITS.note):'',noted:date(noted)?noted:today};
     });
     const meta=kids(gpx,'metadata')[0],trk=kids(gpx,'trk')[0],rte=kids(gpx,'rte')[0];
     const name=clean((meta&&child(meta,'name'))||(trk&&child(trk,'name'))||(rte&&child(rte,'name')),LIMITS.name);
