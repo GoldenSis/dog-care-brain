@@ -19,6 +19,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlparse
 
 import balades
+import brand
 import daily
 import knowledge
 import finance
@@ -64,6 +65,7 @@ STATIC_FILES = frozenset((
     'balades-store.js',
     'balades-ui.js',
     'balades.css',
+    'brand.js',
     'assets/films/a-day-with-adine.mp4',
     'assets/fonts/barlow-600-5bc49d41.woff2',
     'assets/fonts/barlow-700-e3e520cb.woff2',
@@ -1312,7 +1314,8 @@ class Handler(BaseHTTPRequestHandler):
         if not full.startswith(root + os.sep) and full != root:
             self.send_error(404)
             return
-        if os.path.relpath(full, root).replace(os.sep, "/") not in STATIC_FILES:
+        rel_path = os.path.relpath(full, root).replace(os.sep, "/")
+        if rel_path not in STATIC_FILES or (rel_path.startswith(brand.PRIVATE_ASSETS) and brand.custom()):
             self.send_error(404)
             return
         banned = ("/.git/", "/.dev-outbox/", "/api/blobs/", "/api/dogcare.db")
@@ -1329,6 +1332,9 @@ class Handler(BaseHTTPRequestHandler):
             inject = b'<script>window.DOGCARE_API="/api";</script>'
             if inject not in data:
                 data = data.replace(b"<head>", b"<head>\n    " + inject, 1)
+            data = brand.page(data)
+        if ext in (".css", ".html", ".js") and not rel_path.startswith("assets/"):
+            data = brand.recolour(data)
         self.send_response(200)
         self.send_header("Content-Type", MIME.get(ext, "application/octet-stream"))
         self.send_header("Content-Length", str(len(data)))

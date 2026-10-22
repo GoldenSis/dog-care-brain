@@ -1,6 +1,7 @@
 """Explicit login transport. No production debug-outbox fallback."""
 import os
 import logging
+import brand
 import re
 import smtplib
 import ssl
@@ -75,9 +76,9 @@ def send(config, email, link):
     message['Date'] = formatdate(localtime=False, usegmt=True)
     message['Message-ID'] = make_msgid(domain=config['user'].rsplit('@', 1)[1])
     message['Auto-Submitted'] = 'auto-generated'
-    message['Subject'] = 'Votre accès · Le Bus des Toutous by Plus de Fun'
+    message['Subject'] = brand.subject()
     message.set_content('Votre lien personnel (valable 15 minutes, une seule utilisation) :\n\n'+link+
-                        '\n\nSi vous n’avez pas demandé ce lien, ignorez ce message.\n\nLe Bus des Toutous · by Plus de Fun\n')
+                        '\n\nSi vous n’avez pas demandé ce lien, ignorez ce message.\n\n'+brand.signature()+'\n')
     context = ssl.create_default_context()
     try:
         if config['tls'] == 'ssl':

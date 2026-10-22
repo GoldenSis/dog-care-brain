@@ -112,7 +112,7 @@
   function toGpx(track,label=type=>type){
     const wpt=s=>`  <wpt lat="${s.lat}" lon="${s.lon}"><time>${s.noted}T12:00:00Z</time><name>${xml(label(s.type))}</name>${s.rule?`<cmt>${xml(s.rule)}</cmt>`:''}${s.note?`<desc>${xml(s.note)}</desc>`:''}<type>${s.type}</type></wpt>\n`;
     const pt=p=>`      <trkpt lat="${p[0]}" lon="${p[1]}">${p[2]===null?'':`<time>${iso(p[2])}</time>`}</trkpt>\n`;
-    return `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Le Bus des Toutous" xmlns="http://www.topografix.com/GPX/1/1">\n  <metadata><name>${xml(track.name)}</name></metadata>\n${track.spots.map(wpt).join('')}  <trk><name>${xml(track.name)}</name><trkseg>\n${track.points.map(pt).join('')}  </trkseg></trk>\n</gpx>\n`;
+    return `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="${xml((typeof window!=='undefined'&&window.DogCareBrand?.name)||'Le Bus des Toutous')}" xmlns="http://www.topografix.com/GPX/1/1">\n  <metadata><name>${xml(track.name)}</name></metadata>\n${track.spots.map(wpt).join('')}  <trk><name>${xml(track.name)}</name><trkseg>\n${track.points.map(pt).join('')}  </trkseg></trk>\n</gpx>\n`;
   }
   return {LIMITS,TYPES,BaladeError,empty,validate,distance,meters,accept,timeSpan,parseGpx,toGpx,clean,date,ident};
 }));
