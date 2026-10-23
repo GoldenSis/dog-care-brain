@@ -1,10 +1,10 @@
 # DogCare walk weather
 
 Branch: `fm/dogcare-walk-weather-r1`\
-PR: pending creation by the active no-mistakes run's PR phase.\
+PR: [#16 — walk-weather forecasts](https://github.com/GoldenSis/dog-care-brain/pull/16).\
 Deployment: **not performed**; dogcare.plusdefun.ch requires a separate captain go.
 
-The active no-mistakes run includes the review fixes. Its validation and PR phases own final checks and delivery; the implementation-stage evidence below is retained separately.
+Implementation and review fixes are published in the PR. The first no-mistakes run reached `checks-passed`; this report records that outcome separately from the earlier implementation evidence.
 
 ## Delivered
 
@@ -17,6 +17,16 @@ The active no-mistakes run includes the review fixes. Its validation and PR phas
 The authoritative behaviour, product heuristics, storage/API contract and licence/release boundary are in [Daily workflows](../../docs/daily-workflows.md#walk-weather).
 
 ## Verification
+
+### Pipeline validation after review fixes
+
+- Run `01M5MHBX79K6VZ0NKZE3SD8M81` reached `checks-passed` on published commit `c6ca0d4`. The reported GitHub check was CodeRabbit: passed. No merge or deployment was performed.
+- Review fixed three misses: heat-threshold saves now retain shared forecast requests/cache/retry timing; repainting preserves hourly scroll and keyboard focus; all five languages use precipitation wording that also covers snow. The original interaction failures were reproduced before verifying the fixes.
+- Firstmate explicitly retained **Remove location** on 2026-10-23 so users can clear their stored location. Review finding R4 was accepted on that basis.
+- The focused weather model, API/static-boundary checks and all **12 weather browser journeys** passed after the fixes. The test phase also passed **10 product scenarios**, including real Open-Meteo requests, business-local 18:00/midnight transitions with a surviving booking draft, cache isolation, timeout recovery, and recording/saving/reloading a walk during forecast failure. Simulated clock, weather and device-position inputs are identified in the PR evidence.
+- Documentation, syntax and whitespace checks passed. The pipeline test phase did **not** rerun the full acceptance suite; its earlier full-suite result is recorded below.
+
+### Implementation baseline
 
 These are the recorded results from implementation commit `2f17f20`, before the gate's review fixes in `a16d38b`; they are not validation results for the current revision. The expanded regression coverage is described in [Daily workflows](../../docs/daily-workflows.md#walk-weather).
 
@@ -39,4 +49,4 @@ All captures use chrome-devtools-axi. Before and live-after captures are from th
 
 Additional evidence: [hourly details, live](after-hourly-390.png), [saved settings](after-settings-390.png), [warnings and tomorrow, simulated](after-warnings-fixture-390.png), [desktop, simulated](after-planning-fixture-1440.png).
 
-When creating the PR, embed the before/after pairs using repository image URLs on this branch (not local filesystem paths), and replace this report's pending PR entry with the resulting link. No PR, merge or deployment has been performed during implementation.
+The [PR body](https://github.com/GoldenSis/dog-care-brain/pull/16) embeds both before/after pairs using repository image URLs, plus fresh post-fix Planning, Balades, hourly, Settings, desktop, warning and offline screenshots uploaded by the pipeline. No merge or deployment has been performed.
