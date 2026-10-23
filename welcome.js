@@ -53,8 +53,8 @@
   function show(language = 'fr', enter) {
     const c = copy[language] || copy.fr;
     const pc = w.PortalCopy[language] || w.PortalCopy.fr;
-    const suffix = selected[0].toUpperCase()+selected.slice(1);
-    const label = i => offered ? esc(offered[i].label) : c[9+i], detail = offered ? service(selected).detail || '' : pc['detail'+suffix];
+    const request = service(selected).request, suffix = request[0].toUpperCase()+request.slice(1);
+    const label = i => offered ? esc(offered[i].label) : c[9+i], detail = service(selected).detail || pc['detail'+suffix];
     const hero = content.hero || {}, about = content.about || {};
     const tel = contact.phone ? 'tel:'+contact.phone.replace(/[ .]/g,'') : '';
     const contactLinks = tel || contact.email || contact.reviews ? `${tel?`<a href="${esc(tel)}">${esc(c[34])} · ${esc(contact.phone)}</a>`:''}${contact.email?`<a href="mailto:${esc(contact.email)}">${esc(c[36])} · ${esc(contact.email)}</a>`:''}${insta?`<a href="${esc(insta)}" target="_blank" rel="noopener">Instagram @${esc(brand.instagram)} ↗</a>`:''}${contact.reviews?`<a href="${esc(contact.reviews)}" target="_blank" rel="noopener">${esc(c[35])} ↗</a>`:''}` : '';

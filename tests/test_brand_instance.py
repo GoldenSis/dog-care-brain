@@ -1,5 +1,6 @@
 """A second instance carries its own brand; the default stays Le Bus des Toutous."""
 import base64
+import json
 import os
 from pathlib import Path
 from unittest.mock import patch
@@ -237,8 +238,42 @@ class BrandInstanceTest(BrowserFixture):
             self.assertEqual(await self.page.get_attribute('.welcome-brand img', 'src'), '/brand/logo')
             self.assertEqual(await self.page.locator('[data-service]').evaluate_all('b => b.map(x => x.dataset.service)'), ['day', 'night', 'walk'])
             self.assertEqual(await self.page.locator('#welcome-contact').count(), 0)
-        with patch.dict(os.environ, {'DC_BRAND_NAME': '', 'DC_BRAND_LOGO': str(logo)}):
+            literal = 'Adine-Sophie <b>& une balade personnalisée</b>'
+            details = [('missing', {}), ('long', {'detail': 'x' * 401}),
+                       ('control', {'detail': 'Une\x00balade'}), ('number', {'detail': 42}),
+                       ('blank', {'detail': '  '}), ('literal', {'detail': literal})]
+            for request in ('day', 'night', 'walk'):
+                broken.write_text(json.dumps({'services': [
+                    {'id': key, 'label': key, 'request': request, **value} for key, value in details
+                ]}))
+                await self.page.goto(self.url + '?service=long')
+                await self.page.wait_for_selector('#public-welcome')
+                expected = await self.page.evaluate('key => PortalCopy.fr[key]', 'detail' + request.capitalize())
+                self.assertEqual(await self.page.locator('#service-detail p').text_content(), expected)
+                for locale in ('en', 'fr', 'it', 'de', 'es'):
+                    await self.page.evaluate('locale => WelcomeUI.show(locale)', locale)
+                    expected = await self.page.evaluate('([locale, key]) => PortalCopy[locale][key]',
+                                                        [locale, 'detail' + request.capitalize()])
+                    for key, _ in details:
+                        with self.subTest(request=request, locale=locale, detail=key):
+                            await self.page.click(f'[data-service="{key}"]')
+                            self.assertEqual(await self.page.locator('#service-detail p').text_content(),
+                                             literal if key == 'literal' else expected)
+                    self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+        with patch.dict(os.environ, {'DC_BRAND_NAME': '', 'DC_BRAND_LOGO': str(logo), 'DC_BRAND_CONTENT': str(broken)}):
             self.assertEqual(_http(self.port, 'GET', '/brand/logo')[0], 404)
+            await self.page.goto(self.url)
+            await self.page.wait_for_selector('#public-welcome')
+            for locale in ('en', 'fr', 'it', 'de', 'es'):
+                await self.page.evaluate('locale => WelcomeUI.show(locale)', locale)
+                for request in ('day', 'night', 'walk'):
+                    with self.subTest(brand='default', locale=locale, request=request):
+                        await self.page.click(f'[data-service="{request}"]')
+                        expected = await self.page.evaluate('([locale, key]) => PortalCopy[locale][key]',
+                                                            [locale, 'detail' + request.capitalize()])
+                        self.assertEqual(await self.page.locator('#service-detail p').text_content(), expected)
+        self.assertEqual(self.console_errors, [])
+        self.assertEqual(self.page_errors, [])
 
 
 def _raw(port, path, cookie):
