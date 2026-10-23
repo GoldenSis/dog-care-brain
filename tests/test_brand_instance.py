@@ -1,4 +1,5 @@
 """A second instance carries its own brand; the default stays Le Bus des Toutous."""
+import base64
 import os
 from pathlib import Path
 from unittest.mock import patch
@@ -10,6 +11,11 @@ ROOT = Path(__file__).resolve().parents[1]
 NICOLAS = {'DC_BRAND_NAME': 'nicolasdelalaissedogcare', 'DC_BRAND_OWNER': 'Nicolas',
            'DC_BRAND_INSTAGRAM': 'nicolasdelalaisse', 'DC_BRAND_MARK': 'sun',
            'DC_BRAND_PRIMARY': '#F6B40E', 'DC_BRAND_DARK': '#85340A', 'DC_BRAND_SECONDARY': '#74ACDF'}
+# The shipped La Laisse configuration: short header, dog mark and per-instance content file.
+LALAISSE = {'DC_BRAND_NAME': 'La Laisse Dog Walker', 'DC_BRAND_SHORT': 'La Laisse', 'DC_BRAND_OWNER': 'Nicolás',
+            'DC_BRAND_TAGLINE': 'Promenades canines · Batignolles · depuis 2011', 'DC_BRAND_INSTAGRAM': 'lalaisse.dogwalker',
+            'DC_BRAND_MARK': 'dog', 'DC_BRAND_CONTENT': str(ROOT / 'deploy/dogcare-nicolas.content.json'),
+            'DC_BRAND_PRIMARY': '#F6B40E', 'DC_BRAND_DARK': '#1A1A1A', 'DC_BRAND_SECONDARY': '#1A1A1A'}
 
 
 class BrandInstanceTest(BrowserFixture):
@@ -182,6 +188,57 @@ class BrandInstanceTest(BrowserFixture):
             self.assertEqual(_http(self.port, 'GET', '/assets/films/a-day-with-adine.mp4')[0], 404)
             self.assertEqual(await self.page.evaluate("getComputedStyle(document.querySelector('#public-welcome .primary')).backgroundColor"), 'rgb(246, 180, 14)')
             self.assertEqual(self.page_errors, [])
+
+    async def test_instance_content_drives_welcome_contact_and_requests(self):
+        with patch.dict(os.environ, LALAISSE):
+            os.environ.pop('DC_BRAND_LOGO', None)
+            await self.page.reload(); await self.wait_ready()
+            self.assertEqual(await self.page.title(), 'La Laisse Dog Walker — Muse')
+            self.assertEqual((await self.page.locator('.utility-brand').inner_text()).strip(), 'La Laisse')
+            self.assertEqual(await self.page.locator('.workspace-mark path[fill-rule]').count(), 1)
+            self.assertEqual(_http(self.port, 'GET', '/brand/logo')[0], 404)
+            await self.open_route('gallery')
+            self.assertIn('add them to each dog', await self.page.locator('.page-title-row p').inner_text())
+            await self.context.clear_cookies(); await self.page.goto(self.url); await self.page.wait_for_selector('#public-welcome')
+            welcome = self.page.locator('#public-welcome')
+            brand = self.page.locator('.welcome-brand')
+            self.assertEqual((await brand.inner_text()).strip(), 'La Laisse')
+            self.assertLess((await brand.bounding_box())['height'], 45)
+            self.assertEqual(await self.page.locator('.welcome-choices strong').all_text_contents(),
+                             ['Balade en meute en forêt', 'Promenade en ville', 'Je viens chercher et je ramène votre chien chez vous'])
+            for key in ('walk', 'city', 'pickup'):
+                await self.page.click(f'[data-service="{key}"]')
+                self.assertEqual(await self.page.locator('#service-detail strong').inner_text(), 'Tarif à convenir')
+            text = await welcome.inner_text()
+            self.assertIn('Paris 17e, Neuilly et Levallois-Perret', text)
+            self.assertIn('Patagonie argentine', text)
+            self.assertNotRegex(text, r'(?i)adine|bus_destoutous|12[,.]00|€')
+            self.assertEqual(await self.page.get_attribute('#welcome-contact a[href^="tel:"]', 'href'), 'tel:0602144876')
+            self.assertEqual(await self.page.get_attribute('#welcome-contact a[href*="instagram"]', 'href'), 'https://www.instagram.com/lalaisse.dogwalker/')
+            self.assertEqual(await self.page.get_attribute('#welcome-contact a[href^="https://g.page"]', 'href'), 'https://g.page/r/Cbnwe0jE8JgEEBM/review')
+            self.assertEqual(await self.page.get_attribute('#welcome-contact a[href^="mailto:"]', 'href'), 'mailto:contact@lalaisse.dog')
+            self.assertIn('Dibaq Sense', await self.page.locator('.welcome-shop').inner_text())
+            self.assertEqual(await self.page.get_attribute('.welcome-header nav a[href="#welcome-contact"]', 'href'), '#welcome-contact')
+            await self.page.click('[data-request]')
+            self.assertEqual(await self.page.evaluate("sessionStorage.getItem('dogcare-request-service')"), 'walk')
+            self.assertIn('Je viens chercher', await self.page.locator('#contact-draft').input_value())
+            self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+            self.assertEqual(await self.page.evaluate("getComputedStyle(document.querySelector('#public-welcome .primary')).color"), 'rgb(26, 26, 26)')
+            self.assertEqual(self.console_errors, [])
+
+    async def test_logo_file_replaces_mark_and_bad_content_falls_back(self):
+        logo = Path(self.tmp) / 'logo.png'
+        logo.write_bytes(base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='))
+        broken = Path(self.tmp) / 'broken.json'
+        broken.write_text('{"services": [{"id": "x", "label": "Nuit", "request": "sleepover"}], "contact": {"phone": "<b>", "email": "a@b", "reviews": "javascript:alert(1)"}}')
+        with patch.dict(os.environ, {**LALAISSE, 'DC_BRAND_LOGO': str(logo), 'DC_BRAND_CONTENT': str(broken)}):
+            self.assertEqual(_raw(self.port, '/brand/logo', self.sid), logo.read_bytes())
+            await self.context.clear_cookies(); await self.page.goto(self.url); await self.page.wait_for_selector('#public-welcome')
+            self.assertEqual(await self.page.get_attribute('.welcome-brand img', 'src'), '/brand/logo')
+            self.assertEqual(await self.page.locator('[data-service]').evaluate_all('b => b.map(x => x.dataset.service)'), ['day', 'night', 'walk'])
+            self.assertEqual(await self.page.locator('#welcome-contact').count(), 0)
+        with patch.dict(os.environ, {'DC_BRAND_NAME': '', 'DC_BRAND_LOGO': str(logo)}):
+            self.assertEqual(_http(self.port, 'GET', '/brand/logo')[0], 404)
 
 
 def _raw(port, path, cookie):

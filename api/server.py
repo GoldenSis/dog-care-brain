@@ -1017,6 +1017,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send({'ok': True, 'branding': media.public_branding(c, public_id) if public_id.isdigit() else {'hero': None, 'services': {}}})
         if path.startswith(('/api/media/content/', '/api/public/media/')):
             return self._media_content(path)
+        if path == brand.LOGO_PATH:
+            return self._brand_logo()
         if path == '/api/media':
             with connection() as c:
                 c.execute('BEGIN')
@@ -1316,6 +1318,21 @@ class Handler(BaseHTTPRequestHandler):
         if key not in payload:
             return self._send({"ok": False, "error": "missing " + key}, 400)
         return self._write_care({key: payload[key]})
+
+    def _brand_logo(self):
+        found = brand.logo() if brand.custom() else None
+        if not found:
+            self.send_error(404)
+            return
+        with open(found[0], 'rb') as fh:
+            data = fh.read()
+        self.send_response(200)
+        self.send_header("Content-Type", found[1])
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Cache-Control", "no-cache")
+        self.end_headers()
+        self.wfile.write(data)
 
     def _serve_static(self, path):
         root = static_root()

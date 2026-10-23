@@ -20,8 +20,10 @@
     return items.map(item=>`<article class="portal-row"><div><strong>${esc(dogName(item.dogId,names))} · ${esc(text(item.service))}</strong><p>${esc(range(item))}</p>${item.note?`<p>${esc(item.note)}</p>`:''}${QuoteUI.summary(portal.quotes?.[item.id])}</div><span class="portal-tag">${esc(text(item.status==='cancelled'?'cancelled':status?item.status:'booked'))}</span></article>`).join('');
   }
   function reservationForm(d) {
-    let service='day';try{const v=sessionStorage.getItem('dogcare-request-service');if(['day','night','walk'].includes(v))service=v;}catch{}
-    return `<form id="client-request-form" class="portal-form"><div class="portal-fields">${field('dog',dogChoice(d))}${field('service',`<select name="service">${['day','night','walk'].map(key=>`<option value="${key}" ${service===key?'selected':''}>${esc(text(key))}</option>`).join('')}</select>`)}${field('start','<input name="start" type="date" required>')}${field('end','<input name="end" type="date" required>')}</div>${field('note','<textarea name="note" maxlength="2000" rows="2"></textarea>')}<p id="request-details"></p><div id="request-estimate" aria-live="polite"></div>${error()}<button class="primary">${esc(text('send'))}</button></form>`;
+    // An instance that lists its own services (DogCareBrand.content) only offers the booking kinds they map to.
+    const offered=w.DogCareBrand?.content?.services, kinds=offered?[...new Set(offered.map(s=>s.request))]:['day','night','walk'];
+    let service=kinds[0];try{const v=sessionStorage.getItem('dogcare-request-service');if(kinds.includes(v))service=v;}catch{}
+    return `<form id="client-request-form" class="portal-form"><div class="portal-fields">${field('dog',dogChoice(d))}${field('service',`<select name="service">${kinds.map(key=>`<option value="${key}" ${service===key?'selected':''}>${esc(text(key))}</option>`).join('')}</select>`)}${field('start','<input name="start" type="date" required>')}${field('end','<input name="end" type="date" required>')}</div>${field('note','<textarea name="note" maxlength="2000" rows="2"></textarea>')}<p id="request-details"></p><div id="request-estimate" aria-live="polite"></div>${error()}<button class="primary">${esc(text('send'))}</button></form>`;
   }
   function render(page) {
     const d=daily(), p=data(), names=dogNames(d), bookedIds=new Set(d.bookings.map(b=>b.id));setHeader('', text('workspace'),true);
