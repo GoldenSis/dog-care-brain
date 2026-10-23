@@ -1,10 +1,10 @@
 # DogCare walk weather
 
-Branch: `fm/dogcare-walk-weather-r1`  
-PR: pending firstmate's requested post-commit `/no-mistakes` handoff.  
+Branch: `fm/dogcare-walk-weather-r1`\
+PR: pending creation by the active no-mistakes run's PR phase.\
 Deployment: **not performed**; dogcare.plusdefun.ch requires a separate captain go.
 
-Implementation and local validation complete; ready for the brief’s required firstmate handoff before `/no-mistakes`.
+The active no-mistakes run includes the review fixes. Its validation and PR phases own final checks and delivery; the implementation-stage evidence below is retained separately.
 
 ## Delivered
 
@@ -14,9 +14,11 @@ Implementation and local validation complete; ready for the brief’s required f
 - French default plus English, Italian, German and Spanish. Failed refreshes retain timestamped data and suppress suggestions; without useful data, the weather strip is empty and the page stays usable.
 - Only search text/language or business coordinates/weather parameters go to Open-Meteo. No dog/client/track/care records enter those requests; cookies and referrer are omitted.
 
-The authoritative behaviour, product heuristics, storage/API contract and licence note are in [Daily workflows](../../docs/daily-workflows.md#walk-weather). The free API tier is non-commercial; a paid product needs a paid plan before release. This branch does not purchase a plan or configure production credentials.
+The authoritative behaviour, product heuristics, storage/API contract and licence/release boundary are in [Daily workflows](../../docs/daily-workflows.md#walk-weather).
 
 ## Verification
+
+These are the recorded results from implementation commit `2f17f20`, before the gate's review fixes in `a16d38b`; they are not validation results for the current revision. The expanded regression coverage is described in [Daily workflows](../../docs/daily-workflows.md#walk-weather).
 
 - **105 Node tests passed** (`node --test tests/*.js`), including seven new model/translation checks and rejection of malformed forecast timestamps; all frontend JavaScript syntax checks and `git diff --check` passed.
 - **Four new browser journeys passed** across static and account modes: settings search/position, reload, failed-save retry, one shared forecast request, five locales, 390/1440 widths, stale-cache and no-cache failure, and usable Planning during failure.
@@ -28,7 +30,7 @@ The authoritative behaviour, product heuristics, storage/API contract and licenc
 
 ## Before / after evidence for the PR body
 
-All captures use chrome-devtools-axi. Before and live-after captures are from the static app at 390 × 844. The labelled fixture captures simulate 18:00 and heat/storm/heavy rain to show tomorrow and warning behaviour; they are not a claim about actual Lausanne weather.
+All captures use chrome-devtools-axi. Before and live-after captures are from the static app at 390 × 844. The labelled fixture captures simulate 18:00 and heat/storm/heavy rain to show tomorrow and warning behaviour; they are not a claim about actual Lausanne weather. These implementation-stage captures predate the review fixes and retain the earlier rain wording; current labels use precipitation terminology.
 
 | Surface | Before | After |
 | --- | --- | --- |
