@@ -50,7 +50,7 @@ A notice appears before existing inline recordings transfer. Cancel leaves brows
 
 ### Account configuration and storage
 
-Listener and storage configuration uses these environment variables. See [login transport](docs/client-portal.md#login-transport) for authentication/SMTP settings, [public prices](docs/client-portal.md#prices-and-options) for the `DC_PUBLIC_BUSINESS` binding used by rates and artwork, and [instance branding](docs/second-instance.md#brand) for all eight `DC_BRAND_*` settings, defaults and palette rules. Branding applies to the whole API process, independently of business records; changing it does not create or isolate an account. The [second-instance templates](docs/second-instance.md) use a separate process, private store and origin. The plain static server does not read these environment variables and retains the default brand.
+Listener and storage configuration uses these environment variables. See [login transport](docs/client-portal.md#login-transport) for authentication/SMTP settings, [public prices](docs/client-portal.md#prices-and-options) for the `DC_PUBLIC_BUSINESS` binding used by rates and artwork, and [instance branding](docs/second-instance.md#brand) for the `DC_BRAND_*` settings, defaults and palette rules. Branding applies to the whole API process, independently of business records; changing it does not create or isolate an account. The [second-instance templates](docs/second-instance.md) use a separate process, private store and origin. The plain static server does not read these environment variables and retains the default brand.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
@@ -267,7 +267,7 @@ Accounting checks cover invoice/extra/payment save/reload, local receipt OCR and
 
 Navigation checks reach all 13 owner destinations through the primary buttons and tools dialog, in five locales at 1440 × 900, 1024 × 768, and 390 × 844. They cover keyboard activation, active state, 44px targets, a single business brand, heading visibility after switching from scrolled content, and return to the selected tool.
 
-Instance-brand checks in `tests.test_brand_instance` cover unchanged default asset responses, custom welcome/gallery isolation and gold buttons, owner headings in five locales, owner fallback and special characters, saved dog names, and observation display translations without brand substitution or stored-text changes. See [brand checks](docs/second-instance.md#checks) for the focused command and 390px evidence.
+See [brand checks](docs/second-instance.md#checks) for the `tests.test_brand_instance` coverage, focused command and 390px evidence.
 
 Professional-access checks cover individual grants and file denial, shared note versions, stale selections, dog reassignment/removal, revocation and concurrent authorization changes. The browser journey checks owner selection/review, professional self-login, reload and revocation at desktop and phone widths; see [selected professional access](docs/client-portal.md#selected-professional-access).
 
