@@ -28,6 +28,7 @@ import quotes
 import login_delivery
 import media
 import professional
+import weather_settings
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT_DEFAULT = os.path.dirname(HERE)
@@ -125,6 +126,10 @@ STATIC_FILES = frozenset((
     'styles.css',
     'welcome.css',
     'welcome.js',
+    'weather-model.js',
+    'weather-copy.js',
+    'weather-ui.js',
+    'weather.css',
     'workspace.css',
 ))
 
@@ -618,6 +623,7 @@ def state_of(user, c=None):
             "language": lang, "dogs": dogs, "observations": obs, "invites": inv,
             "daily": daily.load(c, user["business_id"]),
             "knowledge": knowledge.load(c, user["business_id"]) if user["role"] in portal.STAFF else None,
+            "weatherSettings": weather_settings.load(c, user["business_id"]) if user["role"] in portal.STAFF else None,
             "media": media.snapshot(c, user),
             "finance": finance.load(c, user["business_id"]) if user["role"] == "owner" else None})
 
@@ -707,7 +713,7 @@ class Handler(BaseHTTPRequestHandler):
             return None
         path = urlparse(self.path).path
         client_paths = ("/api/prefs", "/api/auth/logout", "/api/portal/requests", "/api/media/upload", "/api/media/cover", "/api/media/delete", "/api/media/branding")
-        owner_paths = ("/api/finance", "/api/invites", "/api/import", "/api/portal/members", "/api/portal/professionals", "/api/portal/revoke", "/api/portal/extras", "/api/portal/extra-remove", "/api/portal/quote")
+        owner_paths = ("/api/finance", "/api/invites", "/api/import", "/api/weather-settings", "/api/portal/members", "/api/portal/professionals", "/api/portal/revoke", "/api/portal/extras", "/api/portal/extra-remove", "/api/portal/quote")
         if ((user["role"] == "client" and path not in client_paths) or
                 (user['role'] == 'professional' and path not in ('/api/prefs', '/api/auth/logout')) or
                 (path in owner_paths and user["role"] != "owner") or
@@ -778,6 +784,23 @@ class Handler(BaseHTTPRequestHandler):
             return self._send({"ok": False, "error": str(error)}, 400)
         except sqlite3.Error:
             return self._send({"ok": False, "error": "experience could not be saved"}, 500)
+        return self._send(out)
+
+    def _write_weather_settings(self, payload):
+        try:
+            daily.fields(payload, 'weatherSettings')
+            with self._mutation_transaction() as (c, user):
+                if not user:
+                    return
+                if self._advance_revision(c, user) is None:
+                    return
+                value = weather_settings.validate(payload['weatherSettings'])
+                weather_settings.save(c, user['business_id'], value)
+                out = state_of(user, c)
+        except ValueError as error:
+            return self._send({"ok": False, "error": str(error)}, 400)
+        except sqlite3.Error:
+            return self._send({"ok": False, "error": "weather settings could not be saved"}, 500)
         return self._send(out)
 
     def _write_finance(self, payload):
@@ -1282,6 +1305,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._write_balades(payload)
         if path == "/api/knowledge":
             return self._write_knowledge(payload)
+        if path == "/api/weather-settings":
+            return self._write_weather_settings(payload)
         if path == "/api/daily":
             return self._write_daily(payload)
         key = {"/api/observations": "observations", "/api/invites": "invites",

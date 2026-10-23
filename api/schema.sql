@@ -122,6 +122,12 @@ CREATE TABLE IF NOT EXISTS business_knowledge (
   snapshot TEXT NOT NULL
 );
 
+-- Location and heat-warning preferences belong to the business, not a dog/client.
+CREATE TABLE IF NOT EXISTS business_weather_settings (
+  business_id INTEGER PRIMARY KEY REFERENCES business(id),
+  snapshot TEXT NOT NULL
+);
+
 -- Private accounting originals are immutable and scoped to their business.
 CREATE TABLE IF NOT EXISTS business_finance (
   business_id INTEGER PRIMARY KEY REFERENCES business(id),

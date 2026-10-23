@@ -1731,7 +1731,7 @@ const views = {
   schedule() { setHeader('', t('Schedule')); return DailyUI.schedule(); },
   business() { setHeader('', FinanceUI.text('title')); return FinanceUI.view(); },
   balades() { setHeader('', BaladesUI.text('title')); return BaladesUI.view(); },
-  settings() { if(window.DogCareAPI){setHeader('',t('Settings'));return PortalUI.settings();} setHeader('SETTINGS','Your calm corner'); return `<section class="card empty"><div class="big">⚙️</div><h2>${t('Demo settings')}</h2><p>${t('External integrations are intentionally unavailable in this local prototype.')}</p><button class="ghost" id="reset-demo">${t('Reset demo observations')}</button></section>`; }
+  settings() { if(window.DogCareAPI){setHeader('',t('Settings'));return PortalUI.settings();} setHeader('SETTINGS','Your calm corner'); return `<section class="card empty"><div class="big">⚙️</div><h2>${t('Demo settings')}</h2><button class="ghost" id="reset-demo">${t('Reset demo observations')}</button></section>`; }
 };
 
 function infer(text) {
@@ -1931,7 +1931,9 @@ function navigate(page) {
   }
   if(window.DogCareAPI && page==='gallery')content.insertAdjacentHTML('afterbegin',MediaUI.gallery());
   if(window.DogCareAPI && PortalUI.owner() && page==='settings')content.insertAdjacentHTML('beforeend',MediaUI.settings());
-  localizeContent();bindView();PortalUI.bind();window.MediaUI?.bind();window.scrollTo({top:0});revealActiveNavigation();
+  if(PortalUI.staff() && ['schedule','balades'].includes(page))content.insertAdjacentHTML('afterbegin',WalkWeatherUI.strip());
+  if(PortalUI.owner() && page==='settings')content.insertAdjacentHTML('afterbegin',WalkWeatherUI.settings());
+  localizeContent();bindView();PortalUI.bind();window.MediaUI?.bind();WalkWeatherUI.bind();window.scrollTo({top:0});revealActiveNavigation();
 }
 function configureWorkspace() {
   const client=PortalUI.client(),professional=PortalUI.professional(),owner=PortalUI.owner();

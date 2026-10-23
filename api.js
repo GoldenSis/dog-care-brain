@@ -19,6 +19,7 @@
     language: "fr",
     daily: null,
     knowledge: null,
+    weatherSettings: null,
     finance: null,
     media: {items:[],covers:{},branding:{hero:null,services:{}}},
     portal: {updates:[],requests:[],documents:[],members:[]},
@@ -148,6 +149,7 @@
     cache.invites = data.invites;
     cache.language = data.language || "en";
     cache.daily = data.daily ?? null;
+    cache.weatherSettings = data.weatherSettings ?? null;
     cache.knowledge = data.knowledge || {version:1,experiences:[]};
     cache.finance = data.finance ?? null;
     cache.media = data.media || {items:[],covers:{},branding:{hero:null,services:{}}};
@@ -338,6 +340,15 @@
         return {ok:true, revision:data.revision, balades:data.balades, businessId:data.business_id};
       } catch { return {ok:false}; }
       finally { clearTimeout(timer); }
+    },
+    getWeatherSettings() { return JSON.parse(JSON.stringify(cache.weatherSettings)); },
+    weatherCacheScope() { return `account:${businessId}`; },
+    saveWeatherSettings(weatherSettings) {
+      const snapshot = JSON.parse(JSON.stringify(weatherSettings));
+      return enqueue(async () => {
+        const result = await putJson('/weather-settings', {weatherSettings:snapshot});
+        return result.ok && acceptState(result.data);
+      });
     },
     getKnowledge() { return JSON.parse(JSON.stringify(cache.knowledge)); },
     saveKnowledge(knowledge) {

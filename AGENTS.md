@@ -19,6 +19,7 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 - API role projections, explicit client access, login transport and quoted options are documented in `docs/client-portal.md`. Real signup is closed; tests opt into loopback development signup. Never enable debug-outbox delivery for production.
 
 - The API static surface is an explicit `STATIC_FILES` allowlist in `api/server.py`; new frontend assets need a deliberate entry. Repository/deployment/test files are never API static content. Verify with `tests.test_static_boundary`.
+- Walk-weather location/settings, cache and selection rules: read [Walk weather](docs/daily-workflows.md#walk-weather) before changing `weather-*` or `/api/weather-settings`; the keyless endpoint requires a commercial-plan decision before a paid release.
 - Brand is per instance via `DC_BRAND_*` env (`api/brand.py`, `brand.js`); unset means Le Bus des Toutous exactly as before. Any other brand 404s Adine-Sophie's `assets/photos`/`assets/films` and hides her journal; new Adine-specific copy or media must stay behind `ownBrand`/`DogCareBrand.text`. See [Second instance](docs/second-instance.md).
 
 ## Maintaining this file
