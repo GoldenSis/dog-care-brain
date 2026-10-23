@@ -54,6 +54,8 @@
     const stale=ctx.failed||Date.now()-ctx.fetchedAt>=M.LIMITS.cacheMs;
     const stamp=new Intl.DateTimeFormat(state.language,{timeZone:ctx.forecast.timezone,dateStyle:'short',timeStyle:'short'}).format(ctx.fetchedAt);
     const expanded=target.querySelector('details')?.open;
+    const scrollLeft=target.querySelector('.weather-hours')?.scrollLeft||0;
+    const focusable='summary, .weather-hours, a',focused=[...target.querySelectorAll(focusable)].indexOf(document.activeElement);
     target.innerHTML=`<section class="weather-strip" aria-label="${esc(text('settings'))}"><div class="weather-heading"><h2>${esc(text('title'))}</h2><span>${esc(config.location.name)}</span></div>
       ${stale?`<p class="weather-cached">${esc(text(ctx.failed?'cached':'older'))}</p>`:''}
       ${days.map(day=>{
@@ -65,6 +67,8 @@
         return `<article class="weather-hour ${best?'weather-best':''}"><strong>${esc(text(day.label))} ${h.clock}</strong>${best?`<span class="weather-best-label">${esc(text('best'))}</span>`:''}<dl><div><dt>${esc(text('temperature'))}</dt><dd>${format(h.temperature_2m,' °C',1)}</dd></div><div><dt>${esc(text('probability'))}</dt><dd>${format(h.precipitation_probability,' %')}</dd></div><div><dt>${esc(text('precipitation'))}</dt><dd>${format(h.precipitation,' mm',1)}</dd></div><div><dt>${esc(text('stormRisk'))}</dt><dd>${esc(text(h.weather_code===null?'unknown':h.weather_code>=95&&h.weather_code<=99?'stormYes':'stormNo'))}</dd></div><div><dt>${esc(text('uvIndex'))}</dt><dd>${format(h.uv_index,'',1)}</dd></div><div><dt>${esc(text('wind'))}</dt><dd>${format(h.wind_gusts_10m,' km/h')}</dd></div></dl>${warnings.length?`<p class="weather-warning">${warnings.map(k=>esc(text(k))).join(' · ')}</p>`:''}</article>`;
       }).join('')).join('')}</div><p class="weather-basis">${esc(text('basis'))}</p></details>
       <footer>${esc(text('updated'))} ${esc(stamp)} · ${esc(ctx.forecast.timezone)} · <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a></footer></section>`;
+    target.querySelector('.weather-hours').scrollLeft=scrollLeft;
+    if(focused>=0)target.querySelectorAll(focusable)[focused]?.focus({preventScroll:true});
   }
   function settings(){
     let config;try{config=read();}catch{return `<section class="weather-settings card"><p>${esc(text('resetError'))}</p></section>`;}
@@ -117,7 +121,7 @@
           return await navigator.locks.request(KEY,()=>{if(localStorage.getItem(KEY)!==loaded)return false;localStorage.setItem(KEY,JSON.stringify(config));return true;});
         }catch{return false;}
       },form.querySelector('[type=submit]')||form.querySelector('.primary'));
-      if(ok){context=null;navigate('settings');document.querySelector('#weather-save-status').textContent=text('saved');}
+      if(ok){if(config.location)forecastContext(config.location);else context=null;navigate('settings');document.querySelector('#weather-save-status').textContent=text('saved');}
       else notice.textContent=text('saveError');
     };
   }
