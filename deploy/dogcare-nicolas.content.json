@@ -1,0 +1,25 @@
+{
+  "hero": {
+    "heading": "Votre chien adore La Laisse !",
+    "text": "Depuis 2011, j’accompagne les chiens en forêt du mardi au vendredi, le matin et certains après-midis, pour leur offrir du mouvement, de la liberté quand c’est adapté, et de l’équilibre."
+  },
+  "services": [
+    {"id": "walk", "label": "Balade en meute en forêt", "face": "dalmatian", "request": "walk",
+     "detail": "Du mardi au vendredi, le matin et certains après-midis, en petit groupe de 5 à 6 chiens maximum : ils courent et s’amusent ensemble."},
+    {"id": "city", "label": "Promenade en ville", "face": "terrier", "request": "walk",
+     "detail": "Une promenade en ville pour votre chien. Indiquez la date souhaitée ; les modalités se conviennent ensemble, sur rendez-vous."},
+    {"id": "pickup", "label": "Je viens chercher et je ramène votre chien chez vous", "face": "pug", "request": "walk",
+     "detail": "Je passe le prendre à domicile et je le raccompagne après la balade : Paris 17e, Neuilly et Levallois-Perret."}
+  ],
+  "price": "Tarif à convenir",
+  "shop": {"label": "Boutique / alimentation", "text": "Croquettes Dibaq Sense sans céréales : poulet et canard, agneau, saumon."},
+  "about": {
+    "paragraphs": [
+      "Je suis Nicolás, promeneur de chiens à Paris 17e, aux Batignolles. Depuis 2011, j’accompagne les chiens en forêt : 14 ans d’expérience et plus de 3 000 balades. Originaire de Patagonie argentine, j’ai toujours vécu parmi les animaux, et je suis titulaire du certificat de capacité.",
+      "Mon approche repose sur la confiance, la stabilité et la sécurité. L’énergie d’une meute fait beaucoup de bien à un chien, et je peux aussi lui donner quelques notions d’éducation.",
+      "Nicolás Salaya Macri"
+    ],
+    "steps": ["Choisissez la balade qui lui convient.", "Présentez-moi votre chien.", "Retrouvez ses nouvelles dans votre espace."]
+  },
+  "contact": {"phone": "06 02 14 48 76", "email": "contact@lalaisse.dog", "reviews": "https://g.page/r/Cbnwe0jE8JgEEBM/review"}
+}

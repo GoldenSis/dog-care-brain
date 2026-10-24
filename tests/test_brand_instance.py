@@ -1,15 +1,22 @@
 """A second instance carries its own brand; the default stays Le Bus des Toutous."""
+import base64
+import json
 import os
 from pathlib import Path
 from unittest.mock import patch
 
 from tests.test_browser_acceptance import BrowserFixture
-from tests.test_tenant_isolation import _http
+from tests.test_tenant_isolation import _http, _latest_link
 
 ROOT = Path(__file__).resolve().parents[1]
 NICOLAS = {'DC_BRAND_NAME': 'nicolasdelalaissedogcare', 'DC_BRAND_OWNER': 'Nicolas',
            'DC_BRAND_INSTAGRAM': 'nicolasdelalaisse', 'DC_BRAND_MARK': 'sun',
            'DC_BRAND_PRIMARY': '#F6B40E', 'DC_BRAND_DARK': '#85340A', 'DC_BRAND_SECONDARY': '#74ACDF'}
+# The shipped La Laisse configuration: short header, dog mark and per-instance content file.
+LALAISSE = {'DC_BRAND_NAME': 'La Laisse Dog Walker', 'DC_BRAND_SHORT': 'La Laisse', 'DC_BRAND_OWNER': 'Nicolás',
+            'DC_BRAND_TAGLINE': 'Promenades canines · Batignolles · depuis 2011', 'DC_BRAND_INSTAGRAM': 'lalaisse.dogwalker',
+            'DC_BRAND_MARK': 'dog', 'DC_BRAND_CONTENT': str(ROOT / 'deploy/dogcare-nicolas.content.json'),
+            'DC_BRAND_PRIMARY': '#F6B40E', 'DC_BRAND_DARK': '#1A1A1A', 'DC_BRAND_SECONDARY': '#1A1A1A'}
 
 
 class BrandInstanceTest(BrowserFixture):
@@ -182,6 +189,170 @@ class BrandInstanceTest(BrowserFixture):
             self.assertEqual(_http(self.port, 'GET', '/assets/films/a-day-with-adine.mp4')[0], 404)
             self.assertEqual(await self.page.evaluate("getComputedStyle(document.querySelector('#public-welcome .primary')).backgroundColor"), 'rgb(246, 180, 14)')
             self.assertEqual(self.page_errors, [])
+
+    async def test_instance_content_drives_welcome_contact_and_requests(self):
+        with patch.dict(os.environ, LALAISSE):
+            os.environ.pop('DC_BRAND_LOGO', None)
+            await self.page.reload(); await self.wait_ready()
+            self.assertEqual(await self.page.title(), 'La Laisse Dog Walker — Muse')
+            self.assertEqual((await self.page.locator('.utility-brand').inner_text()).strip(), 'La Laisse')
+            self.assertEqual(await self.page.locator('.workspace-mark path[fill-rule]').count(), 1)
+            self.assertEqual(_http(self.port, 'GET', '/brand/logo')[0], 404)
+            await self.open_route('gallery')
+            self.assertIn('add them to each dog', await self.page.locator('.page-title-row p').inner_text())
+            await self.context.clear_cookies(); await self.page.goto(self.url); await self.page.wait_for_selector('#public-welcome')
+            welcome = self.page.locator('#public-welcome')
+            brand = self.page.locator('.welcome-brand')
+            self.assertEqual((await brand.inner_text()).strip(), 'La Laisse')
+            self.assertLess((await brand.bounding_box())['height'], 45)
+            self.assertEqual(await self.page.locator('.welcome-choices strong').all_text_contents(),
+                             ['Balade en meute en forêt', 'Promenade en ville', 'Je viens chercher et je ramène votre chien chez vous'])
+            for key in ('walk', 'city', 'pickup'):
+                await self.page.click(f'[data-service="{key}"]')
+                self.assertEqual(await self.page.locator('#service-detail strong').inner_text(), 'Tarif à convenir')
+            text = await welcome.inner_text()
+            self.assertIn('Paris 17e, Neuilly et Levallois-Perret', text)
+            self.assertIn('Patagonie argentine', text)
+            self.assertNotRegex(text, r'(?i)adine|bus_destoutous|12[,.]00|€')
+            self.assertEqual(await self.page.get_attribute('#welcome-contact a[href^="tel:"]', 'href'), 'tel:0602144876')
+            self.assertEqual(await self.page.get_attribute('#welcome-contact a[href*="instagram"]', 'href'), 'https://www.instagram.com/lalaisse.dogwalker/')
+            self.assertEqual(await self.page.get_attribute('#welcome-contact a[href^="https://g.page"]', 'href'), 'https://g.page/r/Cbnwe0jE8JgEEBM/review')
+            self.assertEqual(await self.page.get_attribute('#welcome-contact a[href^="mailto:"]', 'href'), 'mailto:contact@lalaisse.dog')
+            self.assertIn('Dibaq Sense', await self.page.locator('.welcome-shop').inner_text())
+            self.assertEqual(await self.page.get_attribute('.welcome-header nav a[href="#welcome-contact"]', 'href'), '#welcome-contact')
+            await self.page.click('[data-request]')
+            self.assertEqual(await self.page.evaluate("sessionStorage.getItem('dogcare-request-service')"), 'walk')
+            self.assertIn('Je viens chercher', await self.page.locator('#contact-draft').input_value())
+            self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+            self.assertEqual(await self.page.evaluate("getComputedStyle(document.querySelector('#public-welcome .primary')).color"), 'rgb(26, 26, 26)')
+            self.assertEqual(self.console_errors, [])
+
+    async def test_logo_file_replaces_mark_and_bad_content_falls_back(self):
+        logo = Path(self.tmp) / 'logo.png'
+        logo.write_bytes(base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='))
+        broken = Path(self.tmp) / 'broken.json'
+        broken.write_text('{"services": [{"id": "x", "label": "Nuit", "request": "sleepover"}], "contact": {"phone": "<b>", "email": "a@b", "reviews": "javascript:alert(1)"}}')
+        with patch.dict(os.environ, {**LALAISSE, 'DC_BRAND_LOGO': str(logo), 'DC_BRAND_CONTENT': str(broken)}):
+            self.assertEqual(_raw(self.port, '/brand/logo', self.sid), logo.read_bytes())
+            await self.context.clear_cookies(); await self.page.goto(self.url); await self.page.wait_for_selector('#public-welcome')
+            self.assertEqual(await self.page.get_attribute('.welcome-brand img', 'src'), '/brand/logo')
+            self.assertEqual(await self.page.locator('[data-service]').evaluate_all('b => b.map(x => x.dataset.service)'), ['day', 'night', 'walk'])
+            self.assertEqual(await self.page.locator('#welcome-contact').count(), 0)
+            literal = 'Adine-Sophie <b>& une balade personnalisée</b>'
+            details = [('missing', {}), ('long', {'detail': 'x' * 401}),
+                       ('control', {'detail': 'Une\x00balade'}), ('number', {'detail': 42}),
+                       ('blank', {'detail': '  '}), ('literal', {'detail': literal})]
+            for request in ('day', 'night', 'walk'):
+                broken.write_text(json.dumps({'services': [
+                    {'id': key, 'label': key, 'request': request, **value} for key, value in details
+                ]}))
+                await self.page.goto(self.url + '?service=long')
+                await self.page.wait_for_selector('#public-welcome')
+                expected = await self.page.evaluate('key => PortalCopy.fr[key]', 'detail' + request.capitalize())
+                self.assertEqual(await self.page.locator('#service-detail p').text_content(), expected)
+                for locale in ('en', 'fr', 'it', 'de', 'es'):
+                    await self.page.evaluate('locale => WelcomeUI.show(locale)', locale)
+                    expected = await self.page.evaluate('([locale, key]) => PortalCopy[locale][key]',
+                                                        [locale, 'detail' + request.capitalize()])
+                    for key, _ in details:
+                        with self.subTest(request=request, locale=locale, detail=key):
+                            await self.page.click(f'[data-service="{key}"]')
+                            self.assertEqual(await self.page.locator('#service-detail p').text_content(),
+                                             literal if key == 'literal' else expected)
+                    self.assertFalse(await self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+        with patch.dict(os.environ, {'DC_BRAND_NAME': '', 'DC_BRAND_LOGO': str(logo), 'DC_BRAND_CONTENT': str(broken)}):
+            self.assertEqual(_http(self.port, 'GET', '/brand/logo')[0], 404)
+            await self.page.goto(self.url)
+            await self.page.wait_for_selector('#public-welcome')
+            for locale in ('en', 'fr', 'it', 'de', 'es'):
+                await self.page.evaluate('locale => WelcomeUI.show(locale)', locale)
+                for request in ('day', 'night', 'walk'):
+                    with self.subTest(brand='default', locale=locale, request=request):
+                        await self.page.click(f'[data-service="{request}"]')
+                        expected = await self.page.evaluate('([locale, key]) => PortalCopy[locale][key]',
+                                                            [locale, 'detail' + request.capitalize()])
+                        self.assertEqual(await self.page.locator('#service-detail p').text_content(), expected)
+        self.assertEqual(self.console_errors, [])
+        self.assertEqual(self.page_errors, [])
+
+    async def test_custom_services_create_walk_requests_after_signin_and_reload(self):
+        owner = self.login('brand-owner@example.com')
+        email = 'brand-family@example.com'
+        daily = {'version': 1, 'clients': [{'id': 'family', 'name': 'Synthetic family'}],
+                 'dogs': [{'id': 'nino', 'name': 'Nino', 'clientId': 'family'}],
+                 'bookings': [], 'documents': [],
+                 'rates': {'currency': 'EUR', 'day': 2400, 'night': 3600, 'walk': 1200}}
+        self.assertEqual(_http(self.port, 'PUT', '/api/daily', {'daily': daily}, cookie=owner)[0], 200)
+        self.assertEqual(_http(self.port, 'POST', '/api/portal/members',
+                               {'email': email, 'role': 'client', 'clientId': 'family'}, cookie=owner)[0], 200)
+        _, saved, _ = _http(self.port, 'GET', '/api/state', cookie=owner)
+        with patch.dict(os.environ, {**LALAISSE, 'DC_PUBLIC_BUSINESS': str(saved['business_id'])}):
+            for key in ('walk', 'city', 'pickup'):
+                with self.subTest(service=key):
+                    await self.context.clear_cookies()
+                    await self.page.goto(self.url + '?service=' + key)
+                    await self.page.wait_for_selector('#public-welcome')
+                    await self.page.wait_for_load_state('networkidle')
+                    self.assertEqual(await self.page.locator('#service-detail strong').inner_text(), 'Tarif à convenir')
+                    self.assertEqual(await self.page.get_attribute(f'[data-service="{key}"]', 'aria-pressed'), 'true')
+                    await self.page.click('[data-request]')
+                    await self.page.fill('#access-email', email)
+                    await self.page.click('#access-form button')
+                    await self.page.wait_for_function("document.querySelector('#access-result').textContent.includes('Aucun e-mail')")
+                    link = _latest_link(self.outbox, email)
+                    self.assertIn('service=walk', link)
+                    client = await self.context.new_page()
+                    client.on('pageerror', lambda error: self.page_errors.append(str(error)))
+                    try:
+                        await client.goto(link)
+                        await client.wait_for_selector('#client-request-form')
+                        form = client.locator('#client-request-form')
+                        self.assertEqual(await form.locator('[name=service] option').evaluate_all('items => items.map(x => x.value)'), ['walk'])
+                        await form.locator('[name=start]').fill('2026-11-04')
+                        await form.locator('[name=end]').fill('2026-11-04')
+                        await form.locator('[name=note]').fill('Synthetic ' + key + ' request')
+                        await form.locator('button').click()
+                        await client.wait_for_function('note => !savePending && DogCareAPI.getPortal().requests.some(r => r.note === note)',
+                                                       arg='Synthetic ' + key + ' request')
+                        # A stale stored choice cannot reintroduce an unoffered booking kind.
+                        await client.evaluate("sessionStorage.setItem('dogcare-request-service', 'night')")
+                        await client.reload()
+                        await client.wait_for_selector('#client-request-form')
+                        self.assertEqual(await client.input_value('#client-request-form [name=service]'), 'walk')
+                        self.assertFalse(await client.evaluate('document.documentElement.scrollWidth > innerWidth'))
+                        if os.environ.get('DOGCARE_EVIDENCE_DIR'):
+                            await client.screenshot(path=str(Path(os.environ['DOGCARE_EVIDENCE_DIR']) / f'brand-client-{key}-390.png'),
+                                                    full_page=True, animations='disabled')
+                    finally:
+                        await client.close()
+            _, persisted, _ = _http(self.port, 'GET', '/api/state', cookie=owner)
+            requests = persisted['portal']['requests']
+            self.assertEqual({r['note'] for r in requests}, {'Synthetic ' + key + ' request' for key in ('walk', 'city', 'pickup')})
+            self.assertTrue(all(r['service'] == 'walk' and r['status'] == 'requested' for r in requests))
+            if os.environ.get('DOGCARE_EVIDENCE_DIR'):
+                (Path(os.environ['DOGCARE_EVIDENCE_DIR']) / 'brand-persisted-requests.json').write_text(
+                    json.dumps(requests, ensure_ascii=False, indent=2) + '\n')
+        self.assertEqual(self.console_errors, [])
+        self.assertEqual(self.page_errors, [])
+
+    async def test_literal_content_with_long_tokens_fits_mobile(self):
+        content = Path(self.tmp) / 'long-heading.json'
+        heading = 'Nos promenades : https://www.instagram.com/lalaisse.dogwalker/'
+        content.write_text(json.dumps({'hero': {'heading': heading}}))
+        with patch.dict(os.environ, {**LALAISSE, 'DC_BRAND_CONTENT': str(content)}):
+            await self.context.clear_cookies()
+            await self.page.goto(self.url)
+            await self.page.wait_for_selector('#public-welcome')
+            await self.page.evaluate('document.fonts.ready')
+            self.assertEqual(await self.page.locator('.welcome-intro h1').text_content(), heading)
+            layout = await self.page.evaluate('({viewport: innerWidth, document: document.documentElement.scrollWidth})')
+            if os.environ.get('DOGCARE_EVIDENCE_DIR'):
+                await self.capture_evidence('brand-long-literal-heading-390.png', full_page=False)
+                (Path(os.environ['DOGCARE_EVIDENCE_DIR']) / 'brand-long-literal-heading-layout.json').write_text(
+                    json.dumps({'heading': heading, **layout}, ensure_ascii=False, indent=2) + '\n')
+            self.assertLessEqual(layout['document'], layout['viewport'])
+        self.assertEqual(self.console_errors, [])
+        self.assertEqual(self.page_errors, [])
 
 
 def _raw(port, path, cookie):
