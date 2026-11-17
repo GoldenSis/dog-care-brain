@@ -50,7 +50,7 @@
   "film": {
     "asset": "../films/a-day-with-adine.mp4",
     "source": "https://www.instagram.com/reel/DJ2A0xrsF-a/",
-    "duration_seconds": 85.333,
-    "processing": "Full original timeline and audio retained, encoded at 540×960 for local playback."
+    "duration_seconds": 85.4,
+    "processing": "Full original timeline retained at 540×960 for local playback; video stream copied unchanged. Audio re-encoded with loudnorm (-14 LUFS target) and a limiter to reduce peak distortion."
   }
 }
